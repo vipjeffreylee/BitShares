@@ -3,6 +3,7 @@
 
 #include <QtCore>
 #include <QtGui>
+#include <stdint.h>
 
 
 #define VERSIONNUM (int32_t(1))
