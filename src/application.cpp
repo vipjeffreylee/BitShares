@@ -114,6 +114,17 @@ namespace bts {
      my->_bitchat_client  = std::make_shared<bts::bitchat::client>( my->_peers, my.get() );
      my->_bitchat_client->configure( cfg.data_dir / "bitchat" );
 
+     for( auto itr = cfg.default_nodes.begin(); itr != cfg.default_nodes.end(); ++itr )
+     {
+          try {
+             my->_server->connect_to(*itr);
+          } 
+          catch ( const fc::exception& e )
+          {
+             wlog( "${e}", ("e",e.to_detail_string()));
+          }
+     }
+
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
 
   application_config application::get_configuration()const
