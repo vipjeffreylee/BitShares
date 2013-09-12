@@ -16,6 +16,7 @@ class BitSharesMainWindow : public SelfSizingMainWindow
     void writeSettings();
     void closeEvent(QCloseEvent *event);
     bool okToContinue() { return true; }
+    void showContextMenu(const QPoint& point);
 
 public:
     explicit BitSharesMainWindow(QWidget *parent = 0);

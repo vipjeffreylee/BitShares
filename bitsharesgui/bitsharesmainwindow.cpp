@@ -13,6 +13,12 @@ BitSharesMainWindow::BitSharesMainWindow(QWidget *parent) :
     ui->bitSharesTreeView->setUniformRowHeights(true);
     ui->bitSharesTreeView->header()->hide();
     ui->bitSharesTreeView->setModel(&_bitSharesTreeModel);
+
+    //setup right click menus for tree view
+    ui->bitSharesTreeView->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(ui->bitSharesTreeView, SIGNAL(customContextMenuRequested(const QPoint&)),
+            this, SLOT(showContextMenu(const QPoint&)));
+
     setWindowTitle("BitShare GUI");
     readSettings();
     //ui->stackedWidget
@@ -60,6 +66,11 @@ void BitSharesMainWindow::closeEvent(QCloseEvent *event)
 void BitSharesMainWindow::on_actionExit_triggered()
 {
     qApp->closeAllWindows();
+}
+
+void BitSharesMainWindow::showContextMenu(const QPoint& point)
+{
+    
 }
 
 void BitSharesMainWindow::on_actionCreateMail_triggered()

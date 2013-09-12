@@ -3,7 +3,12 @@ cmake_minimum_required( VERSION 2.8.11 )
 
 #set( CMAKE_AUTOMOC ON )
 
-set( CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} ";${CMAKE_SOURCE_DIR}/vendor/qt.5.1/5.1.0/msvc2012/lib/cmake" )
+IF( WIN32)
+  set( CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} ";${CMAKE_SOURCE_DIR}/../qt-everywhere-opensource-src-5.1.0/qtbase/lib/cmake" )
+ELSE(WIN32)
+  set( CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} ";${CMAKE_SOURCE_DIR}/vendor/qt.5.1/5.1.0/msvc2012/lib/cmake" )
+ENDIF(WIN32)
+
 set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/fc/CMakeModules" ${CMAKE_MODULE_PATH} )
 
 
