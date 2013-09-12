@@ -15,6 +15,7 @@ SET( CMAKE_CXX_FLAGS )
 IF( NOT Qt5Widgets_DIR MATCHES Qt5Widgets_DIR-NOTFOUND )
 
 set( sources
+      src/macextras/qmacfunctions.mm
       src/macextras/qmacfunctions_mac.mm
       src/macextras/qmactoolbardelegate.mm
       src/macextras/qmactoolbutton.mm
