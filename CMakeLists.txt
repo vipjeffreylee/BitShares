@@ -75,6 +75,9 @@ include_directories( ${CMAKE_SOURCE_DIR}/fc/vendor/boost_1.51/include )
 
 add_subdirectory( fc )
 add_subdirectory( vendor/miniupnp/miniupnpc )
+IF( APPLE )
+add_subdirectory( vendor/qtmacextras )
+ENDIF( APPLE )
 #add_subdirectory( vendor/libzerocoin )
 set( BOOST_LIBRARIES ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_CHRONO_LIBRARY} ${ALL_OPENSSL_LIBRARIES} ${Boost_COROUTINE_LIBRARY} ${Boost_CONTEXT_LIBRARY} ${pthread})
 
