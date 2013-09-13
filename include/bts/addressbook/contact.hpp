@@ -25,9 +25,9 @@ namespace bts { namespace addressbook {
       std::string bitname_id; 
 
       /** Key used to encode private messages sent to this contact */
-      fc::ecc::public_key     send_msg_address;
+      fc::ecc::public_key        send_msg_address;
       /** channels this contact is expected to be listening on */
-      std::vector<uint16_t>   send_msg_channels;
+      std::vector<uint16_t>      send_msg_channels;
 
       /**
        *  Private key to which broadcast messages are

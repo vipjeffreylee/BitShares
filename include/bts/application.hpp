@@ -19,6 +19,7 @@ namespace bts {
       uint16_t  network_port;
       uint16_t  rpc_port;
       bool      enable_upnp;
+      std::vector<fc::ip::endpoint> default_nodes;
   };
 
   class application_delegate
@@ -79,4 +80,4 @@ namespace bts {
 
 } // namespace bts
 
-FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_port)(enable_upnp) )
+FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_port)(enable_upnp)(default_nodes) )
