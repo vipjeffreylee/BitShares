@@ -64,7 +64,7 @@ namespace bts {
       auto stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
      
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
-      my->_addressbook->open( profile_dir / "addressbook" );
+      my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );
       my->_idents.open( profile_dir / "idents" );
       my->_message_db->open( profile_dir / "messages", profile_cfg_key );
 

@@ -1,7 +1,16 @@
 #pragma once
 #include <bts/extended_address.hpp>
+#include <fc/io/enum_type.hpp>
+#include <fc/time.hpp>
 
 namespace bts { namespace addressbook {
+
+  enum privacy_level
+  {
+      block_contact,
+      secret_contact,
+      public_contact
+  };
   
   /**
    *  Ultimately this class is used to manage all information
@@ -10,19 +19,29 @@ namespace bts { namespace addressbook {
   struct contact 
   {
       contact()
-      :version(0),next_send_trx_id(0){}
+      :version(0),
+      wallet_account_index(-1),
+      next_send_trx_id(0){}
       
       /** just incase we update the contact datafields 
        * in future versions. 
        **/
-      uint32_t    version;
+      uint32_t                             version;
+      uint32_t                             wallet_account_index;
+      fc::enum_type<uint8_t,privacy_level> privacy_setting;
 
-      std::string first_name;
-      std::string last_name;
-      std::string company;
+      std::vector<char>                    icon_png;
+      std::string                          first_name;
+      std::string                          last_name;
+      std::string                          company;
+      std::string                          phone_number;
+      std::string                          email_address;
+      fc::time_point                       known_since;
+
 
       /** bitname used by this contact (should line up with send_msg_address */
-      std::string bitname_id; 
+      std::string                bit_id; 
+      uint64_t                   bit_id_hash;
 
       /** Key used to encode private messages sent to this contact */
       fc::ecc::public_key        send_msg_address;
@@ -59,14 +78,26 @@ namespace bts { namespace addressbook {
   };
 
 } } // bts::addressbook
+FC_REFLECT_ENUM( bts::addressbook::privacy_level, 
+    (block_contact)
+    (secret_contact)
+    (public_contact) 
+)
 
 #include <fc/reflect/reflect.hpp>
 FC_REFLECT( bts::addressbook::contact,
     (version)
+    (wallet_account_index)
+    (icon_png)
+    (privacy_setting)
     (first_name)
     (last_name)
     (company)
-    (bitname_id)
+    (phone_number)
+    (email_address)
+    (bit_id)
+    (bit_id_hash)
+    (known_since)
     (send_msg_address)
     (send_msg_channels)
     (recv_broadcast_msg_address)
