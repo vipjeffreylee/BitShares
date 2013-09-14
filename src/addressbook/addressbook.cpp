@@ -19,7 +19,7 @@ namespace bts { namespace addressbook {
         public:
            fc::uint512                                             _key;
            db::level_pod_map<uint32_t,std::vector<char> >          _encrypted_contact_db;
-           std::unordered_map<uint32_t,contact>                    _number_to_contact;
+           std::unordered_map<uint32_t,wallet_contact>             _number_to_contact;
            std::unordered_map<fc::ecc::public_key_data,uint32_t>   _key_to_number;
            std::unordered_map<uint64_t,uint32_t>                   _id_to_number;
      };
@@ -34,7 +34,7 @@ namespace bts { namespace addressbook {
   {
   }
 
-  const std::unordered_map<uint32_t,contact>& addressbook::get_contacts()const
+  const std::unordered_map<uint32_t,wallet_contact>& addressbook::get_contacts()const
   {
     return my->_number_to_contact;
   }
@@ -45,6 +45,7 @@ namespace bts { namespace addressbook {
      {
         fc::create_directories( abook_dir );
      }
+     my->_key = key;
      my->_encrypted_contact_db.open( abook_dir / "contact_db" );
      auto itr = my->_encrypted_contact_db.begin();
      while( itr.valid() )
@@ -53,16 +54,17 @@ namespace bts { namespace addressbook {
         try {
             auto packed_contact = fc::aes_decrypt( key, cipher_data );
             std::string json_contact = fc::raw::unpack<std::string>(packed_contact);
-            auto next_contact = fc::json::from_string(json_contact).as<contact>();
+            ilog( "loading contact ${json}", ("json",json_contact) );
+            auto next_contact = fc::json::from_string(json_contact).as<wallet_contact>();
 
             my->_number_to_contact[itr.key()] = next_contact;
-            if( next_contact.send_msg_address.valid() )
+            if( next_contact.public_key.valid() )
             {
-                my->_key_to_number[next_contact.send_msg_address.serialize()] = itr.key();
+                my->_key_to_number[next_contact.public_key.serialize()] = itr.key();
             }
-            if( next_contact.bit_id_hash != 0 )
+            if( next_contact.dac_id_hash != 0 )
             {
-                my->_id_to_number[next_contact.bit_id_hash] = itr.key();
+                my->_id_to_number[next_contact.dac_id_hash] = itr.key();
             }
         } 
         catch ( const fc::exception& e )
@@ -70,59 +72,49 @@ namespace bts { namespace addressbook {
             // TODO: redirect these warnings someplace useful... 
             wlog( "${e}", ("e",e.to_detail_string() ) );
         }
+        ++itr;
      }
 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("directory", abook_dir) ) }
 
-  std::vector<std::string> addressbook::get_known_bitnames()const
-  {
-      std::vector<std::string> known_bitnames;
-      known_bitnames.reserve( my->_id_to_number.size() );
-      for( auto itr = my->_id_to_number.begin(); itr != my->_id_to_number.end(); ++itr )
-      {
-        known_bitnames.push_back( my->_number_to_contact[itr->second].bit_id ); 
-      }
-      return known_bitnames;
-  }
-
-  fc::optional<contact> addressbook::get_contact_by_bitname( const std::string& bitname_id )const
+  fc::optional<wallet_contact> addressbook::get_contact_by_dac_id( const std::string& dac_id )const
   { try {
-      fc::optional<contact> con;
-      auto bitid_hash = bitname::name_hash(bitname_id);
-      auto itr = my->_id_to_number.find(bitid_hash);
+      fc::optional<wallet_contact> con;
+      auto dac_id_hash = bitname::name_hash(dac_id);
+      auto itr = my->_id_to_number.find(dac_id_hash);
       if( itr != my->_id_to_number.end() )
       {
           return my->_number_to_contact[itr->second];
       }
       return con;
-  } FC_RETHROW_EXCEPTIONS( warn, "", ("bitname_id", bitname_id) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("dac_id", dac_id) ) }
 
-  std::string addressbook::get_bitname_by_address( const fc::ecc::public_key& bitname_key )const
+  fc::optional<wallet_contact> addressbook::get_contact_by_public_key( const fc::ecc::public_key& dac_id_key )const
   { try {
-      auto itr = my->_key_to_number.find( bitname_key.serialize() );
+      auto itr = my->_key_to_number.find( dac_id_key.serialize() );
       if( itr != my->_key_to_number.end() )
       {
-          return my->_number_to_contact[itr->second].bit_id;
+          return my->_number_to_contact[itr->second];
       }
-      return std::string();
-  } FC_RETHROW_EXCEPTIONS( warn, "", ("bitname_key", bitname_key) ) }
+      return fc::optional<wallet_contact>();
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("dac_id_key", dac_id_key) ) }
 
-  void    addressbook::store_contact( const contact& contact_param )
+  void    addressbook::store_contact( const wallet_contact& contact_param )
   { try {
-      FC_ASSERT( contact_param.wallet_account_index != uint32_t(-1) ); // TODO: replace magic number
+      FC_ASSERT( contact_param.wallet_index != WALLET_INVALID_INDEX ); 
 
       std::string json_contact         = fc::json::to_string(contact_param);
       std::vector<char> packed_contact = fc::raw::pack(json_contact);
       std::vector<char> cipher_contact = fc::aes_encrypt( my->_key, packed_contact );
-      my->_encrypted_contact_db.store( contact_param.wallet_account_index, cipher_contact );
-      my->_number_to_contact[contact_param.wallet_account_index] = contact_param;
-      if( contact_param.send_msg_address.valid() )
+      my->_encrypted_contact_db.store( contact_param.wallet_index, cipher_contact );
+      my->_number_to_contact[contact_param.wallet_index] = contact_param;
+      if( contact_param.public_key.valid() )
       {
-        my->_key_to_number[contact_param.send_msg_address.serialize()] = contact_param.wallet_account_index;
+        my->_key_to_number[contact_param.public_key.serialize()] = contact_param.wallet_index;
       }
-      if( contact_param.bit_id_hash != 0 )
+      if( contact_param.dac_id_hash != 0 )
       {
-        my->_id_to_number[contact_param.bit_id_hash] = contact_param.wallet_account_index;
+        my->_id_to_number[contact_param.dac_id_hash] = contact_param.wallet_index;
       }
   } FC_RETHROW_EXCEPTIONS( warn, "", ("contact", contact_param) ) }
 
