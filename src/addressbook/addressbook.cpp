@@ -103,7 +103,9 @@ namespace bts { namespace addressbook {
   { try {
       FC_ASSERT( contact_param.wallet_index != WALLET_INVALID_INDEX ); 
 
+      ilog( "to_string()" );
       std::string json_contact         = fc::json::to_string(contact_param);
+      ilog( "... did it work?" );
       std::vector<char> packed_contact = fc::raw::pack(json_contact);
       std::vector<char> cipher_contact = fc::aes_encrypt( my->_key, packed_contact );
       my->_encrypted_contact_db.store( contact_param.wallet_index, cipher_contact );
@@ -116,6 +118,6 @@ namespace bts { namespace addressbook {
       {
         my->_id_to_number[contact_param.dac_id_hash] = contact_param.wallet_index;
       }
-  } FC_RETHROW_EXCEPTIONS( warn, "", ("contact", contact_param) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "") }//, ("contact", contact_param) ) }
 
 } } // bts::addressbook

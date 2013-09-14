@@ -111,7 +111,8 @@ namespace bts { namespace addressbook {
 
       std::string          wallet_ident;      // used to generate the master public key for this identity
       float                mining_effort;
-      std::string          private_label;     // kept locally, not shared
+      std::string          first_name;     // kept locally, not shared
+      std::string          last_name;     // kept locally, not shared
       std::vector<char>    private_icon_png;  // kept locally, not shared
   };
 
@@ -129,7 +130,8 @@ namespace bts { namespace addressbook {
       /** used to generate the extended private key for this contact */
       uint32_t                               wallet_index;
       fc::enum_type<uint8_t,privacy_level>   privacy_setting;
-      std::string                            label;
+      std::string                            first_name;
+      std::string                            last_name;
       std::vector<char>                      icon_png; 
 
       std::string                            notes;
@@ -208,7 +210,8 @@ FC_REFLECT( bts::addressbook::contact,
 FC_REFLECT_DERIVED( bts::addressbook::wallet_contact, (bts::addressbook::contact),
      (wallet_index)
      (privacy_setting)
-     (label)
+     (first_name)
+     (last_name)
      (icon_png)
      (notes)
      (next_send_trx_id)
