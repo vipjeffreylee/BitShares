@@ -491,9 +491,11 @@ namespace bts { namespace bitname {
 
           /* ===================================================== */   
           void request_block_headers( const connection_ptr& con )
-          {
+          { try {
+              ilog( "requesting block headers from ${ep}", ("ep",con->remote_endpoint() ));
               chan_data& cdat = get_channel_data(con);
-              FC_ASSERT( !cdat.requested_headers );
+              if( cdat.requested_headers ) 
+                  return;
 
               ilog( "requesting block headers from ${ep}", ("ep",con->remote_endpoint() ));
               get_headers_message  request;
@@ -507,7 +509,7 @@ namespace bts { namespace bitname {
               }
               cdat.requested_headers = fc::time_point::now();
               con->send( network::message(request,_chan_id) );
-          }
+          } FC_RETHROW_EXCEPTIONS( warn, "") }
 
           /* ===================================================== */   
           void handle_name_inv( const connection_ptr& con,  chan_data& cdat, const name_inv_message& msg )

@@ -64,7 +64,7 @@ namespace bts {
       auto stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
      
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
-      my->_addressbook->open( profile_dir / "addressbook" );
+      my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );
       my->_idents.open( profile_dir / "idents" );
       my->_message_db->open( profile_dir / "messages", profile_cfg_key );
 
@@ -91,7 +91,7 @@ namespace bts {
   //void  profile::cache( const bts::blockchain::meta_transaction& mtrx );
   void    profile::cache( const bts::bitchat::decrypted_message& msg    )
   { try {
-    my->_message_db->store( msg );
+    //my->_message_db->store( msg );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg)) }
   /*
   std::vector<meta_transaction> profile::get_transactions()const

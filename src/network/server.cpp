@@ -29,6 +29,7 @@ namespace bts { namespace network {
           }
           void close()
           {
+              ilog( "closing connections..." );
               try 
               {
                   for( auto i = pending_connections.begin(); i != pending_connections.end(); ++i )
@@ -88,8 +89,13 @@ namespace bts { namespace network {
               auto cptr = c.shared_from_this();
               FC_ASSERT( ser_del != nullptr );
               FC_ASSERT( cptr );
+              ilog( "..." );
               ser_del->on_disconnected( cptr );
-              connections.erase( c.remote_endpoint() );
+              ilog( "find.." );
+              auto itr = connections.find(c.remote_endpoint());
+              ilog( "erase.." );
+              connections.erase( itr ); //c.remote_endpoint() );
+              ilog( "donee.." );
             } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
           }
 

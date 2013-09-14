@@ -131,7 +131,10 @@ namespace bts { namespace bitname {
         //  ilog( "wait for complete" );
            for( uint32_t i = 0; i < DEFAULT_MINING_THREADS; ++i )
            {
-              if( _mining_complete[i].valid() ) _mining_complete[i].wait();
+              if( _mining_complete[i].valid() )
+              {
+                  _mining_complete[i].wait();
+              }
            }
          // ilog( "start next" );
 

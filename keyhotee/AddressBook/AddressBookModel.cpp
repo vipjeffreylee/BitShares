@@ -1,8 +1,73 @@
 #include "AddressBookModel.hpp"
 #include <QIcon>
+#include <QPixmap>
+#include <QImage>
 
+#include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/log/logger.hpp>
+#include <fc/io/raw.hpp>
+
+
+
+const QIcon& Contact::getIcon()const
+{
+    return icon;
+}
+
+Contact::Contact( const bts::addressbook::wallet_contact& c )
+:bts::addressbook::wallet_contact(c)
+{
+   if( c.icon_png.size() )
+   {
+        QImage img;
+        if( img.loadFromData( (unsigned char*)icon_png.data(), icon_png.size() ) )
+        {
+            icon = QIcon( QPixmap::fromImage(img) );
+        }
+        else
+        {
+            wlog( "unable to load icon for contact ${c}", ("c",c) );
+        }
+   }
+   else
+   {
+      icon.addFile(QStringLiteral(":/images/user.png"), QSize(), QIcon::Normal, QIcon::Off);
+   }
+}
+
+
+
+void Contact::setIcon( const QIcon& icon )
+{
+   this->icon = icon;
+   if( !icon.isNull() )
+   {
+       QImage image;
+       QByteArray ba;
+       QBuffer buffer(&ba);
+       buffer.open(QIODevice::WriteOnly);
+       image.save(&buffer, "PNG"); // writes image into ba in PNG format
+   
+       icon_png.resize( ba.size() );
+       memcpy( icon_png.data(), ba.data(), ba.size() );
+   }
+   else
+   {
+        icon_png.resize(0);
+   }
+}
+
+QString Contact::getLabel()const
+{
+   QString label = (first_name + " " + last_name).c_str();
+   if( label == " " )
+   {
+        return dac_id_string.c_str();
+   }
+   return label;
+}
+
 
 namespace Detail 
 {
@@ -22,23 +87,16 @@ AddressBookModel::AddressBookModel( QObject* parent, bts::addressbook::addressbo
 {
    my->_abook = abook;
    my->_default_icon.addFile(QStringLiteral(":/images/user.png"), QSize(), QIcon::Normal, QIcon::Off);
-   /*
-   auto known = abook->get_known_bitnames();
-   my->_contacts.reserve(known.size());
-   for( auto itr = known.begin(); itr != known.end(); ++itr )
+
+   const std::unordered_map<uint32_t,bts::addressbook::wallet_contact>& loaded_contacts = abook->get_contacts();
+   my->_contacts.reserve( loaded_contacts.size() );
+   for( auto itr = loaded_contacts.begin(); itr != loaded_contacts.end(); ++itr )
    {
-       auto opt_contact = my->_abook->get_contact_by_bitname( *itr );
-       if( !opt_contact )
-       {
-          wlog( "broken addressbook, unable to find ${name} ", ("name",*itr) );
-       }
-       else
-       {
-          my->_contacts.push_back( *opt_contact );
-       }
+      ilog( "loading contacts..." );
+      my->_contacts.push_back( Contact(itr->second) );
    }
-   */
 }
+
 AddressBookModel::~AddressBookModel()
 {
 }
@@ -126,9 +184,7 @@ QVariant AddressBookModel::data( const QModelIndex& index, int role )const
           switch( (Columns)index.column() )
           {
              case UserIcon:
-                 if( current_contact.icon.isNull() ) 
-                    return my->_default_icon;
-                 return current_contact.icon;
+                 return current_contact.getIcon();
              default:
                 return QVariant();
           }
@@ -136,11 +192,11 @@ QVariant AddressBookModel::data( const QModelIndex& index, int role )const
           switch( (Columns)index.column() )
           {
              case FirstName:
-                 return current_contact.first_name;
+                 return current_contact.first_name.c_str();
              case LastName:
-                 return current_contact.last_name;
+                 return current_contact.last_name.c_str();
              case Id:
-                 return current_contact.bit_id;
+                 return current_contact.dac_id_string.c_str();
              case Age:
                  return 0;
              case Repute:
@@ -156,25 +212,41 @@ QVariant AddressBookModel::data( const QModelIndex& index, int role )const
 
 int AddressBookModel::storeContact( const Contact& contact_to_store )
 {
-   if( contact_to_store.wallet_account_index == -1 )
+   if( contact_to_store.wallet_index == WALLET_INVALID_INDEX )
    {
        auto num_contacts = my->_contacts.size();
        beginInsertRows( QModelIndex(), num_contacts, num_contacts );
           my->_contacts.push_back(contact_to_store);
-          my->_contacts.back().wallet_account_index =  my->_contacts.size()-1;
+          my->_contacts.back().wallet_index =  my->_contacts.size()-1;
        endInsertRows();
-       // TODO: store to disk...
-       return my->_contacts.back().wallet_account_index;
+       my->_abook->store_contact( my->_contacts.back() );
+       return my->_contacts.back().wallet_index;
    }
-   else
-   {
-       FC_ASSERT( contact_to_store.wallet_account_index < int(my->_contacts.size()) );
-       auto row = contact_to_store.wallet_account_index;
-       my->_contacts[row] = contact_to_store;
 
-       Q_EMIT dataChanged( index( row, 0 ), index( row, NumColumns - 1) );
-       return contact_to_store.wallet_account_index;
-   }
+   FC_ASSERT( contact_to_store.wallet_index < int(my->_contacts.size()) );
+   auto row = contact_to_store.wallet_index;
+   my->_contacts[row] = contact_to_store;
+   my->_abook->store_contact(  my->_contacts[row]  );
+
+   Q_EMIT dataChanged( index( row, 0 ), index( row, NumColumns - 1) );
+   return contact_to_store.wallet_index;
 }
 
+const Contact& AddressBookModel::getContactById( int contact_id )
+{
+   for( uint32_t i = 0; i < my->_contacts.size(); ++i )
+   {
+        if( my->_contacts[i].wallet_index == contact_id )
+        {
+            return my->_contacts[i];
+        }
+   }
+   FC_ASSERT( !"invalid contact id" ); 
+   //FC_ASSERT( !"invalid contact id ${id}", ("id",contact_id) );
+}
+const Contact& AddressBookModel::getContact( const QModelIndex& index  )
+{
+   FC_ASSERT(index.row() < (int)my->_contacts.size() );
+   return my->_contacts[index.row()];
+}
 

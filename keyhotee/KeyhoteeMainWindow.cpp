@@ -1,8 +1,10 @@
 #include "ui_KeyhoteeMainWindow.h"
 #include "KeyhoteeMainWindow.hpp"
 #include "AddressBook/AddressBookModel.hpp"
+#include "MailEditor/MailEditor.hpp"
 #include <bts/application.hpp>
 #include <QLineEdit>
+#include <bts/bitchat/bitchat_private_message.hpp>
 
 #ifdef Q_OS_MAC
 #include <qmacnativetoolbar.h>
@@ -10,6 +12,11 @@
 
 #include <fc/reflect/variant.hpp>
 #include <fc/log/logger.hpp>
+
+enum SidebarItemRoles
+{
+    ContactIdRole = Qt::UserRole
+};
 
 enum TopLevelItemIndexes
 {
@@ -30,12 +37,54 @@ enum SidebarItemTypes
     ContactItem  = 4
 };
 
+
+class ApplicationDelegate : public bts::application_delegate
+{
+    public:
+     KeyhoteeMainWindow& _mainwindow;
+     ApplicationDelegate( KeyhoteeMainWindow& window )
+     :_mainwindow(window)
+     {
+     }
+
+     virtual void received_text( const bts::bitchat::private_text_message& msg, 
+                                 const fc::ecc::public_key& from, 
+                                 const fc::ecc::public_key& to )
+     {
+        auto opt_contact = _mainwindow._addressbook->get_contact_by_public_key( from );
+        if( !opt_contact )
+        {
+            elog( "Recieved text from unknown contact!" );
+        }
+        else
+        {
+            wlog( "Received text from known contact!" );
+            _mainwindow.openContact(opt_contact->wallet_index);
+
+            auto cv = _mainwindow.getContactView( opt_contact->wallet_index );
+            if( cv )
+            {
+              cv->appendChatMessage( msg.msg.c_str() );
+            }
+        }
+     }
+
+     virtual void received_email( const bts::bitchat::private_email_message& msg, 
+                                  const fc::ecc::public_key& from, 
+                                  const fc::ecc::public_key& to )
+     {
+     }
+};
+
 KeyhoteeMainWindow::KeyhoteeMainWindow()
 :QMainWindow()
 {
+    _app_delegate.reset( new ApplicationDelegate(*this) );
     ui.reset( new Ui::KeyhoteeMainWindow() );
     ui->setupUi(this);
     setWindowIcon( QIcon( ":/images/shield1024.png" ) );
+
+    connect( ui->contacts_page, &ContactsTable::contactOpened, this, &KeyhoteeMainWindow::openContact );
 
 #ifdef Q_OS_MAC
     //QMacNativeToolBar* native_toolbar = QtMacExtras::setNativeToolBar(ui->toolbar, true);
@@ -70,8 +119,10 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
     ui->toolbar->addWidget(empty2);
     
 
+    connect( ui->actionNew_Message, &QAction::triggered, this, &KeyhoteeMainWindow::newMessage );
     connect( ui->actionNew_Contact, &QAction::triggered, this, &KeyhoteeMainWindow::addContact );
     connect( ui->actionShow_Contacts, &QAction::triggered, this, &KeyhoteeMainWindow::showContacts );
+    connect( ui->splitter, &QSplitter::splitterMoved, this, &KeyhoteeMainWindow::sideBarSplitterMoved );
 
     auto space2     = ui->side_bar->topLevelItem(TopLevelItemIndexes::Space2);
     auto space_flags = space2->flags() & (~ Qt::ItemFlags(Qt::ItemIsSelectable) );
@@ -91,11 +142,14 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
 
 
     auto app    = bts::application::instance();
+    app->set_application_delegate( _app_delegate.get() );
     auto pro    = app->get_profile();
     auto idents = pro->identities();
 
 
     _addressbook_model  = new AddressBookModel( this, pro->get_addressbook() );
+    connect( _addressbook_model, &QAbstractItemModel::dataChanged, this, &KeyhoteeMainWindow::addressBookDataChanged );
+
     ui->contacts_page->setAddressBook(_addressbook_model);
 
     ui->new_contact->setAddressBook(_addressbook_model);
@@ -122,6 +176,9 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
                         pro->get_keychain().get_identity_key( idents[i].bit_id ).get_public_key(), 
                         idents[i].mining_effort );
     }
+    _addressbook = pro->get_addressbook();
+
+    /*
     auto abook  = pro->get_addressbook();
     auto contacts = abook->get_known_bitnames();
     for( auto itr = contacts.begin(); itr != contacts.end(); ++itr )
@@ -138,6 +195,7 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
            new_contact_item->setText( 0, (*itr + " [" + std::to_string(id_rec->repute)+"]" ).c_str() );
         }
     }
+    */
 
     connect( ui->side_bar, &QTreeWidget::itemSelectionChanged, this, &KeyhoteeMainWindow::onSidebarSelectionChanged );
 }
@@ -165,6 +223,29 @@ void KeyhoteeMainWindow::addContact()
   ui->new_contact->setContact( Contact() );
   ui->widget_stack->setCurrentWidget( ui->new_contact );
 }
+
+void KeyhoteeMainWindow::sideBarSplitterMoved( int pos, int index )
+{
+    if( pos <= 5 )
+    {
+        ui->splitter->setHandleWidth(5);
+    }
+    else
+    {
+        ui->splitter->setHandleWidth(0);
+    }
+}
+
+void KeyhoteeMainWindow::addressBookDataChanged( const QModelIndex& top_left, const QModelIndex& bottom_right, const QVector<int>& roles )
+{
+   const Contact& changed_contact = _addressbook_model->getContact(top_left);
+   auto itr = _contact_widgets.find( changed_contact.wallet_index );
+   if( itr != _contact_widgets.end() )
+   {
+        itr->second.tree_item->setText( 0, changed_contact.getLabel() );
+   }
+}
+
 void KeyhoteeMainWindow::onSidebarSelectionChanged()
 {
    QList<QTreeWidgetItem*> selected_items = ui->side_bar->selectedItems();
@@ -172,7 +253,8 @@ void KeyhoteeMainWindow::onSidebarSelectionChanged()
    {
       if( selected_items[0]->type() == ContactItem )
       {
-          selectContactItem( selected_items[0] );
+          auto con_id = selected_items[0]->data(0, ContactIdRole ).toInt();
+          openContact(con_id);
       }
       else if( selected_items[0]->type() == IdentityItem )
       {
@@ -180,7 +262,7 @@ void KeyhoteeMainWindow::onSidebarSelectionChanged()
       }
       else if( selected_items[0] == _contacts_root )
       {
-
+          showContacts();
       }
       else if( selected_items[0] == _mailboxes_root )
       {
@@ -216,3 +298,56 @@ void KeyhoteeMainWindow::showContacts()
   ui->side_bar->setCurrentItem( _contacts_root );
   ui->widget_stack->setCurrentWidget( ui->contacts_page );
 }
+
+void KeyhoteeMainWindow::newMessage()
+{
+  auto msg_window = new MailEditor(this);
+  msg_window->show();
+}
+ContactView* KeyhoteeMainWindow::getContactView( int contact_id )
+{
+   auto itr = _contact_widgets.find(contact_id);
+   if( itr != _contact_widgets.end() )
+   {
+       return itr->second.view;
+   }
+   return nullptr;
+}
+void KeyhoteeMainWindow::openContact( int contact_id )
+{
+    if( contact_id == -1 ) // TODO: define -1 as AddressBookID
+    {
+        showContacts();
+        return;
+    }
+    else
+    {
+        auto itr = _contact_widgets.find(contact_id);
+        if( itr != _contact_widgets.end() )
+        {
+           ui->side_bar->setCurrentItem( itr->second.tree_item );
+           ui->widget_stack->setCurrentWidget( itr->second.view );
+        }
+        else
+        {
+           auto new_contact_item = new QTreeWidgetItem(_contacts_root, 
+                                                       (QTreeWidgetItem::ItemType)ContactItem );
+           new_contact_item->setData( 0, ContactIdRole, contact_id );
+
+           const Contact& con = _addressbook_model->getContactById( contact_id );
+           new_contact_item->setText( 0, con.getLabel() );
+           ContactWidgets con_widgets;
+           con_widgets.tree_item = new_contact_item;
+
+           con_widgets.view = new ContactView( ui->widget_stack );
+           con_widgets.view->setAddressBook( _addressbook_model );
+           con_widgets.view->setContact(con);
+
+           ui->widget_stack->addWidget( con_widgets.view );
+           _contact_widgets[contact_id] = con_widgets;
+
+           openContact(contact_id);
+        }
+    }
+}
+
