@@ -17,7 +17,9 @@ FC_REFLECT( age_index, (timestamp)(message_id) );
 
 bool operator < ( const age_index& a, const age_index& b )
 {
-   return a.timestamp < b.timestamp ? true : a.message_id < b.message_id;
+   if( a.timestamp < b.timestamp ) return true;
+   if( a.timestamp > b.timestamp ) return false;
+   return a.message_id < b.message_id;
 }
 bool operator == ( const age_index& a, const age_index& b )
 {

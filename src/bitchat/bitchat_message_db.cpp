@@ -12,14 +12,14 @@ namespace bts { namespace bitchat {
   
   bool operator < ( const message_header& a, const message_header& b )
   {
-     if( a.type.value > b.type.value ) return false;
      if( a.type.value < b.type.value ) return true;
-     if( a.received_time > b.received_time ) return false;
+     if( a.type.value > b.type.value ) return false;
      if( a.received_time < b.received_time ) return true;
-     if( a.to_key > b.to_key ) return false;
+     if( a.received_time > b.received_time ) return false;
      if( a.to_key < b.to_key ) return true;
-     if( a.from_key > b.from_key ) return false;
-     return true;
+     if( a.to_key > b.to_key ) return false;
+     if( a.from_key < b.from_key ) return true;
+     return false;
   }
 
   bool operator == ( const message_header& a, const message_header& b )
