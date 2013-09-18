@@ -37,16 +37,19 @@ namespace bts { namespace network {
 
           void read_loop()
           {
+            const int BUFFER_SIZE = 16;
+            const int MSG_HEADER_SIZE = sizeof(message_header);
+            const int LEFTOVER = BUFFER_SIZE - MSG_HEADER_SIZE;
             try {
                message m;
                while( true )
                {
-                  char tmp[16];
-                  sock->read( tmp, sizeof(tmp) );
-                  memcpy( (char*)&m, tmp, 8 );
-                  m.data.resize( m.size + 16 );
-                  memcpy( (char*)m.data.data(), tmp+8, 8 );
-                  sock->read( m.data.data() + 8, 16*((m.size -8 + 15)/16) );
+                  char tmp[BUFFER_SIZE];
+                  sock->read( tmp, BUFFER_SIZE );
+                  memcpy( (char*)&m, tmp, MSG_HEADER_SIZE );
+                  m.data.resize( m.size + 16 ); //give extra 16 bytes to allow for padding added in send call
+                  memcpy( (char*)m.data.data(), tmp + MSG_HEADER_SIZE, LEFTOVER );
+                  sock->read( m.data.data() + LEFTOVER, 16*((m.size -LEFTOVER + 15)/16) );
 
                   try { // message handling errors are warnings... 
                     con_del->on_connection_message( self, m );
@@ -198,11 +201,11 @@ namespace bts { namespace network {
   {
     try {
       fc::scoped_lock<fc::mutex> lock(my->write_lock);
-      size_t len = 8 + m.size;
+      size_t len = sizeof(message_header) + m.size;
       len = 16*((len+15)/16);
       std::vector<char> tmp(len);
-      memcpy( tmp.data(), (char*)&m, 8 );
-      memcpy( tmp.data() + 8, m.data.data(), m.size );
+      memcpy( tmp.data(), (char*)&m, sizeof(message_header) );
+      memcpy( tmp.data() + sizeof(message_header), m.data.data(), m.size );
       my->sock->write( tmp.data(), tmp.size() );
       my->sock->flush();
     } FC_RETHROW_EXCEPTIONS( warn, "unable to send message" );
