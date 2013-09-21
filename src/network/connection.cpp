@@ -202,7 +202,7 @@ namespace bts { namespace network {
     try {
       fc::scoped_lock<fc::mutex> lock(my->write_lock);
       size_t len = sizeof(message_header) + m.size;
-      len = 16*((len+15)/16);
+      len = 16*((len+15)/16); //pad the message we send to a multiple of 16 bytes
       std::vector<char> tmp(len);
       memcpy( tmp.data(), (char*)&m, sizeof(message_header) );
       memcpy( tmp.data() + sizeof(message_header), m.data.data(), m.size );
