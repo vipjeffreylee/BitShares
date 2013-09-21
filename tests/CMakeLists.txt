@@ -12,3 +12,6 @@ target_link_libraries( pow_test bshare fc ${BOOST_LIBRARIES})
 
 add_executable( timekeeper timekeeper.cpp )
 target_link_libraries( timekeeper bshare fc ${BOOST_LIBRARIES}  ${PLATFORM_SPECIFIC_LIBS} )
+
+add_executable( evpow evpow.cpp )
+target_link_libraries( evpow fc ${BOOST_LIBRARIES}  ${PLATFORM_SPECIFIC_LIBS} )
