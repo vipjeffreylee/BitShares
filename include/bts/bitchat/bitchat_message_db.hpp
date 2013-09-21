@@ -13,6 +13,8 @@ namespace bts { namespace bitchat {
 
   struct message_header
   {
+      message_header():read_mark(false){}
+
       fc::enum_type<uint32_t,private_message_type>   type;
       fc::time_point_sec                             received_time;
       fc::ecc::public_key_data                       to_key;
