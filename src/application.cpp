@@ -163,7 +163,7 @@ namespace bts {
     std::vector<identity>   idents = tmp_profile->identities();
     for( auto itr = idents.begin(); itr != idents.end(); ++itr )
     {
-       recv_keys.push_back( keychain.get_identity_key( itr->bit_id ) );
+       recv_keys.push_back( keychain.get_identity_key( itr->dac_id ) );
     }
     my->_bitchat_client->set_receive_keys( recv_keys );
 
@@ -219,6 +219,7 @@ namespace bts {
      my->_bitchat_client->send_message( msg, to, 0/* chan 0 */ );
 
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
+
 
   void  application::send_text_message( const bitchat::private_text_message& txtmsg, 
                                         const fc::ecc::public_key& to, const fc::ecc::private_key& from )

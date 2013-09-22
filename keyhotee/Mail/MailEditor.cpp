@@ -1,44 +1,3 @@
-/****************************************************************************
-**
-** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
-** Contact: http://www.qt-project.org/legal
-**
-** This file is part of the demonstration applications of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:LGPL$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and Digia.  For licensing terms and
-** conditions see http://qt.digia.com/licensing.  For further information
-** use the contact form at http://qt.digia.com/contact-us.
-**
-** GNU Lesser General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU Lesser
-** General Public License version 2.1 as published by the Free Software
-** Foundation and appearing in the file LICENSE.LGPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU Lesser General Public License version 2.1 requirements
-** will be met: http://www.gnu.org/licenses/old-licenses/lgpl-2.1.html.
-**
-** In addition, as a special exception, Digia gives you certain additional
-** rights.  These rights are described in the Digia Qt LGPL Exception
-** version 1.1, included in the file LGPL_EXCEPTION.txt in this package.
-**
-** GNU General Public License Usage
-** Alternatively, this file may be used under the terms of the GNU
-** General Public License version 3.0 as published by the Free Software
-** Foundation and appearing in the file LICENSE.GPL included in the
-** packaging of this file.  Please review the following information to
-** ensure the GNU General Public License version 3.0 requirements will be
-** met: http://www.gnu.org/copyleft/gpl.html.
-**
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
-
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
@@ -71,6 +30,9 @@
 
 #include "MailEditor.hpp"
 #include <fc/log/logger.hpp>
+
+#include <bts/application.hpp>
+#include <bts/profile.hpp>
 
 #ifdef Q_OS_MAC
 const QString rsrcPath = ":/images/mac";
@@ -216,8 +178,10 @@ void MailEditor::setupMailActions()
     fieldsMenu = new QMenu( tr("Mail Fields") );
     actionToggleCc = fieldsMenu->addAction( "Cc:" );
     actionToggleBcc = fieldsMenu->addAction( "Bcc:" );
+    actionToggleFrom = fieldsMenu->addAction( "From:" );
     actionToggleCc->setCheckable(true);
     actionToggleBcc->setCheckable(true);
+    actionToggleFrom->setCheckable(true);
 
     fieldsButton = new QToolButton();
     fieldsButton->setIcon(QIcon( ":/images/gear.png" ) );
@@ -274,12 +238,20 @@ void MailEditor::setupAddressBar()
    cc_field = nullptr; //new QLineEdit(address_bar);
    bcc_field = nullptr; //new QLineEdit(address_bar);
    from_field = new QComboBox(address_bar);
+   auto idents = bts::application::instance()->get_profile()->identities();
+   for( uint32_t i = 0; i < idents.size(); ++i )
+   {
+      // TODO: add user icon?
+      elog( "From field... " );
+      from_field->insertItem( i, idents[i].dac_id.c_str() );
+   }
    subject_field = new QLineEdit(address_bar);
    setWindowTitle( tr( "New Message" ) ); 
    updateAddressBarLayout();
 
    connect( actionToggleCc, &QAction::toggled,  [=](bool state) { updateAddressBarLayout(); } );
    connect( actionToggleBcc, &QAction::toggled,  [=](bool state) { updateAddressBarLayout(); } );
+   connect( actionToggleFrom, &QAction::toggled,  [=](bool state) { updateAddressBarLayout(); } );
 }
 void MailEditor::updateAddressBarLayout()
 {
@@ -321,10 +293,19 @@ void MailEditor::updateAddressBarLayout()
    address_layout->addRow( "Subject:",  subject_field);
    connect( subject_field, &QLineEdit::textChanged, this, &MailEditor::subjectChanged );
 
-   from_field = new QComboBox(address_bar);
-  // from_field->setText( from_text );
-   address_layout->addRow( "From:", from_field );
-
+   if( actionToggleFrom->isChecked() )
+   {
+      from_field = new QComboBox(address_bar);
+      auto idents = bts::application::instance()->get_profile()->identities();
+      for( uint32_t i = 0; i < idents.size(); ++i )
+      {
+         // TODO: add user icon?
+         elog( "From field... " );
+         from_field->insertItem( i, idents[i].dac_id.c_str() );
+      }
+     // from_field->setText( from_text );
+      address_layout->addRow( "From:", from_field );
+   }
    address_layout->setFieldGrowthPolicy( QFormLayout::ExpandingFieldsGrow );
    layout->addWidget( address_bar, 1, 0 );
 }
@@ -399,12 +380,13 @@ void MailEditor::setupMoneyToolBar()
     money_amount = new QLineEdit(tb);
     money_amount->setPlaceholderText( "0.00" );
     money_unit   = new QComboBox(tb);
-    money_unit->insertItem( 0, QIcon::fromTheme("currency-bitcoin", QIcon( ":/images/bitcoin.jpeg" ) ), QString("BTC") );
-    money_unit->insertItem( 1, QIcon::fromTheme("currency-bitusd", QIcon( ":/images/bitusd.png" ) ), QString("BitUSD") );
+    money_unit->insertItem( 0, QIcon::fromTheme("currency-bitcoin", QIcon( ":/images/bitcoin.png" ) ), QString("BTC") );
+    money_unit->insertItem( 1, QIcon::fromTheme("currency-litecoin", QIcon( ":/images/litecoin128.png" ) ), QString("LTC") );
+    money_unit->insertItem( 2, QIcon::fromTheme("currency-bitusd", QIcon( ":/images/bitusd.png" ) ), QString("BitUSD") );
 
     connect( money_unit, SIGNAL(currentIndexChanged(int)), this, SLOT(moneyUnitChanged(int)) );
     
-    money_balance = new QLabel("Balance: 0.00 BTC",tb );
+    money_balance = new QLabel("Balance: 17.76 BTC",tb );
 
     QWidget* spacer = new QWidget(tb);
     QWidget* spacer2 = new QWidget(tb);
@@ -423,9 +405,12 @@ void MailEditor::moneyUnitChanged( int index )
     switch( index )
     {
        case 0:
-          money_balance->setText( "Balance: 0.00 BTC" );
+          money_balance->setText( "Balance: 17.76 BTC" );
           break;
        case 1:
+          money_balance->setText( "Balance: 0.00 LTC" );
+          break;
+       case 2:
           money_balance->setText( "Balance: 0.00 BitUSD" );
           break;
     }

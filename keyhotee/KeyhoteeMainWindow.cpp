@@ -186,14 +186,16 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
     auto pro    = app->get_profile();
     auto idents = pro->identities();
 
-    _inbox = new InboxModel(this,pro->get_inbox());
+    _inbox  = new InboxModel(this,pro);
 
     _addressbook_model  = new AddressBookModel( this, pro->get_addressbook() );
     connect( _addressbook_model, &QAbstractItemModel::dataChanged, this, &KeyhoteeMainWindow::addressBookDataChanged );
 
     ui->contacts_page->setAddressBook(_addressbook_model);
     ui->new_contact->setAddressBook(_addressbook_model);
-    ui->inbox_page->setModel(_inbox);
+    ui->inbox_page->setModel(_inbox, MailInbox::Inbox);
+    ui->draft_box_page->setModel(_inbox, MailInbox::Drafts);
+    ui->sent_box_page->setModel(_inbox, MailInbox::Sent);
 
 
     wlog( "idents: ${idents}", ("idents",idents) );
@@ -213,8 +215,8 @@ KeyhoteeMainWindow::KeyhoteeMainWindow()
            new_ident_item->setText( 0, (idents[i].bit_id + " [" + std::to_string(id_rec->repute)+"]" ).c_str() );
         }
     */
-        app->mine_name( idents[i].bit_id, 
-                        pro->get_keychain().get_identity_key( idents[i].bit_id ).get_public_key(), 
+        app->mine_name( idents[i].dac_id, 
+                        pro->get_keychain().get_identity_key( idents[i].dac_id ).get_public_key(), 
                         idents[i].mining_effort );
     }
     _addressbook = pro->get_addressbook();
@@ -393,4 +395,19 @@ void KeyhoteeMainWindow::openContact( int contact_id )
         }
     }
 }
+
+void KeyhoteeMainWindow::saveDraft( const DraftMessage& draft )
+{
+  // auto data = fc::raw::pack(draft);
+   //bts::application::instance()->save_draft( draft );
+}
+
+void KeyhoteeMainWindow::sendMessage( const DraftMessage& draft )
+{ try {
+  // FC_ASSERT( draft.to );
+
+   
+
+} FC_RETHROW_EXCEPTIONS( warn, "", ("Draft",draft) ) }
+
 

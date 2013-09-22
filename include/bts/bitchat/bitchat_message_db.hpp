@@ -10,6 +10,13 @@ namespace bts { namespace bitchat {
 
   namespace detail { class message_db_impl; }
 
+  enum message_status
+  {
+      draft,
+      received,
+      doing_pow,
+      waiting_ack
+  };
 
   struct message_header
   {
@@ -20,6 +27,7 @@ namespace bts { namespace bitchat {
       fc::ecc::public_key_data                       to_key;
       fc::ecc::public_key_data                       from_key;
       fc::uint256                                    digest;
+      fc::enum_type<uint8_t,message_status>          status;
       fc::ecc::compact_signature                     from_sig;
       fc::time_point_sec                             from_sig_time;
       fc::time_point_sec                             ack_time;   // the time the ack for this msg was received
@@ -51,10 +59,10 @@ namespace bts { namespace bitchat {
        void store( const decrypted_message& m );
        
        std::vector<message_header>  fetch_headers( private_message_type t, 
-                                                   fc::time_point_sec from_time, 
-                                                   fc::time_point_sec to_time,
-                                                   fc::optional<fc::ecc::public_key_data> to_key,
-                                                   fc::optional<fc::ecc::public_key_data> from_key );
+                                           fc::time_point_sec from_time = fc::time_point(), 
+                                           fc::time_point_sec to_time = fc::time_point::maximum(),
+                                           fc::optional<fc::ecc::public_key_data> to_key = fc::optional<fc::ecc::public_key_data>(),
+                                           fc::optional<fc::ecc::public_key_data> from_key  = fc::optional<fc::ecc::public_key_data>());
        
        std::vector<char>            fetch_data(  const fc::uint256& digest );
      private:
@@ -64,6 +72,8 @@ namespace bts { namespace bitchat {
   typedef std::shared_ptr<message_db> message_db_ptr;
 
 } } // bts::bitchat
+FC_REFLECT_ENUM( bts::bitchat::message_status, 
+      (draft)(received)(doing_pow)(waiting_ack) )
 
 FC_REFLECT( bts::bitchat::message_header, 
     (type)
@@ -75,4 +85,5 @@ FC_REFLECT( bts::bitchat::message_header,
     (from_sig_time)
     (ack_time)
     (read_mark)
+    (status)
     )
