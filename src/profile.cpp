@@ -21,6 +21,7 @@ namespace bts {
             addressbook::addressbook_ptr         _addressbook;
             bitchat::message_db_ptr              _message_db;
             db::level_map<std::string, identity> _idents;
+            std::vector<bitchat::email_draft>    _drafts;
      };
 
   } // namespace detail
@@ -114,5 +115,18 @@ namespace bts {
      return my->_keychain;
   }
   
+  const std::vector<bitchat::email_draft>&   profile::get_drafts()const
+  {
+      return my->_drafts;
+  }
+  void profile::save_draft( const bitchat::email_draft& draft )
+  { try {
+     
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("draft",draft) ) }
+
+  void profile::delete_draft( uint32_t draft_id )
+  { try {
+     
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("draft",draft_id) ) }
 
 } // namespace bts

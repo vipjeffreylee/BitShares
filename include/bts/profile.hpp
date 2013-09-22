@@ -1,6 +1,7 @@
 #pragma once
 #include <bts/bitchat/bitchat_private_message.hpp>
 #include <bts/bitchat/bitchat_message_db.hpp>
+#include <bts/bitchat/email_draft.hpp>
 #include <bts/addressbook/addressbook.hpp>
 #include <bts/keychain.hpp>
 #include <fc/reflect/reflect.hpp>
@@ -16,7 +17,6 @@ namespace bts {
      std::string                  bit_id; // underlying BitID label
                                   
      float                        mining_effort; // how much effort to apply to mining (0-1)
-  //   std::vector<friend_status>   friends;
      fc::variant_object           properties; // custom properties attached to the identity.
   };
 
@@ -88,14 +88,18 @@ namespace bts {
       void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password );
       void  open( const fc::path& profile_dir, const std::string& password );
 
-      std::vector<identity>         identities()const;
-      void                          store_identity( const identity& id );
+      std::vector<identity>               identities()const;
+      void                                store_identity( const identity& id );
       
       /**
        *  Checks the transaction to see if any of the inp
        */
       //void                          cache( const bts::blockchain::meta_transaction& mtrx );
-      void                          cache( const bts::bitchat::decrypted_message& msg    );
+      void                                cache( const bts::bitchat::decrypted_message& msg    );
+
+      void                                       save_draft( const bts::bitchat::email_draft& draft );
+      void                                       delete_draft( uint32_t draft_id );
+      const std::vector<bts::bitchat::email_draft>&   get_drafts()const;
 
       // std::vector<meta_transaction> get_transactions()const;
       bitchat::message_db_ptr       get_inbox()const;

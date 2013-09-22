@@ -220,6 +220,7 @@ namespace bts {
 
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
+
   void  application::send_text_message( const bitchat::private_text_message& txtmsg, 
                                         const fc::ecc::public_key& to, const fc::ecc::private_key& from )
   { try {
