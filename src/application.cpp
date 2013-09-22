@@ -163,7 +163,7 @@ namespace bts {
     std::vector<identity>   idents = tmp_profile->identities();
     for( auto itr = idents.begin(); itr != idents.end(); ++itr )
     {
-       recv_keys.push_back( keychain.get_identity_key( itr->bit_id ) );
+       recv_keys.push_back( keychain.get_identity_key( itr->dac_id ) );
     }
     my->_bitchat_client->set_receive_keys( recv_keys );
 

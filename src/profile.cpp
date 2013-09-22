@@ -101,7 +101,7 @@ namespace bts {
   
   void    profile::store_identity( const identity& id )
   { try {
-      my->_idents.store( id.bit_id, id ); 
+      my->_idents.store( id.dac_id, id ); 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
   
   /**

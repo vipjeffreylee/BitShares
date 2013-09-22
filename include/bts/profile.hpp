@@ -14,7 +14,7 @@ namespace bts {
   struct identity
   {
      std::string                  label;  // user presented label
-     std::string                  bit_id; // underlying BitID label
+     std::string                  dac_id; // underlying BitID label
                                   
      float                        mining_effort; // how much effort to apply to mining (0-1)
      fc::variant_object           properties; // custom properties attached to the identity.
@@ -113,7 +113,7 @@ namespace bts {
 
 } // namespace bts
 
-FC_REFLECT( bts::identity, (label)(bit_id)(mining_effort)(properties) )
+FC_REFLECT( bts::identity, (label)(dac_id)(mining_effort)(properties) )
 
 FC_REFLECT( bts::profile_config,
   (firstname)
