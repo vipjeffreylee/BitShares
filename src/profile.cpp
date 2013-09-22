@@ -2,6 +2,7 @@
 #include <bts/keychain.hpp>
 #include <bts/addressbook/addressbook.hpp>
 #include <bts/db/level_map.hpp>
+#include <bts/db/level_pod_map.hpp>
 #include <fc/io/raw.hpp>
 #include <fc/io/raw_variant.hpp>
 
@@ -9,6 +10,7 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/exception/exception.hpp>
 #include <fc/io/fstream.hpp>
+#include <fc/filesystem.hpp>
 
 namespace bts {
 
@@ -17,11 +19,18 @@ namespace bts {
      class profile_impl
      {
         public:
-            keychain                             _keychain;
-            addressbook::addressbook_ptr         _addressbook;
-            bitchat::message_db_ptr              _message_db;
-            db::level_map<std::string, identity> _idents;
-            std::vector<bitchat::email_draft>    _drafts;
+            keychain                                        _keychain;
+            addressbook::addressbook_ptr                    _addressbook;
+            bitchat::message_db_ptr                         _message_db;
+            db::level_map<std::string, identity>            _idents;
+            db::level_pod_map<uint32_t, std::vector<char> > _draft_db;
+            std::vector<bts::bitchat::email_draft>          _drafts;
+
+            void import_draft( const std::vector<char> crypt, const fc::uint512& key )
+            {
+                auto plain = fc::aes_decrypt( key, crypt );
+                _drafts.push_back( fc::raw::unpack<bts::bitchat::email_draft>(plain) );
+            }
      };
 
   } // namespace detail
@@ -59,6 +68,7 @@ namespace bts {
       fc::create_directories( profile_dir );
       fc::create_directories( profile_dir / "addressbook" );
       fc::create_directories( profile_dir / "idents" );
+      fc::create_directories( profile_dir / "messages" / "drafts" );
       fc::create_directories( profile_dir / "messages" );
 
       auto profile_cfg_key         = fc::sha512::hash( password.c_str(), password.size() );
@@ -67,7 +77,15 @@ namespace bts {
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
       my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );
       my->_idents.open( profile_dir / "idents" );
+      my->_draft_db.open( profile_dir / "messages" / "drafts" );
       my->_message_db->open( profile_dir / "messages", profile_cfg_key );
+
+      auto itr = my->_draft_db.begin();
+      while( itr.valid() )
+      {
+          my->import_draft( itr.value(), profile_cfg_key );
+          ++itr;
+      }
 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir) ) }
 
