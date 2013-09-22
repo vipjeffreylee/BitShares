@@ -38,17 +38,27 @@ namespace bts { namespace network {
           void read_loop()
           {
             const int BUFFER_SIZE = 16;
-            const int MSG_HEADER_SIZE = sizeof(message_header);
-            const int LEFTOVER = BUFFER_SIZE - MSG_HEADER_SIZE;
+            const int LEFTOVER = BUFFER_SIZE - PACKED_MESSAGE_HEADER;
             try {
                message m;
                while( true )
                {
                   char tmp[BUFFER_SIZE];
                   sock->read( tmp, BUFFER_SIZE );
-                  memcpy( (char*)&m, tmp, MSG_HEADER_SIZE );
+                  #ifndef WIN32
+                  memcpy( (char*)&m, tmp, PACKED_MESSAGE_HEADER );
+                  #else //compiler adds padding to message_header on WIN32, so we write to individual fields
+                  char* tmpPtr = tmp;
+                  memcpy( (char*)(&m), tmpPtr, MESSAGE_HEADER_SIZE_FIELD_SIZE ); //3 bytes
+                  tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
+                  memcpy( (char*)(&(m.proto)), tmpPtr, sizeof(m.proto) );
+                  tmpPtr += sizeof(m.proto);
+                  memcpy( (char*)(&(m.chan_num)), tmpPtr, sizeof(m.chan_num) );
+                  tmpPtr += sizeof(m.chan_num);
+                  memcpy( (char*)(&(m.msg_type)), tmpPtr, 2);
+                  #endif
                   m.data.resize( m.size + 16 ); //give extra 16 bytes to allow for padding added in send call
-                  memcpy( (char*)m.data.data(), tmp + MSG_HEADER_SIZE, LEFTOVER );
+                  memcpy( (char*)m.data.data(), tmp + PACKED_MESSAGE_HEADER, LEFTOVER );
                   sock->read( m.data.data() + LEFTOVER, 16*((m.size -LEFTOVER + 15)/16) );
 
                   try { // message handling errors are warnings... 
@@ -201,11 +211,22 @@ namespace bts { namespace network {
   {
     try {
       fc::scoped_lock<fc::mutex> lock(my->write_lock);
-      size_t len = sizeof(message_header) + m.size;
+      size_t len = PACKED_MESSAGE_HEADER + m.size;
       len = 16*((len+15)/16); //pad the message we send to a multiple of 16 bytes
       std::vector<char> tmp(len);
-      memcpy( tmp.data(), (char*)&m, sizeof(message_header) );
-      memcpy( tmp.data() + sizeof(message_header), m.data.data(), m.size );
+      #ifndef WIN32
+      memcpy( tmp.data(), (char*)&m, PACKED_MESSAGE_HEADER );
+      #else
+      char* tmpPtr = tmp.data();
+      memcpy( tmpPtr, (char*)(&m), MESSAGE_HEADER_SIZE_FIELD_SIZE );
+      tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
+      memcpy( tmpPtr, (char*)&(m.proto), sizeof(m.proto) );
+      tmpPtr += sizeof(m.proto);
+      memcpy( tmpPtr, (char*)&(m.chan_num), sizeof(m.chan_num) );
+      tmpPtr += sizeof(m.chan_num);
+      memcpy( tmpPtr, (char*)&(m.msg_type), sizeof(m.msg_type) );
+      #endif
+      memcpy( tmp.data() + PACKED_MESSAGE_HEADER, m.data.data(), m.size );
       my->sock->write( tmp.data(), tmp.size() );
       my->sock->flush();
     } FC_RETHROW_EXCEPTIONS( warn, "unable to send message" );

@@ -23,11 +23,13 @@ namespace bts { namespace network {
      uint16_t  msg_type;  // every channel gets a 16 bit message type specifier
 
   };
+  #define PACKED_MESSAGE_HEADER 8
+  #define MESSAGE_HEADER_SIZE_FIELD_SIZE 3
 
 //TODO: MSVC is padding message_header, so for now we're packing it before writing it. We could change
 //      to uint32_t proto:8, but then we get a problem with FC_REFLECT (&operator doesn't work on bit-fields)
 #ifndef WIN32  
-  static_assert( sizeof(message_header) == sizeof(uint64_t), "message header fields should be tightly packed" );
+  static_assert( sizeof(message_header) == PACKED_MESSAGE_HEADER, "message header fields should be tightly packed" );
 #endif
 
   /**
