@@ -28,13 +28,9 @@ namespace bts {
 
      virtual ~application_delegate(){}
 
-     virtual void received_text( const bitchat::private_text_message& msg, 
-                                 const fc::ecc::public_key& from, 
-                                 const fc::ecc::public_key& to ){}
+     virtual void received_text( const bitchat::decrypted_message& msg) {}
 
-     virtual void received_email( const bitchat::private_email_message& msg, 
-                                  const fc::ecc::public_key& from, 
-                                  const fc::ecc::public_key& to ){}
+     virtual void received_email( const bitchat::decrypted_message& msg) {}
   };
   
 

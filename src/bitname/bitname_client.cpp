@@ -62,6 +62,10 @@ namespace bts { namespace bitname {
 
           void start_mining()
           {
+          //#define NO_MINING
+          #ifdef NO_MINING
+          return;
+          #endif
              fc::optional<name_record> min_repute_record;
              for( auto itr = _names_to_mine.begin(); itr != _names_to_mine.end(); /*don't inc cause we may remove*/ )
              {

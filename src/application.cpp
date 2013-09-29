@@ -29,24 +29,25 @@ namespace bts {
           bts::network::upnp_service        _upnp;
 
 
-          virtual void bitchat_message_received( const bitchat::decrypted_message& m )
+          virtual void bitchat_message_received( const bitchat::decrypted_message& msg )
           {
-              ilog( "received ${msg}", ("msg",m) );
-              if( _profile ) _profile->cache( m );
-              switch( m.msg_type )
+              ilog( "received ${msg}", ("msg", msg) );
+              if( _profile ) _profile->cache( msg );
+              switch( msg.msg_type )
               {
                  case bitchat::private_message_type::text_msg:
                  {
-                   auto txt = m.as<bitchat::private_text_message>();
+                   auto txt = msg.as<bitchat::private_text_message>();
                    ilog( "text message ${msg}", ("msg",txt) );
-                   if( _delegate ) _delegate->received_text( txt, *m.from_key, m.decrypt_key->get_public_key() );
+
+                   if( _delegate ) _delegate->received_text( msg );
                    break;
                  }
                  case bitchat::private_message_type::email_msg:
                  {
-                   auto email = m.as<bitchat::private_email_message>();
-                   ilog( "email message ${msg}", ("msg",m.as<bitchat::private_email_message>()) );
-                   if( _delegate ) _delegate->received_email( email, *m.from_key, m.decrypt_key->get_public_key() );
+                   auto email = msg.as<bitchat::private_email_message>();
+                   ilog( "email message ${msg}", ("msg",email) );
+                   if( _delegate ) _delegate->received_email( msg );//, *m.from_key, m.decrypt_key->get_public_key() );
                    break;
                  }
               }
