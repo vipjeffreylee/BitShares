@@ -20,7 +20,7 @@ namespace bts { namespace bitname {
      class client_impl : public name_miner_delegate, public name_channel_delegate
      {
         public:
-          client_impl():_self(nullptr),_delegate(nullptr){}
+          client_impl():_self(nullptr),_delegate(nullptr),_mining_intensity(100) {}
 
           virtual void found_name_block( const name_block& new_block )
           {
@@ -62,10 +62,8 @@ namespace bts { namespace bitname {
 
           void start_mining()
           {
-          //#define NO_MINING
-          #ifdef NO_MINING
-          return;
-          #endif
+             if (_mining_intensity == 0)
+                return;
              fc::optional<name_record> min_repute_record;
              for( auto itr = _names_to_mine.begin(); itr != _names_to_mine.end(); /*don't inc cause we may remove*/ )
              {
@@ -157,6 +155,10 @@ namespace bts { namespace bitname {
           client::config                                   _config;
           name_channel_ptr                                 _chan;
           name_miner                                       _miner;
+          int                                              _mining_intensity;
+
+          void  set_mining_intensity(int intensity) { _mining_intensity = intensity; }
+          int   get_mining_intensity() { return _mining_intensity; }
 
           /**
            *  Tracks all of the active names that are being mined.  
@@ -225,10 +227,25 @@ namespace bts { namespace bitname {
   {
     return my->_names_to_mine;
   }
-  void                                       client::stop_mining_name( const std::string& bitname_id )
+
+  void client::stop_mining_name( const std::string& bitname_id )
   {
      my->_names_to_mine.erase( bitname_id );
      my->start_mining(); // reset mining just incase we are currently mining bitname_id
   }
+
+  void client::set_mining_intensity(int intensity) 
+  { 
+     int old_intensity = get_mining_intensity();
+     if (intensity != old_intensity)
+     {
+         my->set_mining_intensity(intensity);
+         if (old_intensity == 0)
+           my->start_mining();
+     }
+  }
+
+  int  client::get_mining_intensity() { return my->get_mining_intensity(); }
+
 
 } } // bts::bitname

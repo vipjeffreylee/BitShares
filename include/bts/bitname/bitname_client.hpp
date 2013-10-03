@@ -68,6 +68,9 @@ namespace bts { namespace bitname {
        void  mine_name( const std::string& bitname_id, const fc::ecc::public_key& );
        const std::unordered_map<std::string,fc::ecc::public_key_data>&  actively_mined_names()const;
        void  stop_mining_name( const std::string& bitname_id );
+       void  set_mining_intensity(int intensity);
+       int   get_mining_intensity();
+
      private:
        std::unique_ptr<detail::client_impl> my;
   };

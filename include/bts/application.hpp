@@ -67,6 +67,8 @@ namespace bts {
       void  send_email( const bitchat::private_email_message& email, const fc::ecc::public_key& to, const fc::ecc::private_key& from );
       void  send_text_message( const bitchat::private_text_message& txtmsg, 
                                const fc::ecc::public_key& to, const fc::ecc::private_key& from );
+      void  set_mining_intensity(int intensity);
+      int   get_mining_intensity();
 
     private:
       std::unique_ptr<detail::application_impl> my;

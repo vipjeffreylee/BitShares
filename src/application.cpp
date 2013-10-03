@@ -28,6 +28,9 @@ namespace bts {
           bts::bitchat::client_ptr          _bitchat_client;     
           bts::network::upnp_service        _upnp;
 
+          void set_mining_intensity(int intensity) { _bitname_client->set_mining_intensity(intensity); }
+          int  get_mining_intensity() { return _bitname_client->get_mining_intensity(); }
+
 
           virtual void bitchat_message_received( const bitchat::decrypted_message& msg )
           {
@@ -239,6 +242,9 @@ namespace bts {
      my->_server->connect_to(remote_ep);
   } FC_RETHROW_EXCEPTIONS( warn, "", ("endpoint",remote_ep) ) }
 
+
+  void application::set_mining_intensity(int intensity) { my->set_mining_intensity(intensity); }
+  int application::get_mining_intensity() { return my->get_mining_intensity(); }
 
   void application::quit()
   { try {
