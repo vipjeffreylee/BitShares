@@ -3,14 +3,7 @@ cmake_minimum_required( VERSION 2.8.11 )
 
 #set( CMAKE_AUTOMOC ON )
 
-IF( WIN32)
-  set( CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} ";${CMAKE_SOURCE_DIR}/../qt-everywhere-opensource-src-5.1.0/qtbase/lib/cmake" )
-ELSE(WIN32)
-  set( CMAKE_PREFIX_PATH  ${CMAKE_PREFIX_PATH} ";${CMAKE_SOURCE_DIR}/vendor/qt.5.1/5.1.0/msvc2012/lib/cmake" )
-ENDIF(WIN32)
-
 set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/fc/CMakeModules" ${CMAKE_MODULE_PATH} )
-
 
 FIND_PACKAGE( OpenSSL )
 SET( ALL_OPENSSL_LIBRARIES
@@ -46,10 +39,10 @@ IF( WIN32 )
   #set( SSL_EAY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openssl/out32dll/ssleay32.lib" )
   #include_directories( "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openssl/include" )
 
-  include_directories( ${CMAKE_SOURCE_DIR}/vendor/leveldb-win/include )
+  include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor/leveldb-win/include )
   add_subdirectory( vendor/leveldb-win )
 ELSE(WIN32)
-  include_directories( ${CMAKE_SOURCE_DIR}/vendor/leveldb-1.12.0/include )
+  include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor/leveldb-1.12.0/include )
   add_subdirectory( vendor/leveldb-1.12.0 )
 
   MESSAGE(status "Compiling on UNIX")
@@ -67,27 +60,28 @@ ENDIF(WIN32)
 
 
 
-include_directories( ${CMAKE_SOURCE_DIR}/fc/include )
-include_directories( ${CMAKE_SOURCE_DIR}/include )
-include_directories( ${CMAKE_SOURCE_DIR}/vendor/SFMT-src-1.4 )
-include_directories( ${CMAKE_SOURCE_DIR}/vendor/miniupnp )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/fc/include )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/include )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor/SFMT-src-1.4 )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor/miniupnp )
 include_directories( ${Boost_INCLUDE_DIR} )
 #need this for boost::process (not an official boost library yet)
-include_directories( ${CMAKE_SOURCE_DIR}/fc/vendor/boost_1.51/include )
+include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/fc/vendor/boost_1.51/include )
 
    
 #link_directories( ${Boost_LIBRARY_DIRS} )
 
 add_subdirectory( fc )
 add_subdirectory( vendor/miniupnp/miniupnpc )
+
 IF( APPLE )
 FIND_LIBRARY (APPKIT_LIBRARY AppKit) 
 add_subdirectory( vendor/qtmacextras )
-include_directories( vendor/qtmacextras/src/macextras )
-set( QtMacExtras qtmacextras )
 ENDIF( APPLE )
+
 #add_subdirectory( vendor/libzerocoin )
 set( BOOST_LIBRARIES ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_CHRONO_LIBRARY} ${ALL_OPENSSL_LIBRARIES} ${Boost_COROUTINE_LIBRARY} ${Boost_CONTEXT_LIBRARY} ${pthread})
+set( BOOST_LIBRARIES ${BOOST_LIBRARIES} PARENT_SCOPE )
 
 
 
@@ -166,6 +160,6 @@ add_library( bshare ${sources} )
 
 #add_executable( bitshared bitshared.cpp )
 #target_link_libraries( bitshared bshare fc ${BOOST_LIBRARIES} )
-add_subdirectory( keyhotee )
+
 #add_subdirectory( cli_client )
 add_subdirectory( tests )
