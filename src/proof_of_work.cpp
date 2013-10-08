@@ -11,25 +11,12 @@
 #include <utility>
 #include <fc/log/logger.hpp>
 
-#define BUF_SIZE (8*1024*1024)
+#include <unordered_map>
+#define BUF_SIZE (512)
 #define BLOCK_SIZE (32) // bytes
 
 namespace bts  {
 
-pow_hash proof_of_work( const fc::sha256& in)
-{
-   unsigned char* buf = new unsigned char[BUF_SIZE];
-   pow_hash out;
-   try {
-     out = proof_of_work( in, buf );
-   } catch ( ... )
-   {
-    delete [] buf;
-    throw;
-   }
-   delete[] buf;
-   return out;
-}
 
 
 /**
@@ -76,6 +63,7 @@ pow_hash proof_of_work( const fc::sha256& in)
  */
 pow_hash proof_of_work( const fc::sha256& seed, unsigned char* buffer )
 {
+//#if 0
    auto key = fc::sha256(seed);
    auto iv  = fc::city_hash128((char*)&seed,sizeof(seed));
    memset( buffer, 0, BUF_SIZE );
@@ -87,14 +75,121 @@ pow_hash proof_of_work( const fc::sha256& seed, unsigned char* buffer )
    enc.init( key, iv );
    for( uint32_t i = 0; i < BUF_SIZE / (BLOCK_SIZE/2); ++i )
    {
-      uint64_t wrote = enc.encode( (char*)read_pos, BLOCK_SIZE, (char*)write_pos ); 
+      /*uint64_t wrote =*/ enc.encode( (char*)read_pos, BLOCK_SIZE, (char*)write_pos ); 
       read_pos  =  (uint64_t*)( buffer + (write_pos[0]) % ( BUF_SIZE - BLOCK_SIZE ) );
       if( write_pos[2] % 117 == 0 && i > 32 ) { i -= write_pos[3]%32; }
       write_pos =  (uint64_t*)( buffer + (write_pos[1]) % ( BUF_SIZE - BLOCK_SIZE ) );
    }
    auto midstate =  fc::city_hash_crc_256( (char*)buffer, BUF_SIZE ); 
+//#endif
+//   auto midstate =  fc::city_hash_crc_256( (char*)&seed, sizeof(seed) ); 
    return fc::ripemd160::hash((char*)&midstate, sizeof(midstate) );
 }
+
+
+struct birthday_entry
+{
+  birthday_entry():found(0){}
+  uint64_t nonce[2];
+  uint8_t found;
+};
+
+pow_hash validate_proof_of_work( const fc::sha256& in, uint64_t* nonces )
+{
+   unsigned char* buf = new unsigned char[BUF_SIZE];
+   uint64_t target = 0;
+   {
+      fc::sha256::encoder enc;
+      enc.write( (char*)&nonces[0], sizeof(uint64_t) );
+      enc.write( (char*)&in, sizeof(in) );
+      auto out = proof_of_work( enc.result(), buf );
+      uint64_t* out_val = (uint64_t*)&out;
+      target = (*out_val) >> 26;
+   }
+   {
+      fc::sha256::encoder enc;
+      enc.write( (char*)&nonces[1], sizeof(uint64_t) );
+      enc.write( (char*)&in, sizeof(in) );
+      auto out = proof_of_work( enc.result(), buf );
+      uint64_t* out_val = (uint64_t*)&out;
+      FC_ASSERT( ((*out_val) >> 26 ) == target );
+   }
+   {
+      fc::sha256::encoder enc;
+      enc.write( (char*)&nonces[2], sizeof(uint64_t) );
+      enc.write( (char*)&in, sizeof(in) );
+      auto out = proof_of_work( enc.result(), buf );
+      uint64_t* out_val = (uint64_t*)&out;
+      FC_ASSERT( ((*out_val) >> 26 ) == target );
+   }
+
+   fc::ripemd160::encoder enc;
+   enc.write( (char*)&in, sizeof(in) );
+   enc.write( (char*)nonces, 3*sizeof(uint64_t) );
+   return enc.result();
+}
+
+
+
+pow_hash proof_of_work( const fc::sha256& in, uint64_t* nonces)
+{
+   unsigned char* buf = new unsigned char[BUF_SIZE];
+   uint64_t found_matches[2];
+   found_matches[0] = 0;
+   found_matches[1] = 0;
+
+   //std::vector<uint64_t> found_nonces;
+   //found_nonces.resize( (2ll << 32) / 8 );
+   std::unordered_map<uint64_t,uint64_t> found0;
+   std::unordered_map<uint64_t,uint64_t> found1;
+   //memset( found_nonces.data(), 0, sizeof(uint64_t) * found_nonces.size() );
+
+   pow_hash out;
+   try {
+     for( uint64_t n = 1; n < uint64_t(-1); ++n )
+     {
+         fc::sha256::encoder enc;
+         enc.write( (char*)&n, sizeof(n) );
+         enc.write( (char*)&in, sizeof(in) );
+
+         out = proof_of_work( enc.result(), buf );
+         uint64_t* out_val = (uint64_t*)&out;
+         
+         uint64_t target = (*out_val) >> 26;
+         if(  found0.find(target) != found0.end()  )
+         {
+            if(  found1.find(target) != found1.end()  )
+            {
+               ilog( "found ${a} and ${b} and ${c} all share ${t}  ", ("a",found0[target])("b",found1[target])("c",n)("t", target) );
+               nonces[0] = found0[target];
+               nonces[1] = found1[target];
+               nonces[2] = n;
+               fc::ripemd160::encoder enc;
+               enc.write( (char*)&in, sizeof(in) );
+               enc.write( (char*)nonces, 3*sizeof(uint64_t) );
+               return enc.result();
+            }
+            else
+            {
+               found1[target] = n;
+               ilog( "found ${a} and ${b} both share ${t}  ", ("a",found0[target])("b",n)("t", target) );
+            }
+         }
+         else
+         {
+            found0[target] = n;
+         }
+     }
+   } catch ( ... )
+   {
+    delete [] buf;
+    throw;
+   }
+   delete[] buf;
+   return out;
+}
+
+
 
 
 }  // namespace bts
