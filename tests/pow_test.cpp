@@ -53,6 +53,7 @@ bts::pow_hash test_proof_of_work( const fc::sha256& seed, unsigned char* buffer,
 #define BUF_SIZE (64*1024)
 int main( int argc, char** argv )
 {
+   try {
    fc::sha256 in;
    if( argc >= 2 )
       in = fc::sha256::hash(argv[1],strlen(argv[1]));
@@ -61,6 +62,10 @@ int main( int argc, char** argv )
    ilog( "out: ${out}", ("out",out));
    auto val = bts::validate_proof_of_work( in, nonces );
    ilog( "out: ${val}", ("val",val));
+   } catch ( const fc::exception& e) 
+   {
+        elog( "${e}", ("e",e.to_detail_string() ) );
+   }
 
  #if 0
    static fc::thread _threads[THREADS]; 

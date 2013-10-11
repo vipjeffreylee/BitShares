@@ -6,7 +6,7 @@
 
 namespace momentum 
 {
-   typedef fc::array<char,20>  pow_seed_type;
+   typedef fc::sha256          pow_seed_type;
    typedef fc::ripemd160       pow_hash_type;
 
    namespace detail { class engine_impl; }
@@ -49,6 +49,9 @@ namespace momentum
       std::vector<pow_hash_type>     merkel_branch;
       uint64_t                       nonce_a;
       uint64_t                       nonce_b;
+
+      /** given the chain ID and header hash, calculate the merkle root of the pow */
+      pow_hash_type verify( fc::unsigned_int chain, pow_hash_type header_hash )const;
    };
 };
 

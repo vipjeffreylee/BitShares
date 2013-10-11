@@ -145,6 +145,7 @@ pow_hash proof_of_work( const fc::sha256& in, uint64_t* nonces)
    //memset( found_nonces.data(), 0, sizeof(uint64_t) * found_nonces.size() );
 
    pow_hash out;
+   int partial_found = 0;
    try {
      for( uint64_t n = 1; n < uint64_t(-1); ++n )
      {
@@ -155,7 +156,7 @@ pow_hash proof_of_work( const fc::sha256& in, uint64_t* nonces)
          out = proof_of_work( enc.result(), buf );
          uint64_t* out_val = (uint64_t*)&out;
          
-         uint64_t target = (*out_val) >> 26;
+         uint64_t target = (*out_val) >> 27;
          if(  found0.find(target) != found0.end()  )
          {
             if(  found1.find(target) != found1.end()  )
@@ -171,8 +172,9 @@ pow_hash proof_of_work( const fc::sha256& in, uint64_t* nonces)
             }
             else
             {
+               ++partial_found;
                found1[target] = n;
-               ilog( "found ${a} and ${b} both share ${t}  ", ("a",found0[target])("b",n)("t", target) );
+               ilog( ", ${b} , ${p} ,found ${a} and ${b} both share ${t}  ", ("p",partial_found)("a",found0[target])("b",n)("t", target) );
             }
          }
          else
