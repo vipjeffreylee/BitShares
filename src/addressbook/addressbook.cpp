@@ -62,10 +62,10 @@ namespace bts { namespace addressbook {
             {
                 my->_key_to_number[next_contact.public_key.serialize()] = itr.key();
             }
-            if( next_contact.dac_id_hash != 0 )
-            {
-                my->_id_to_number[next_contact.dac_id_hash] = itr.key();
-            }
+            //if id_hash not cached in dbase (it isn't currently), then generate form dac_id_string
+            if( next_contact.dac_id_hash == 0 )
+                next_contact.dac_id_hash = bitname::name_hash(next_contact.dac_id_string);
+            my->_id_to_number[next_contact.dac_id_hash] = itr.key();
         } 
         catch ( const fc::exception& e )
         {
