@@ -56,9 +56,13 @@ int main( int argc, char** argv )
    fc::sha256 in;
    if( argc >= 2 )
       in = fc::sha256::hash(argv[1],strlen(argv[1]));
-   auto out = bts::proof_of_work( in );
+   uint64_t nonces[3];
+   auto out = bts::proof_of_work( in, nonces );
    ilog( "out: ${out}", ("out",out));
+   auto val = bts::validate_proof_of_work( in, nonces );
+   ilog( "out: ${val}", ("val",val));
 
+ #if 0
    static fc::thread _threads[THREADS]; 
 
    size_t buf_size = BUF_SIZE;
@@ -90,7 +94,7 @@ int main( int argc, char** argv )
       fc::cerr<< buf_size <<"  "<<((ROUNDS*THREADS) / ((end-start).count() / 1000000.0))  <<  " hash / sec\n";
       buf_size *= 2;
    }
-
+#endif
 
    return -1;
 }

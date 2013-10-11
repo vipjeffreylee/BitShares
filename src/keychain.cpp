@@ -22,10 +22,11 @@ namespace bts {
       return t.async( [=]() {
           fc::sha512 last = seed;
           ilog( "stretchign seed" );
-          for( uint32_t i = 0; i < 10; ++i )
+          for( uint32_t i = 0; i < 1; ++i )
           {
               ilog( ".\r" );
-              auto p = proof_of_work( fc::sha256::hash( (char*)&last, sizeof(last)) );  
+              uint64_t nonces[3];
+              auto p = proof_of_work( fc::sha256::hash( (char*)&last, sizeof(last)), nonces );  
               last = fc::sha512::hash( (char*)&p, sizeof(p) );
           }
           return last; 
