@@ -43,6 +43,7 @@ IF( WIN32 )
   add_subdirectory( vendor/leveldb-win )
 ELSE(WIN32)
   include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/vendor/leveldb-1.12.0/include )
+  include_directories( /opt/local/include )
   add_subdirectory( vendor/leveldb-1.12.0 )
 
   MESSAGE(status "Compiling on UNIX")

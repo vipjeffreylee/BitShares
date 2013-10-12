@@ -6,15 +6,26 @@
 class pow_progress : public momentum::engine_delegate
 {
     public:
+      pow_progress():match_count(0){}
       virtual void found_match( const momentum::pow_hash_type& result, uint64_t a, uint64_t b ) 
       {
+         ++match_count;
+         if( match_count % 200 == 0 )
+         {
+            auto delta = fc::time_point::now() - last_best;
+            last_best = fc::time_point::now();
+            ilog( "match persec ${persec}",("persec", (1000000.0*match_count)/delta.count() ) );
+            match_count = 0;
+         }
          if( result < best )
          {
             best = result;
-            ilog( "${result}  ${a} ${b}", ("result",result)("a",a)("b",b) );
+            ilog( "best: ${result}  ${a} ${b}", ("result",result)("a",a)("b",b) );
          }  
       }
       momentum::pow_hash_type best;
+      fc::time_point          last_best;
+      uint32_t                match_count;
 };
 
 int main( int argc, char** argv )

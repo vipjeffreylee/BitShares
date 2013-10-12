@@ -6,8 +6,8 @@
 
 namespace momentum 
 {
-   typedef fc::sha256          pow_seed_type;
-   typedef fc::ripemd160       pow_hash_type;
+   typedef fc::sha256     pow_seed_type;
+   typedef fc::ripemd160  pow_hash_type;
 
    namespace detail { class engine_impl; }
 
