@@ -123,10 +123,8 @@ namespace bts { namespace addressbook {
    */
   struct wallet_contact : public contact
   {
-      wallet_contact()
-      :wallet_index(WALLET_INVALID_INDEX),
-       next_send_trx_id(0){}
-
+      wallet_contact() : wallet_index(WALLET_INVALID_INDEX), next_send_trx_id(0) {}
+      std::string getFullName() const { return first_name + " " + last_name; }
       /** used to generate the extended private key for this contact */
       uint32_t                               wallet_index;
       fc::enum_type<uint8_t,privacy_level>   privacy_setting;

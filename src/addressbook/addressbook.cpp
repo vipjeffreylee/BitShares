@@ -22,6 +22,7 @@ namespace bts { namespace addressbook {
            std::unordered_map<uint32_t,wallet_contact>             _number_to_contact;
            std::unordered_map<fc::ecc::public_key_data,uint32_t>   _key_to_number;
            std::unordered_map<uint64_t,uint32_t>                   _id_to_number;
+           std::unordered_map<uint64_t,uint32_t>                   _full_name_to_number;
      };
   }
 
@@ -56,16 +57,7 @@ namespace bts { namespace addressbook {
             std::string json_contact = fc::raw::unpack<std::string>(packed_contact);
             ilog( "loading contact ${json}", ("json",json_contact) );
             auto next_contact = fc::json::from_string(json_contact).as<wallet_contact>();
-
-            my->_number_to_contact[itr.key()] = next_contact;
-            if( next_contact.public_key.valid() )
-            {
-                my->_key_to_number[next_contact.public_key.serialize()] = itr.key();
-            }
-            //if id_hash not cached in dbase (it isn't currently), then generate form dac_id_string
-            if( next_contact.dac_id_hash == 0 )
-                next_contact.dac_id_hash = bitname::name_hash(next_contact.dac_id_string);
-            my->_id_to_number[next_contact.dac_id_hash] = itr.key();
+            add_contact_to_lookup_tables(next_contact);
         } 
         catch ( const fc::exception& e )
         {
@@ -79,14 +71,14 @@ namespace bts { namespace addressbook {
 
   fc::optional<wallet_contact> addressbook::get_contact_by_dac_id( const std::string& dac_id )const
   { try {
-      fc::optional<wallet_contact> con;
+      fc::optional<wallet_contact> contact;
       auto dac_id_hash = bitname::name_hash(dac_id);
       auto itr = my->_id_to_number.find(dac_id_hash);
       if( itr != my->_id_to_number.end() )
       {
           return my->_number_to_contact[itr->second];
       }
-      return con;
+      return contact;
   } FC_RETHROW_EXCEPTIONS( warn, "", ("dac_id", dac_id) ) }
 
   fc::optional<wallet_contact> addressbook::get_contact_by_public_key( const fc::ecc::public_key& dac_id_key )const
@@ -99,25 +91,41 @@ namespace bts { namespace addressbook {
       return fc::optional<wallet_contact>();
   } FC_RETHROW_EXCEPTIONS( warn, "", ("dac_id_key", dac_id_key) ) }
 
-  void    addressbook::store_contact( const wallet_contact& contact_param )
+  fc::optional<wallet_contact> addressbook::get_contact_by_full_name(const std::string& full_name )const
   { try {
-      FC_ASSERT( contact_param.wallet_index != WALLET_INVALID_INDEX ); 
+      fc::optional<wallet_contact> contact;
+      auto full_name_hash = bitname::name_hash(full_name);
+      auto itr = my->_full_name_to_number.find(full_name_hash);
+      if( itr != my->_full_name_to_number.end() )
+      {
+          return my->_number_to_contact[itr->second];
+      }
+      return contact;
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("full_name", full_name) ) }
+
+  void addressbook::store_contact(wallet_contact& contact)
+  { try {
+      FC_ASSERT( contact.wallet_index != WALLET_INVALID_INDEX ); 
 
       ilog( "to_string()" );
-      std::string json_contact         = fc::json::to_string(contact_param);
+      std::string json_contact         = fc::json::to_string(contact);
       ilog( "... did it work?" );
       std::vector<char> packed_contact = fc::raw::pack(json_contact);
       std::vector<char> cipher_contact = fc::aes_encrypt( my->_key, packed_contact );
-      my->_encrypted_contact_db.store( contact_param.wallet_index, cipher_contact );
-      my->_number_to_contact[contact_param.wallet_index] = contact_param;
-      if( contact_param.public_key.valid() )
-      {
-        my->_key_to_number[contact_param.public_key.serialize()] = contact_param.wallet_index;
-      }
-      if( contact_param.dac_id_hash != 0 )
-      {
-        my->_id_to_number[contact_param.dac_id_hash] = contact_param.wallet_index;
-      }
-  } FC_RETHROW_EXCEPTIONS( warn, "") }//, ("contact", contact_param) ) }
+      my->_encrypted_contact_db.store( contact.wallet_index, cipher_contact );
+      add_contact_to_lookup_tables(contact);
+  } FC_RETHROW_EXCEPTIONS( warn, "") }//, ("contact", contact) ) }
+
+  void addressbook::add_contact_to_lookup_tables(wallet_contact& contact)
+  {
+      my->_number_to_contact[contact.wallet_index] = contact;
+      if( contact.public_key.valid() )
+         my->_key_to_number[contact.public_key.serialize()] = contact.wallet_index;
+      FC_ASSERT(!contact.dac_id_string.empty());
+      contact.dac_id_hash = bitname::name_hash(contact.dac_id_string);
+      my->_id_to_number[contact.dac_id_hash] = contact.wallet_index;
+      auto full_name_hash = bitname::name_hash(contact.getFullName());
+      my->_full_name_to_number[full_name_hash] = contact.wallet_index;
+  }
 
 } } // bts::addressbook
