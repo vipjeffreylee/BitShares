@@ -66,7 +66,7 @@ namespace bts {
   /**
    *   A user's profile is backed by a master password that can unlock all of their
    *   private keys.  This profile is the *true identity* of an individual and it
-   *   must be protected riggoriously as identity thieves will attempt to derive
+   *   must be protected rigoriously as identity thieves will attempt to derive
    *   the master password and then steal all of your pseudonyms and account balances.
    *
    *   Because passwords can be guessed and checked in a decentralized manner, it is
@@ -76,7 +76,7 @@ namespace bts {
    *   Your profile information will be stored locally on disk in an encrypted manner,
    *   but the security of your local files is only as secure as the password itself 
    *   because the profile will cache the rest.  Your profile may also be compromised
-   *   by key loggers if your local computer is compromised.  It is ultimately up the
+   *   by key loggers if your local computer is compromised.  It is ultimately up to the
    *   the GUI developer to design a secure means of entering the password and enforcing
    *   password quality.
    */
@@ -97,14 +97,14 @@ namespace bts {
       //void                          cache( const bts::blockchain::meta_transaction& mtrx );
       void                                cache( const bts::bitchat::decrypted_message& msg    );
 
-      void                                       save_draft( const bts::bitchat::email_draft& draft );
-      void                                       delete_draft( uint32_t draft_id );
-      const std::vector<bts::bitchat::email_draft>&   get_drafts()const;
-
       // std::vector<meta_transaction> get_transactions()const;
-      bitchat::message_db_ptr       get_inbox()const;
-      addressbook::addressbook_ptr  get_addressbook()const;
-      keychain                      get_keychain()const;
+      bitchat::message_db_ptr       get_inbox_db() const;
+      bitchat::message_db_ptr       get_draft_db() const;
+      bitchat::message_db_ptr       get_pending_db() const;
+      bitchat::message_db_ptr       get_sent_db() const;
+      bitchat::message_db_ptr       get_chat_db() const;
+      addressbook::addressbook_ptr  get_addressbook() const;
+      keychain                      get_keychain() const;
     private:
       std::unique_ptr<detail::profile_impl> my;
   };

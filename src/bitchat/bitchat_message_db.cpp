@@ -121,8 +121,7 @@ namespace bts { namespace bitchat {
   
   std::vector<char> message_db::fetch_data(  const fc::uint256& digest )
   { try {
-     std::vector<char> data;
-     return data;
+     return my->_digest_to_data.fetch(digest);
   } FC_RETHROW_EXCEPTIONS( warn, "", ("digest",digest ) ) }
 
 

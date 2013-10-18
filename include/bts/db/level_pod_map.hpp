@@ -43,25 +43,25 @@ namespace bts { namespace db {
           _db.reset();
         }
 
-        Value fetch( const Key& k )
+        Value fetch( const Key& key )
         {
           try {
-             ldb::Slice ks( (char*)&k, sizeof(k) );
+             ldb::Slice key_slice( (char*)&key, sizeof(key) );
              std::string value;
-             auto status = _db->Get( ldb::ReadOptions(), ks, &value );
+             auto status = _db->Get( ldb::ReadOptions(), key_slice, &value );
              if( status.IsNotFound() )
              {
-               FC_THROW_EXCEPTION( key_not_found_exception, "unable to find key ${key}", ("key",k) );
+               FC_THROW_EXCEPTION( key_not_found_exception, "unable to find key ${key}", ("key",key) );
              }
              if( !status.ok() )
              {
                  FC_THROW_EXCEPTION( exception, "database error: ${msg}", ("msg", status.ToString() ) );
              }
-             fc::datastream<const char*> ds(value.c_str(), value.size());
+             fc::datastream<const char*> datastream(value.c_str(), value.size());
              Value tmp;
-             fc::raw::unpack(ds, tmp);
+             fc::raw::unpack(datastream, tmp);
              return tmp;
-          } FC_RETHROW_EXCEPTIONS( warn, "error fetching key ${key}", ("key",k) );
+          } FC_RETHROW_EXCEPTIONS( warn, "error fetching key ${key}", ("key",key) );
         }
 
         class iterator

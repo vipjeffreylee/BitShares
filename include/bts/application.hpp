@@ -76,6 +76,8 @@ namespace bts {
 
   typedef std::shared_ptr<application> application_ptr;
 
+  profile_ptr get_profile();
+
 } // namespace bts
 
 FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_port)(enable_upnp)(default_nodes) )

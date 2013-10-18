@@ -8,6 +8,8 @@
 
 namespace bts {
 
+  profile_ptr get_profile() { return application::instance()->get_profile(); }
+
   namespace detail
   {
     class application_impl : public bts::bitname::client_delegate,

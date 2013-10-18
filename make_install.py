@@ -24,7 +24,7 @@ if __name__ == '__main__':
     platformDir = binDir + '/platforms';
     os.mkdir(platformDir)
     qtdir = os.environ['QTDIR']
-    windowsPlatformDll = qtdir + '/qtbase/plugins/platforms/qwindows.dll';
+    windowsPlatformDll = qtdir + '/plugins/platforms/qwindows.dll';
     shutil.copy(windowsPlatformDll,platformDir)
     
     #zip up files in bin dir to keyhotee.zip

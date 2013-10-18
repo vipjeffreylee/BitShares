@@ -22,9 +22,9 @@ namespace bts { namespace bitname {
         public:
           client_impl():_self(nullptr),_delegate(nullptr),_mining_intensity(100) 
           {
-          #ifdef _DEBUG
-          _mining_intensity = 0;
-          #endif
+//          #ifdef _DEBUG
+//          _mining_intensity = 0;
+//          #endif
           }
 
           virtual void found_name_block( const name_block& new_block )
