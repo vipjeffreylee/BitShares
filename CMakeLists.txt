@@ -15,6 +15,13 @@ SET( ALL_OPENSSL_LIBRARIES
 #include( VersionMacros )
 #include( SetupTargetMacros )
 
+if( UNIX ) 
+  if( NOT APPLE )  
+    set(rt_library rt )
+	set(pthread_library pthread) 
+  endif() 
+endif()
+
 IF( WIN32 )
   MESSAGE(status "Compiling on WIN32")
   ADD_DEFINITIONS( -DWIN32 )
