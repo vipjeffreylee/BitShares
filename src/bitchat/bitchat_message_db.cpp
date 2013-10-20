@@ -56,24 +56,25 @@ namespace bts { namespace bitchat {
         my->_digest_to_data.open(dbdir/"digest_to_data");
   } FC_RETHROW_EXCEPTIONS( warn, "", ("dir", dbdir)("key",key)("create",create)) }
 
-  void message_db::store( const decrypted_message& m )
+  message_header message_db::store( const decrypted_message& m )
   { try {
       FC_ASSERT( m.from_sig    );
       FC_ASSERT( m.from_key    );
       FC_ASSERT( m.decrypt_key );
 
-      message_header head;
-      head.type             = m.msg_type;
-      head.received_time    = fc::time_point::now();
-      head.to_key           = m.decrypt_key->get_public_key();
-      head.from_key         = *m.from_key;
-      head.digest           = m.digest();
-      head.from_sig_time    = m.sig_time;
-      head.from_sig         = *m.from_sig;
-      my->_index.store(head,0);
+      message_header header;
+      header.type             = m.msg_type;
+      header.received_time    = fc::time_point::now();
+      header.to_key           = m.decrypt_key->get_public_key();
+      header.from_key         = *m.from_key;
+      header.digest           = m.digest();
+      header.from_sig_time    = m.sig_time;
+      header.from_sig         = *m.from_sig;
+      my->_index.store(header,0);
 
       // TODO: consider using city128 rather than 256 to reduce index size
-      my->_digest_to_data.store( head.digest, m.data );
+      my->_digest_to_data.store( header.digest, m.data );
+      return header;
   } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",m) ) }
  
 
