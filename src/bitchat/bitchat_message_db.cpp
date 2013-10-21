@@ -77,6 +77,11 @@ namespace bts { namespace bitchat {
       return header;
   } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",m) ) }
  
+  void message_db::remove(const message_header& msg_header)
+  {
+   my->_index.remove(msg_header);    
+   my->_digest_to_data.remove(msg_header.digest);
+  }
 
   std::vector<message_header>  message_db::fetch_headers( private_message_type t, 
                                               fc::time_point_sec from_time, 

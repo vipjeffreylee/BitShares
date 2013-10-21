@@ -57,6 +57,8 @@ namespace bts { namespace bitchat {
        void open( const fc::path& dbdir, const fc::uint512& key, bool create = true );
        
        message_header store( const decrypted_message& m );
+       void           remove(const message_header& msg_header);
+
        
        std::vector<message_header>  fetch_headers( private_message_type t, 
                                            fc::time_point_sec from_time = fc::time_point(), 
