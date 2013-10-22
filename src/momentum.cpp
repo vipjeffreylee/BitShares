@@ -7,113 +7,66 @@
 #include <fc/crypto/aes.hpp>
 
 #include <unordered_map>
+#include <fc/reflect/variant.hpp>
+#include <fc/time.hpp>
+#include <algorithm>
 
 #include <fc/log/logger.hpp>
 
-namespace momentum 
+#define MAX_NONCE  (1<<26)
+
+namespace bts 
 {
     
-   uint64_t pow_birthday_hash( const pow_seed_type& s, uint64_t nonce )
+   std::vector< std::pair<uint32_t,uint32_t> > momentum_search( pow_seed_type head )
    {
-        uint64_t in_buffer[30];
-        uint64_t out_buffer[30];//sizeof(in_buffer)/sizeof(uint64_t)];
-        memset( (char*)in_buffer, 0, sizeof(in_buffer) );
-        in_buffer[0] = nonce;
-        memcpy( (char*)(&in_buffer[1]), (char*)&s, sizeof(s) );
+      std::unordered_map<uint64_t,uint32_t>  found;
+      found.reserve( MAX_NONCE );
+      std::vector< std::pair<uint32_t,uint32_t> > results;
 
+      for( uint32_t i = 0; i < MAX_NONCE;  )
+      {
+          fc::sha512::encoder enc;
+          enc.write( (char*)&i, sizeof(i) );
+          enc.write( (char*)&head, sizeof(head) );
 
-        auto iv  = fc::sha256::hash( (char*)in_buffer, 16*8 );
-        auto key = fc::sha512::hash( (char*)in_buffer, 16*8);
+          auto result = enc.result();
         
-         // aes hardware acceleration minimizes gap between CPU and ASIC
-         fc::aes_encrypt( (unsigned char*)in_buffer, 16*8, (unsigned char*)&key, (unsigned char*)&iv, (unsigned char*)out_buffer );
-
-         
-         for( int32_t i = 0; i < 3;  )
-         {
-               fc::aes_encrypt( (unsigned char*)out_buffer, 16*8, (unsigned char*)&key, (unsigned char*)&iv, (unsigned char*)in_buffer );
-               fc::aes_encrypt( (unsigned char*)in_buffer, 16*8, (unsigned char*)&key, (unsigned char*)&iv, (unsigned char*)out_buffer );
-               // unpredictable run time makes GPU and pipelining less effecient
-               i += 2 - out_buffer[14]%3;
-         }
-        
-         out_buffer[15] >>= 30;
-         return out_buffer[15];
+          for( uint32_t x = 0; x < 8; ++x )
+          {
+              uint64_t birthday = result._hash[x] >> 14;
+              uint32_t nonce = i+x;
+              auto itr = found.find( birthday );
+              if( itr != found.end() )
+              {
+                  results.push_back( std::make_pair( itr->second, nonce ) );
+              }
+              else
+              {
+                  found[birthday] = nonce;
+              }
+          }
+          i += 8;
+      }
+      return results;
    }
 
-   namespace detail
+
+   bool momentum_verify( pow_seed_type head, uint32_t a, uint32_t b )
    {
-        class engine_impl
-        {
-            public:
-               engine_impl():_delegate(nullptr),_effort(0),_count(0),_thread("momentum"){}
+          uint32_t ia = (a / 8) * 8; 
+          fc::sha512::encoder enca;
+          enca.write( (char*)&ia, sizeof(ia) );
+          enca.write( (char*)&head, sizeof(head) );
+          auto ar = enca.result();
 
-               pow_seed_type                          _seed;
-               engine_delegate*                       _delegate;
-               volatile float                         _effort;
-               std::unordered_map<uint64_t,uint64_t>  _result_to_nonce;
+          uint32_t ib = (b / 8) * 8; 
+          fc::sha512::encoder encb;
+          encb.write( (char*)&ib, sizeof(ib) );
+          encb.write( (char*)&head, sizeof(head) );
+          auto br = encb.result();
 
-               fc::thread                             _thread;
-               volatile uint64_t                      _count;
-
-               void exec(uint64_t count)
-               {
-                    uint64_t nonce = 0;
-                    while( count == _count && _effort > 0 )
-                    {
-                        auto birthday = pow_birthday_hash( _seed, nonce );
-                        auto itr = _result_to_nonce.find(birthday);
-                        if( itr != _result_to_nonce.end() )
-                        {
-                           fc::ripemd160::encoder enc;
-                           enc.write( (char*)&nonce, sizeof(nonce) );
-                           enc.write( (char*)&itr->second, sizeof(nonce) );
-                           enc.write( (char*)&_seed, sizeof(_seed) );
-                           auto r = enc.result();
-                           _delegate->found_match( r, nonce, itr->second );
-                        }
-                        else
-                        {
-                          _result_to_nonce[birthday] = nonce;
-                        }
-                        if( _effort < 1 )
-                        {
-                            fc::usleep( fc::microseconds(1000*1000*(1-_effort)) );
-                        }
-                        ++nonce;
-                    }
-               }
-        };
-   };
-
-   engine::engine()
-   :my( new detail::engine_impl() )
-   {
-   }
-   engine::~engine(){}
-
-   void engine::set_delegate( engine_delegate* ed )
-   {
-        my->_delegate = ed;
-   }
-
-   void engine::start( const pow_seed_type& seed, float effort )
-   {
-        auto count = ++my->_count;
-        
-        my->_thread.async( [=](){
-              my->_effort = effort;
-              my->_seed   = seed;
-              ilog( "clear" );
-              my->_result_to_nonce.clear();
-              ilog( "exec" );
-              my->exec(count);
-                           });
-
-   }
-   void engine::stop()
-   {
-        my->_effort = 0;
+          return (ar._hash[a%8]>>14) == (br._hash[b%8]>>14);
    }
 
 }
