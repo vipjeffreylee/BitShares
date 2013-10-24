@@ -116,6 +116,11 @@ namespace bts { namespace addressbook {
       add_contact_to_lookup_tables(contact);
   } FC_RETHROW_EXCEPTIONS( warn, "") }//, ("contact", contact) ) }
 
+  void addressbook::remove_contact(uint32_t wallet_index)
+  {
+      my->_encrypted_contact_db.remove(wallet_index);
+  }
+
   void addressbook::add_contact_to_lookup_tables(wallet_contact& contact)
   {
       my->_number_to_contact[contact.wallet_index] = contact;
