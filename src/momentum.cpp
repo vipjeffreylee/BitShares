@@ -11,6 +11,7 @@
 #include <fc/time.hpp>
 #include <algorithm>
 
+#include <bts/hashtable.hpp>
 #include <fc/log/logger.hpp>
 
 #define MAX_NONCE  (1<<26)

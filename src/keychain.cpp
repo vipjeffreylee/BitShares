@@ -26,7 +26,7 @@ namespace bts {
           {
               ilog( ".\r" );
               uint64_t nonces[3];
-              auto p = proof_of_work( fc::sha256::hash( (char*)&last, sizeof(last)), nonces );  
+              auto p = proof_of_work( fc::sha256::hash( (char*)&last, sizeof(last)) );  
               last = fc::sha512::hash( (char*)&p, sizeof(p) );
           }
           return last; 

@@ -24,8 +24,7 @@ namespace bts
           fc::sha256 last = seed;
           for( uint32_t i = 0; i < 1; ++i )
           {
-              uint64_t nonces[3];
-              auto p = proof_of_work( last, nonces );  
+              auto p = proof_of_work( last );  
               last = fc::sha256::hash( (char*)&p, sizeof(p) );
           }
           return last; 

@@ -135,8 +135,8 @@ namespace bts { namespace blockchain  {
      fc::raw::pack( enc, pow.nonce );
      fc::raw::pack( enc, pow.branch_path.calculate_root() );
 
-     uint64_t nonces[3];
-     return bts::proof_of_work( enc.result(), nonces );
+     //uint64_t nonces[3];
+     return bts::proof_of_work( enc.result() );
   }
 
   /**
