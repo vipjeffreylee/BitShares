@@ -55,6 +55,10 @@ namespace bts
 
    bool momentum_verify( pow_seed_type head, uint32_t a, uint32_t b )
    {
+          if( a == b ) return false;
+          if( a > MAX_NONCE ) return false;
+          if( b > MAX_NONCE ) return false;
+
           uint32_t ia = (a / 8) * 8; 
           fc::sha512::encoder enca;
           enca.write( (char*)&ia, sizeof(ia) );
