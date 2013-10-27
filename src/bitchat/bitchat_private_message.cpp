@@ -1,4 +1,5 @@
 #include <bts/bitchat/bitchat_private_message.hpp>
+#include <bts/momentum.hpp>
 #include <fc/crypto/aes.hpp>
 #include <fc/crypto/sha256.hpp>
 #include <fc/crypto/sha512.hpp>
@@ -18,7 +19,7 @@ const private_message_type private_contact_auth_message::type = contact_auth_msg
 const private_message_type private_status_message::type = status_msg;
 
 encrypted_message::encrypted_message()
-:nonce(0){}
+:noncea(0),nonceb(0),nonce(0){}
 
 fc::uint128   encrypted_message::id()const
 {
@@ -65,9 +66,37 @@ bool  encrypted_message::decrypt( const fc::ecc::private_key& with, decrypted_me
 /**
  * @param tar_per_kb... proof of work target per kb
  */
-fc::future<bool>  encrypted_message::do_proof_work( uint64_t tar_per_kb )
+bool  encrypted_message::do_proof_work( uint64_t tar_per_kb )
 {
-  return fc::async( [=](){ return false; } ); // TODO... implement do_proof_work
+   uint64_t target = (1 + data.size() / 1024) * tar_per_kb; 
+   nonce  = 0;
+   for( uint32_t i = 0; i < 0xffff; ++i )
+   {
+     nonce  = i;
+     noncea = 0;
+     nonceb = 0;
+     auto     cur_id = id();
+     auto     seed   = fc::sha256::hash( (char*)&cur_id, sizeof(cur_id) );
+     auto     pairs  = momentum_search( seed );
+     
+     for( uint32_t i = 0; i < pairs.size(); ++i )
+     {
+         noncea = pairs[i].first; 
+         nonceb = pairs[i].second; 
+         if( target <= difficulty() )
+            return true;
+         std::swap(noncea,nonceb);
+         if( target <= difficulty() )
+            return true;
+     }
+   }
+   return false;
+}
+
+uint64_t encrypted_message::difficulty()const
+{
+    fc::uint128 max_dif(int64_t(-1));
+    return (max_dif / id()).low_bits();
 }
 
 
