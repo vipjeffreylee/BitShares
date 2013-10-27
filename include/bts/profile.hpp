@@ -110,6 +110,9 @@ namespace bts {
   };
 
   typedef std::shared_ptr<profile> profile_ptr;
+  profile_ptr get_profile();
+
+
 
 } // namespace bts
 
