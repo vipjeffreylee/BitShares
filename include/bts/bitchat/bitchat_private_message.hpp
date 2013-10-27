@@ -47,8 +47,8 @@ namespace bts { namespace bitchat {
     {
         static const message_type type = encrypted_msg;
         encrypted_message();
-        uint32_t                                      noncea; ///< collision a
-        uint32_t                                      nonceb; ///< collision b
+        mutable uint32_t                              noncea; ///< collision a
+        mutable uint32_t                              nonceb; ///< collision b
 
         uint16_t                                      nonce; ///< increment timestamp after 63K tests
         fc::time_point_sec                            timestamp;
@@ -57,15 +57,16 @@ namespace bts { namespace bitchat {
         std::vector<char>                             data;
 
         fc::uint128        id()const;
-        uint64_t           difficulty()const;
 
         /**
          *  This method will increment the nonce or timestamp until difficulty(id()) > tar_per_kb*(1+data.size()/1024).
          *
          *  @return a future object that can be used to cancel the proof of work, result true if target found.
          */
-        bool   do_proof_work( uint64_t tar_per_kb );
-        bool   decrypt( const fc::ecc::private_key& with, decrypted_message& m )const;
+        bool        do_proof_work( uint64_t tar_per_kb );
+        bool        validate_proof()const; // checks to make sure the proof of work is valid
+        uint64_t    difficulty()const;
+        bool        decrypt( const fc::ecc::private_key& with, decrypted_message& m )const;
     };
 
 

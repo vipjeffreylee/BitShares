@@ -4,6 +4,8 @@
 #include <fc/crypto/ripemd160.hpp>
 #include <fc/reflect/reflect.hpp>
 
+#define MAX_MOMENTUM_NONCE  (1<<26)
+
 namespace bts 
 {
    typedef fc::sha256     pow_seed_type;

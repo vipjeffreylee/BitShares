@@ -14,7 +14,6 @@
 //#include <bts/hashtable.hpp>
 #include <fc/log/logger.hpp>
 
-#define MAX_NONCE  (1<<26)
 
 namespace bts 
 {
@@ -22,10 +21,10 @@ namespace bts
    std::vector< std::pair<uint32_t,uint32_t> > momentum_search( pow_seed_type head )
    {
       std::unordered_map<uint64_t,uint32_t>  found;
-      found.reserve( MAX_NONCE );
+      found.reserve( MAX_MOMENTUM_NONCE);
       std::vector< std::pair<uint32_t,uint32_t> > results;
 
-      for( uint32_t i = 0; i < MAX_NONCE;  )
+      for( uint32_t i = 0; i < MAX_MOMENTUM_NONCE;  )
       {
           fc::sha512::encoder enc;
           enc.write( (char*)&i, sizeof(i) );
@@ -56,8 +55,8 @@ namespace bts
    bool momentum_verify( pow_seed_type head, uint32_t a, uint32_t b )
    {
           if( a == b ) return false;
-          if( a > MAX_NONCE ) return false;
-          if( b > MAX_NONCE ) return false;
+          if( a > MAX_MOMENTUM_NONCE ) return false;
+          if( b > MAX_MOMENTUM_NONCE ) return false;
 
           uint32_t ia = (a / 8) * 8; 
           fc::sha512::encoder enca;

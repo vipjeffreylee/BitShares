@@ -92,6 +92,19 @@ bool  encrypted_message::do_proof_work( uint64_t tar_per_kb )
    }
    return false;
 }
+bool encrypted_message::validate_proof()const
+{
+   if( noncea == nonceb ) return false;
+   if( noncea > MAX_MOMENTUM_NONCE ) return false;
+   if( nonceb > MAX_MOMENTUM_NONCE ) return false;
+   auto    tmpa = noncea;
+   auto    tmpb = nonceb;
+   auto    cur_id = id();
+   noncea = tmpa;
+   nonceb = tmpb;
+   auto    seed   = fc::sha256::hash( (char*)&cur_id, sizeof(cur_id) );
+   return momentum_verify( seed, noncea, nonceb );
+}
 
 uint64_t encrypted_message::difficulty()const
 {
