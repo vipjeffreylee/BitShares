@@ -79,9 +79,19 @@ namespace bts { namespace bitchat {
  
   void message_db::remove(const message_header& msg_header)
   {
-   my->_index.remove(msg_header);    
-   my->_digest_to_data.remove(msg_header.digest);
+      my->_index.remove(msg_header);    
+      my->_digest_to_data.remove(msg_header.digest);
   }
+
+  void message_db::store_message_header(const message_header& msg_header)
+  {
+      my->_index.store(msg_header,0);
+  } 
+
+  void message_db::remove_message_header(const message_header& msg_header)
+  {
+      my->_index.remove(msg_header);
+  } 
 
   std::vector<message_header>  message_db::fetch_headers( private_message_type t, 
                                               fc::time_point_sec from_time, 
