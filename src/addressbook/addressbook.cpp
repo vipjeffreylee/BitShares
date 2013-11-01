@@ -103,7 +103,7 @@ namespace bts { namespace addressbook {
       return contact;
   } FC_RETHROW_EXCEPTIONS( warn, "", ("full_name", full_name) ) }
 
-  void addressbook::store_contact(wallet_contact& contact)
+  void addressbook::store_contact(const wallet_contact& contact)
   { try {
       FC_ASSERT( contact.wallet_index != WALLET_INVALID_INDEX ); 
 
@@ -121,7 +121,7 @@ namespace bts { namespace addressbook {
       my->_encrypted_contact_db.remove(wallet_index);
   }
 
-  void addressbook::add_contact_to_lookup_tables(wallet_contact& contact)
+  void addressbook::add_contact_to_lookup_tables(const wallet_contact& contact)
   {
       my->_number_to_contact[contact.wallet_index] = contact;
       if( contact.public_key.valid() )
@@ -131,6 +131,12 @@ namespace bts { namespace addressbook {
       my->_id_to_number[contact.dac_id_hash] = contact.wallet_index;
       auto full_name_hash = bitname::name_hash(contact.getFullName());
       my->_full_name_to_number[full_name_hash] = contact.wallet_index;
+  }
+
+  void contact::set_dac_id( const std::string& dac_id )
+  {
+      dac_id_string = dac_id; 
+      dac_id_hash   = bitname::name_hash(dac_id);
   }
 
 } } // bts::addressbook

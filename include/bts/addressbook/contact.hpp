@@ -97,7 +97,7 @@ namespace bts { namespace addressbook {
       fc::ecc::public_key             public_key;
 
       /// @note should be kept consistant with doc_id_hash
-      uint64_t                        dac_id_hash;
+      mutable uint64_t                dac_id_hash;
 
       /// @note should be kept consistant with doc_id_hash
       std::string                     dac_id_string; 
