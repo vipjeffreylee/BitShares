@@ -58,6 +58,8 @@ namespace bts { namespace bitchat {
        
        message_header store( const decrypted_message& m );
        void           remove(const message_header& msg_header);
+       void           store_message_header(const message_header& msg_header);
+       void           remove_message_header(const message_header& msg_header);
 
        
        std::vector<message_header>  fetch_headers( private_message_type t, 

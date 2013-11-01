@@ -20,11 +20,8 @@ namespace bts { namespace bitname {
      class client_impl : public name_miner_delegate, public name_channel_delegate
      {
         public:
-          client_impl():_self(nullptr),_delegate(nullptr),_mining_intensity(100) 
+          client_impl():_self(nullptr),_delegate(nullptr),_mining_intensity(0) 
           {
-//          #ifdef _DEBUG
-//          _mining_intensity = 0;
-//          #endif
           }
 
           virtual void found_name_block( const name_block& new_block )
