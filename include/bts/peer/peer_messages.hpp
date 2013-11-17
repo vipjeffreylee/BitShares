@@ -7,17 +7,18 @@
 
 namespace bts { namespace peer {
   /// these belong as part of the peer proto channel, not part of
-  ///  the mssage class.
+  ///  the message class.
   enum message_code
   {
      generic         = 0,
      config          = 1,
-     known_hosts     = 2,
-     error_report    = 3,
-     subscribe       = 4,
-     unsubscribe     = 5,
-     get_known_hosts = 6,
-     get_subscribed  = 7
+     announce        = 2,
+     known_hosts     = 3,
+     error_report    = 4,
+     subscribe       = 5,
+     unsubscribe     = 6,
+     get_known_hosts = 7,
+     get_subscribed  = 8
   };
 
   struct config_msg
@@ -28,6 +29,7 @@ namespace bts { namespace peer {
        */
       std::unordered_set<std::string> supported_features;
       fc::ip::endpoint                public_contact;
+      fc::time_point                  timestamp;
   };
 
 
@@ -38,6 +40,21 @@ namespace bts { namespace peer {
       known_hosts_msg( std::vector<host> h )
       :hosts( std::move(h) ){}
       std::vector<host> hosts;
+  };
+
+  /**
+   *  When a new node connects to the network, they can broadcast
+   *  their IP and features so that other nodes can connect to them.  Because
+   *  broadcasts can be expensive, connect messages 
+   */
+  struct announce_msg : public config_msg
+  {
+     static const message_code type = message_code::announce;
+      bool     validate_work()const;
+      void     find_birthdays();
+
+      uint32_t        birthday_a;
+      uint32_t        birthday_b;
   };
 
   struct subscribe_msg
@@ -80,6 +97,7 @@ namespace bts { namespace peer {
 FC_REFLECT( bts::peer::config_msg,       
     (supported_features)
     (public_contact)
+    (timestamp)
     )
 
 FC_REFLECT_ENUM( bts::peer::message_code,
@@ -94,6 +112,7 @@ FC_REFLECT_ENUM( bts::peer::message_code,
   )
 FC_REFLECT( bts::peer::known_hosts_msg,  (hosts) )
 FC_REFLECT( bts::peer::error_report_msg, (code)(message) )
+FC_REFLECT_DERIVED( bts::peer::announce_msg, (bts::peer::config_msg), (birthday_a)(birthday_b) )
 FC_REFLECT( bts::peer::subscribe_msg,    (channels ) )
 FC_REFLECT( bts::peer::unsubscribe_msg,  (channels ) )
 FC_REFLECT( bts::peer::get_known_hosts_msg, BOOST_PP_SEQ_NIL ); 
