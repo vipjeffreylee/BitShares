@@ -11,17 +11,64 @@
 #include <fc/time.hpp>
 #include <algorithm>
 
-//#include <bts/hashtable.hpp>
 #include <fc/log/logger.hpp>
 
 
 namespace bts 
 {
+   #define MAX_MOMENTUM_NONCE  (1<<26)
+   #define SEARCH_SPACE_BITS 50
+   #define BIRTHDAYS_PER_HASH 8
+
+
+  const int TABLE_SIZE =  (1<<26);
+
+  class hashtable
+  {
+     public:
+        hashtable() :
+            itable(new std::array< std::pair<uint64_t,uint32_t>,TABLE_SIZE >),
+            table(*itable)
+        {
+            reset();
+        }
+        ~hashtable()
+        {
+            delete itable;
+        }
+        void reset()
+        {
+            memset( (char*)table.data(), 0, table.size()*sizeof(std::pair<uint64_t,uint32_t>) );
+        }
+
+        uint32_t store( uint64_t key, uint32_t val )
+        {
+           uint64_t next_key = key;
+           auto index = next_key % table.size() ;
+
+           //if matching collision in table, return it
+           if( table[index].first == key  )
+           {
+               return table[index].second;
+           }
+
+           //no collision, add to table
+           table[index].first   = key;
+           table[index].second  = val;
+           return -1;
+        }
+
+
+     private:
+        std::array< std::pair<uint64_t,uint32_t>,TABLE_SIZE >*  itable;
+        std::array< std::pair<uint64_t,uint32_t>,TABLE_SIZE >&  table;
+  };
+
+
     
    std::vector< std::pair<uint32_t,uint32_t> > momentum_search( pow_seed_type head )
    {
-      std::unordered_map<uint64_t,uint32_t>  found;
-      found.reserve( MAX_MOMENTUM_NONCE);
+      hashtable found;
       std::vector< std::pair<uint32_t,uint32_t> > results;
 
       for( uint32_t i = 0; i < MAX_MOMENTUM_NONCE;  )
@@ -36,14 +83,11 @@ namespace bts
           {
               uint64_t birthday = result._hash[x] >> 14;
               uint32_t nonce = i+x;
-              auto itr = found.find( birthday );
-              if( itr != found.end() )
+              uint32_t cur = found.store( birthday, nonce );
+              if( cur != uint32_t(-1) )
               {
-                  results.push_back( std::make_pair( itr->second, nonce ) );
-              }
-              else
-              {
-                  found[birthday] = nonce;
+                  results.push_back( std::make_pair( cur, nonce ) );
+                  results.push_back( std::make_pair( nonce, cur ) );
               }
           }
           i += 8;
