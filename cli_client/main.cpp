@@ -20,16 +20,16 @@ void create_identity( const std::shared_ptr<bts::application>& app )
     std::cout<<"Label: ";
     std::cin >> new_id.label;
     std::cout<<"BitID: ";
-    std::cin >> new_id.bit_id;
+    std::cin >> new_id.dac_id;
 
     new_id.mining_effort = 0.2;
     auto pro = app->get_profile();
     
-    fc::optional<bitname::name_record> rec =  app->lookup_name( new_id.bit_id );
+    fc::optional<bitname::name_record> rec =  app->lookup_name( new_id.dac_id );
     if( rec )
     {
       ilog( "name is already in use: ${rec}", ("rec", *rec) );
-      auto prv_key = pro->get_keychain().get_identity_key( new_id.bit_id );
+      auto prv_key = pro->get_keychain().get_identity_key( new_id.dac_id );
       if( prv_key.get_public_key() != fc::ecc::public_key( rec->pub_key ) )
       {
           wlog( "name apparently belongs to someone else... I wouldn't recomend using this ID", ("rec", *rec) );
@@ -89,7 +89,7 @@ int main( int argc, char** argv )
         idents = pro->identities();
      }
 
-     fc::ecc::private_key my_priv_key = pro->get_keychain().get_identity_key( idents[0].bit_id );
+     fc::ecc::private_key my_priv_key = pro->get_keychain().get_identity_key( idents[0].dac_id );
 
 
 
@@ -112,23 +112,23 @@ int main( int argc, char** argv )
        }
        else if( cmd == "mine" ) 
        {
-          app->mine_name( idents[0].bit_id, 
-                          pro->get_keychain().get_identity_key( idents[0].bit_id ).get_public_key(), 
+          app->mine_name( idents[0].dac_id, 
+                          pro->get_keychain().get_identity_key( idents[0].dac_id ).get_public_key(), 
                           idents[0].mining_effort );
        }
        else if( cmd == "lookup" )
        {
-          std::string bit_id;
-          ss >> bit_id;
-          ilog( "record: ${rec}", ("rec",app->lookup_name(bit_id)) );
+          std::string dac_id;
+          ss >> dac_id;
+          ilog( "record: ${rec}", ("rec",app->lookup_name(dac_id)) );
        }
        else if( cmd == "send" )
        {
-          std::string bit_id;
-          ss >> bit_id;
+          std::string dac_id;
+          ss >> dac_id;
 
-          auto opt_name_rec  = app->lookup_name(bit_id);
-          ilog( "record: ${rec}", ("rec",app->lookup_name(bit_id)) );
+          auto opt_name_rec  = app->lookup_name(dac_id);
+          ilog( "record: ${rec}", ("rec",app->lookup_name(dac_id)) );
           if( opt_name_rec )
           {
               std::string msg;
@@ -138,8 +138,8 @@ int main( int argc, char** argv )
        }
        else if( cmd == "log" )
        {
-          std::string bit_id;
-          ss >> bit_id;
+          std::string dac_id;
+          ss >> dac_id;
 
        }
        else if( cmd == "inbox" )
@@ -153,13 +153,13 @@ int main( int argc, char** argv )
        else if( cmd == "addc" )
        {
           std::string label;
-          std::string bit_id;
+          std::string dac_id;
           ss >> label;
-          ss >> bit_id;
+          ss >> dac_id;
 
-          auto bitrecord = app->lookup_name(bit_id);
+          auto bitrecord = app->lookup_name(dac_id);
           ilog( "record: ${rec}", ("rec",bitrecord) );
-          fc::optional<bts::addressbook::contact>   con =   pro->get_addressbook()->get_contact_by_bitname( bit_id );
+          fc::optional<bts::addressbook::contact>   con =   pro->get_addressbook()->get_contact_by_bitname( dac_id );
           if( con )
           {
               con->first_name = label;
@@ -168,7 +168,7 @@ int main( int argc, char** argv )
           else
           {
               bts::addressbook::contact con;
-              con.bitname_id = bit_id;
+              con.bitname_id = dac_id;
               con.first_name = label;
               pro->get_addressbook()->store_contact( con );
           }

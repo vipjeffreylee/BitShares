@@ -24,18 +24,27 @@ namespace bts { namespace peer {
   struct config_msg
   {
       static const message_code type = message_code::config;
+      /** The host_id is the city hash of the IP
+       *  a hash is used to 'randomize' IPs and ensure that
+       *  a client is connected to a wide range of IP 
+       *  addresses and not a bunch of IPs from the same
+       *  subnet.
+       */
+      uint64_t get_host_id()const;
+
       /** 
        *  A list of features supported by this client.
        */
-      std::unordered_set<std::string> supported_features;
-      fc::ip::endpoint                public_contact;
-      fc::time_point                  timestamp;
+      std::unordered_set<std::string>  supported_features;
+      std::unordered_set<uint32_t>     subscribed_channels;
+      fc::ip::endpoint                 public_contact;
+      fc::time_point                   timestamp;
   };
 
 
   struct known_hosts_msg
   {
-     static const message_code type = message_code::known_hosts;
+      static const message_code type = message_code::known_hosts;
       known_hosts_msg(){}
       known_hosts_msg( std::vector<host> h )
       :hosts( std::move(h) ){}
@@ -49,12 +58,28 @@ namespace bts { namespace peer {
    */
   struct announce_msg : public config_msg
   {
-     static const message_code type = message_code::announce;
-      bool     validate_work()const;
-      void     find_birthdays();
+      static const message_code type = message_code::announce;
+      announce_msg();
+
+      /** returns a hash for this announcement used when broadcasting the
+       * message on the network. 
+       */
+      uint64_t        announce_id()const; 
+
+      /** checks to make sure the work is sufficient and recent */
+      bool            validate_work()const;
+
+      /** this method will not return until validate_work() returns true or
+       *  stop_birthday_search() has been called from another thread.
+       */
+      void            find_birthdays();
+      void            stop_birthday_search();
 
       uint32_t        birthday_a;
       uint32_t        birthday_b;
+
+      private:
+      volatile bool _cancel_birthday_search;
   };
 
   struct subscribe_msg
@@ -96,6 +121,7 @@ namespace bts { namespace peer {
 #include <fc/reflect/reflect.hpp>
 FC_REFLECT( bts::peer::config_msg,       
     (supported_features)
+    (subscribed_channels)
     (public_contact)
     (timestamp)
     )
@@ -110,6 +136,7 @@ FC_REFLECT_ENUM( bts::peer::message_code,
   (get_known_hosts)
   (get_subscribed)
   )
+
 FC_REFLECT( bts::peer::known_hosts_msg,  (hosts) )
 FC_REFLECT( bts::peer::error_report_msg, (code)(message) )
 FC_REFLECT_DERIVED( bts::peer::announce_msg, (bts::peer::config_msg), (birthday_a)(birthday_b) )

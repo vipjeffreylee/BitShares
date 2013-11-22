@@ -1,7 +1,9 @@
 #include <bts/peer/peer_messages.hpp>
 #include <bts/peer/peer_channel.hpp>
+#include <bts/db/level_map.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/thread/thread.hpp>
 #include <unordered_map>
 #include <algorithm>
 
@@ -28,7 +30,6 @@ namespace bts { namespace peer {
              void add_connection( connection* c )
              {
                 connections.push_back(c);
-
              }
              void remove_connection( connection* c )
              {
@@ -72,6 +73,12 @@ namespace bts { namespace peer {
             *  This list is provided to new nodes when they connect.  Limit to 1000 nodes.
             */
            std::vector<host>                                      recent_hosts;
+
+           bts::db::level_map<uint64_t,announce_msg>              known_hosts;
+
+           announce_msg                                           last_announce;
+           fc::thread                                             announce_miner_thread;
+           fc::future<void>                                       announce_mining_complete;
 
 
            /**
@@ -133,6 +140,7 @@ namespace bts { namespace peer {
                   cons_by_channel[*itr].remove_connection(c.get());
                }
            }
+
            
            virtual void handle_subscribe( const connection_ptr& c )
            {
@@ -140,9 +148,14 @@ namespace bts { namespace peer {
            virtual void handle_unsubscribe( const connection_ptr& c )
            {
            }
+
            virtual void handle_message( const connection_ptr& c, const message& m )
            {
-               if( m.msg_type == subscribe_msg::type )
+               if( m.msg_type == announce_msg::type )
+               {
+                   handle_announce( c, m.as<announce_msg>() );
+               }
+               else if( m.msg_type == subscribe_msg::type )
                {
                    handle_subscribe( c, m.as<subscribe_msg>() );
                }
@@ -166,6 +179,35 @@ namespace bts { namespace peer {
                {
                    handle_error_report( c, m.as<error_report_msg>() );
                }
+           }
+
+           void handle_announce( const connection_ptr& c, announce_msg msg  )
+           {
+              if( msg.validate_work() )
+              {
+                  auto itr = known_hosts.find( msg.get_host_id() );
+                  if( itr.valid() )
+                  {
+                     auto old_value = itr.value();
+                     if( old_value.timestamp + fc::seconds( 60 * 60 ) > msg.timestamp )
+                     {
+                       wlog( "connection ${endpoint} sent announcement too soon after last annoucnement", 
+                             ("endpoint",c->remote_endpoint()) );
+                        // TODO: misbehaving connection ?
+                        return; 
+                     }
+                  }
+                  // TODO: check against blacklist... 
+
+                  known_hosts.store( msg.get_host_id(), msg );
+                  // add this host id to the current inventory so we can broadcast an INV
+                  // for this announcement.
+              }
+              else
+              {
+                 wlog( "connection ${endpoint} sent announcement with invalid work", ("endpoint",c->remote_endpoint()) );
+                 // TODO: connection is misbehaving!
+              }
            }
 
            void handle_config( const connection_ptr& c, config_msg cfg  )
