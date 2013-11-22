@@ -1,5 +1,6 @@
 #include <bts/peer/peer_messages.hpp>
 #include <bts/peer/peer_channel.hpp>
+#include <bts/network/broadcast_manager.hpp>
 #include <bts/db/level_map.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/reflect/variant.hpp>
@@ -22,6 +23,8 @@ namespace bts { namespace peer {
            fc::ip::endpoint             public_contact; // used for reverse connection
            fc::optional<config_msg>     peer_config;
            bool                         requested_hosts;
+
+           broadcast_manager<uint64_t,announce_msg>::channel_data  announce_messages;
       };
 
       class channel_connection_index
@@ -63,6 +66,7 @@ namespace bts { namespace peer {
       {
          public:
            server_ptr netw;
+           bts::network::channel_id                               _chan_id;
            
            /** maps a channel ID to all connections subscribed to that channel */
            std::unordered_map<uint32_t,channel_connection_index>  cons_by_channel;
@@ -79,6 +83,34 @@ namespace bts { namespace peer {
            announce_msg                                           last_announce;
            fc::thread                                             announce_miner_thread;
            fc::future<void>                                       announce_mining_complete;
+           
+           broadcast_manager<uint64_t,announce_msg>               announce_broadcasts;
+
+           void broadcast_inv()
+           { try {
+              if( announce_broadcasts.has_new_since_broadcast() )
+              {
+                 auto con_chan_itr = cons_by_channel.find( _chan_id.id() );
+                 auto cons = con_chan_itr->second.get_connections();
+                 for( auto itr = cons.begin(); itr != cons.end(); ++itr )
+                 {
+                    announce_inv_msg inv_msg;
+                    peer_data& con_data = get_channel_data(*itr);
+                    
+                    inv_msg.announce_msgs = announce_broadcasts.get_inventory( 
+                                                               con_data.announce_messages );
+                    if( inv_msg.announce_msgs.size() != 0 )
+                    {
+                       (*itr)->send( network::message( inv_msg, _chan_id ) );
+                       con_data.announce_messages.update_known( inv_msg.announce_msgs );
+                    }
+                 }
+                 // TODO: send() may yield and thus there may in fact be new since
+                 // the last broadcast... should I copy state before starting loop 
+                 // above?
+                 announce_broadcasts.set_new_since_broadcast(false);
+              }
+           } FC_RETHROW_EXCEPTIONS( warn, "error broadcasting announcement inventory" ) }
 
 
            /**
@@ -130,6 +162,10 @@ namespace bts { namespace peer {
                ilog( "on connected..." );
                send_subscription_request( c );
            }
+           peer_data& get_channel_data( const connection_ptr& c )
+           {
+              return c->get_channel_data( channel_id(peer_proto) )->as<peer_data>(); 
+           }
 
            
            virtual void on_disconnected( const connection_ptr& c )
@@ -154,6 +190,14 @@ namespace bts { namespace peer {
                if( m.msg_type == announce_msg::type )
                {
                    handle_announce( c, m.as<announce_msg>() );
+               }
+               else if( m.msg_type == announce_inv_msg::type )
+               {
+                   handle_announce_inv( c, m.as<announce_inv_msg>() );
+               }
+               else if( m.msg_type == get_announce_msg::type )
+               {
+                   handle_get_announce( c, m.as<get_announce_msg>() );
                }
                else if( m.msg_type == subscribe_msg::type )
                {
@@ -183,6 +227,9 @@ namespace bts { namespace peer {
 
            void handle_announce( const connection_ptr& c, announce_msg msg  )
            {
+              // TODO: validate that we requested this message, otherwise it is an
+              // unsolicited message and we must note the misbehavior of the connection
+
               if( msg.validate_work() )
               {
                   auto itr = known_hosts.find( msg.get_host_id() );
@@ -210,9 +257,37 @@ namespace bts { namespace peer {
               }
            }
 
+           void handle_announce_inv( const connection_ptr& c, announce_inv_msg msg )
+           {
+              peer_data& pd = get_channel_data( c );
+              ilog( "inv: ${msg}", ("msg",msg) );
+              for( auto itr = msg.announce_msgs.begin(); itr != msg.announce_msgs.end(); ++itr )
+              {
+                 announce_broadcasts.received_inventory_notice( *itr ); 
+              }
+              pd.announce_messages.update_known( msg.announce_msgs );
+           }
+
+           void handle_get_announce(  const connection_ptr& c, get_announce_msg msg )
+           {
+               // TODO: how do we prevent the peer from floodign us with get requests?
+               // TODO: what do we do if msg.announce_id is invalid?  
+               auto reply = announce_broadcasts.get_value( msg.announce_id );
+               // TODO: should we verify that the announce message is still valid
+               // before sending... it may have expired 
+               if( !!reply )
+               {
+                  c->send( network::message(*reply,_chan_id) );
+               }
+               else
+               {
+                  wlog( "unknown peer announcement id ${id}", ("id",msg.announce_id) );
+               }
+           }
+
            void handle_config( const connection_ptr& c, config_msg cfg  )
            {
-               peer_data& pd = c->get_channel_data( channel_id(peer_proto) )->as<peer_data>(); 
+               peer_data& pd = get_channel_data( c );
                pd.peer_config = std::move(cfg);
 
                if( recent_hosts.size() < PEER_HOST_CACHE_QUERY_LIMIT )
@@ -224,7 +299,7 @@ namespace bts { namespace peer {
 
            void handle_known_hosts( const connection_ptr& c, const known_hosts_msg& m )
            {
-               peer_data& pd = c->get_channel_data( channel_id(peer_proto) )->as<peer_data>(); 
+               peer_data& pd = get_channel_data( c );
 
                std::vector<host> new_hosts;
                for( auto itr = m.hosts.begin(); itr != m.hosts.end(); ++itr )
@@ -262,7 +337,7 @@ namespace bts { namespace peer {
            void handle_subscribe( const connection_ptr& c, const subscribe_msg& s )
            {
                ilog( "${ep}: ${msg}", ("ep", c->remote_endpoint()) ("msg",s) );
-               peer_data& pd = c->get_channel_data( channel_id(peer_proto) )->as<peer_data>(); 
+               peer_data& pd = get_channel_data(c);
                if( s.channels.size() > MAX_CHANNELS_PER_CONNECTION )
                {
                   // TODO... send a error message... disconnect host... require pow?
@@ -334,8 +409,9 @@ namespace bts { namespace peer {
    :my( new detail::peer_channel_impl() )
    {
       my->netw = s;
+      my->_chan_id = channel_id( peer_proto, 0 );
       s->set_delegate( my.get() );
-      subscribe_to_channel( channel_id( peer_proto, 0 ), my );
+      subscribe_to_channel( my->_chan_id, my );
    }
 
    peer_channel::~peer_channel()

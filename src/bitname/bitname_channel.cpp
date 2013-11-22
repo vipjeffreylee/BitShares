@@ -308,8 +308,8 @@ namespace bts { namespace bitname {
                      if( inv_msg.name_trxs.size() )
                      {
                        (*c)->send( network::message(inv_msg,_chan_id) );
+                       con_data.trxs_mgr.update_known( inv_msg.name_trxs );
                      }
-                     con_data.trxs_mgr.update_known( inv_msg.name_trxs );
                    }
                    _trx_broadcast_mgr.set_new_since_broadcast(false);
                  }
@@ -326,8 +326,8 @@ namespace bts { namespace bitname {
                      if( inv_msg.block_ids.size() )
                      {
                        (*c)->send( network::message(inv_msg,_chan_id) );
+                       con_data.block_mgr.update_known( inv_msg.block_ids );
                      }
-                     con_data.block_mgr.update_known( inv_msg.block_ids );
                    }
                    _block_index_broadcast_mgr.set_new_since_broadcast(false);
                  }

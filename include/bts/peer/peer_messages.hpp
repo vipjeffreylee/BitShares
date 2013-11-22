@@ -18,7 +18,9 @@ namespace bts { namespace peer {
      subscribe       = 5,
      unsubscribe     = 6,
      get_known_hosts = 7,
-     get_subscribed  = 8
+     get_subscribed  = 8,
+     announce_inv    = 9,
+     get_announce    = 10,
   };
 
   struct config_msg
@@ -39,6 +41,17 @@ namespace bts { namespace peer {
       std::unordered_set<uint32_t>     subscribed_channels;
       fc::ip::endpoint                 public_contact;
       fc::time_point                   timestamp;
+  };
+
+  struct announce_inv_msg
+  {
+      static const message_code type = message_code::announce_inv;
+      std::vector<uint64_t> announce_msgs;
+  };
+  struct get_announce_msg
+  {
+      static const message_code type = message_code::get_announce;
+      uint64_t announce_id;
   };
 
 
@@ -137,6 +150,8 @@ FC_REFLECT_ENUM( bts::peer::message_code,
   (get_subscribed)
   )
 
+FC_REFLECT( bts::peer::announce_inv_msg, (announce_msgs) )
+FC_REFLECT( bts::peer::get_announce_msg, (announce_id) )
 FC_REFLECT( bts::peer::known_hosts_msg,  (hosts) )
 FC_REFLECT( bts::peer::error_report_msg, (code)(message) )
 FC_REFLECT_DERIVED( bts::peer::announce_msg, (bts::peer::config_msg), (birthday_a)(birthday_b) )
