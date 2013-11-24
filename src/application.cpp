@@ -2,6 +2,7 @@
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
 #include <bts/network/upnp.hpp>
+#include <bts/rpc/rpc_server.hpp>
 #include <fc/reflect/variant.hpp>
 
 #include <fc/log/logger.hpp>
@@ -17,7 +18,9 @@ namespace bts {
     {
        public:
           application_impl()
-          :_delegate(nullptr){}
+          :_delegate(nullptr),
+           _quit_promise( new fc::promise<void>() )
+           {}
 
           application_delegate*             _delegate;
           fc::optional<application_config>  _config;
@@ -29,6 +32,9 @@ namespace bts {
           bts::bitname::client_ptr          _bitname_client;
           bts::bitchat::client_ptr          _bitchat_client;     
           bts::network::upnp_service        _upnp;
+          bts::rpc::server                  _rpc_server;
+
+          fc::promise<void>::ptr            _quit_promise;
 
           void set_mining_intensity(int intensity) { _bitname_client->set_mining_intensity(intensity); }
           int  get_mining_intensity() { return _bitname_client->get_mining_intensity(); }
@@ -120,6 +126,9 @@ namespace bts {
      my->_bitchat_client  = std::make_shared<bts::bitchat::client>( my->_peers, my.get() );
      my->_bitchat_client->configure( cfg.data_dir / "bitchat" );
 
+     my->_rpc_server.configure( cfg.rpc_config );
+     my->_rpc_server.set_bitname_client( my->_bitname_client );
+
      for( auto itr = cfg.default_nodes.begin(); itr != cfg.default_nodes.end(); ++itr )
      {
           try {
@@ -132,6 +141,11 @@ namespace bts {
      }
 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
+
+  bts::network::server_ptr application::get_network()const
+  {
+      return my->_server;
+  }
 
   application_config application::get_configuration()const
   {
@@ -250,6 +264,7 @@ namespace bts {
 
   void application::quit()
   { try {
+       my->_quit_promise->set_value();
        my.reset();
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
  
@@ -258,4 +273,10 @@ namespace bts {
       static application_ptr app = std::make_shared<application>();
       return app;
   }
+
+  void application::wait_until_quit()
+  { try {
+      auto wait_ptr_copy = my->_quit_promise; 
+      wait_ptr_copy->wait();
+  } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 } // namespace bts

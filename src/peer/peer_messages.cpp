@@ -14,6 +14,8 @@ const message_code unsubscribe_msg::type;
 const message_code get_subscribed_msg::type;
 const message_code error_report_msg::type;
 const message_code get_known_hosts_msg::type;
+const message_code announce_inv_msg::type;
+const message_code get_announce_msg::type;
 
 announce_msg::announce_msg()
 :birthday_a(0),birthday_b(0),_cancel_birthday_search(false){}

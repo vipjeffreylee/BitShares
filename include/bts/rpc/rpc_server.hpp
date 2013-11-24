@@ -1,5 +1,6 @@
 #pragma once
 #include <bts/bitname/bitname_client.hpp>
+#include <bts/config.hpp>
 
 namespace bts { namespace rpc { 
 
@@ -14,7 +15,6 @@ namespace bts { namespace rpc {
    *  @code
    *   { "method":"login", "params":["user","pass"], "id":0 }
    *  @endcode
-   *
    *  TODO: Implement SSL connections, perhaps with CERT requirement
    *  TODO: Restrict connections to a user-specified interface (ie: loopback)
    */
@@ -24,7 +24,7 @@ namespace bts { namespace rpc {
       struct config 
       {
          config()
-         :port(0){}
+         :port(RPC_DEFAULT_PORT){}
 
          uint16_t      port;
          std::string   user;

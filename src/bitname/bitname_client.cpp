@@ -215,15 +215,16 @@ namespace bts { namespace bitname {
   }
 
   void client::mine_name( const std::string& bitname_id, const fc::ecc::public_key& name_key)
-  {
+  { try {
+     auto current_record = my->_chan->lookup_name( bitname_id );
+     if( current_record  && current_record->pub_key != name_key )
+     {
+        FC_THROW_EXCEPTION( exception, "name ${bitname_id} has already been reserved as ${record}",
+                                         ("bitname_id",bitname_id)("record",*current_record) );
+     }
      my->_names_to_mine[bitname_id] = name_key;
      my->start_mining();
-     /*
-     my->_pending_regs.store( bitname_id, name_key );
-     my->_miner.set_name( bitname_id, name_key );
-     my->_miner.start( my->_config.max_mining_effort );
-     */
-  }
+  } FC_RETHROW_EXCEPTIONS( warn, "name: ${name} key: ${key}", ("name",bitname_id)("key",name_key) ) }
 
   const std::unordered_map<std::string,fc::ecc::public_key_data>&  client::actively_mined_names()const
   {
