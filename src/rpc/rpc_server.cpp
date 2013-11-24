@@ -3,6 +3,7 @@
 #include <fc/network/tcp_socket.hpp>
 #include <fc/rpc/json_connection.hpp>
 #include <fc/thread/thread.hpp>
+#include <bts/application.hpp>
 
 namespace bts { namespace rpc { 
 
@@ -76,36 +77,114 @@ namespace bts { namespace rpc {
             con->add_method( "lookup_name", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 1 );
-                check_login( capture_con );
+           //     check_login( capture_con );
                 return fc::variant( _bitnamec->lookup_name( params[0].as_string() ) );
             });
+
             con->add_method( "reverse_name_lookup", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 1 );
                 check_login( capture_con );
                 return fc::variant( _bitnamec->reverse_name_lookup( params[0].as<fc::ecc::public_key>() ) );
             });
+
+            /**
+             *  params : ["sha256 digest hex","ecc compact signature hex"]
+             *  result : "ECC PUBLIC KEY"
+             */
             con->add_method( "verify_signature", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 2 );
-                check_login( capture_con );
-                return fc::variant( _bitnamec->verify_signature( params[0].as<fc::sha256>(), params[1].as<fc::ecc::compact_signature>() ) );
+                std::string message = "SIGNED BY SANCHO " + params[0].as_string();
+                auto digest = fc::sha256::hash(message.c_str(), message.size() );
+                return fc::variant( fc::ecc::public_key( params[1].as<fc::ecc::compact_signature>(), digest ) );
             });
-            con->add_method( "sign", [=]( const fc::variants& params ) -> fc::variant 
+
+            /**
+             *  params : ["name","SHA256 Digest Hex"]
+             *  result : "ecc compact signature" of sha256( "SIGNED BY SANCHO " + "SHA256 Digest Hex" )
+             *
+             *  @note "SANCHO_SIGNED" is meant to prevent this from being used to sign data not intended to
+             *  be verifyed by verify_signature.
+             */
+            con->add_method( "sign_message", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 2 );
                 check_login( capture_con );
-                // TODO: this requires private key access not available to bitname... must come from 
-                // profile..
-                return fc::variant(/* _bitnamec->sign( params[0].as<fc::sha256>(), params[1].as_string() )*/ );
+                auto current_profile = bts::application::instance()->get_profile();
+                FC_ASSERT( current_profile );
+
+                auto keys = current_profile->get_keychain();
+
+                fc::ecc::private_key account_priv_key = keys.get_identity_key( params[0].as_string() );
+                std::string message = "SIGNED BY SANCHO " + params[1].as_string();
+                auto digest = fc::sha256::hash(message.c_str(), message.size() );
+
+                auto sig = account_priv_key.sign( digest );
+
+                return fc::variant( sig );
             });
-            con->add_method( "register_name", [=]( const fc::variants& params ) -> fc::variant 
+
+            /**
+             *   params : ["profile_password"]
+             */
+            con->add_method( "load_profile", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 2 );
                 check_login( capture_con );
-                _bitnamec->mine_name( params[0].as_string(), params[1].as<fc::ecc::public_key>() );
+                bts::application::instance()->load_profile( params[0].as_string() );
                 return fc::variant();
             });
+
+            /**
+             *  params : ["name", effort[0-1.0] ]
+             */
+            con->add_method( "mine_name", [=]( const fc::variants& params ) -> fc::variant 
+            {
+                FC_ASSERT( params.size() == 2 );
+                check_login( capture_con );
+                auto current_profile = bts::application::instance()->get_profile();
+                FC_ASSERT( current_profile );
+
+
+                std::string name = params[0].as_string();
+                float effort     = params[1].as<float>();
+                // TODO: use effort
+
+                auto keys = current_profile->get_keychain();
+                auto priv_key = keys.get_identity_key( name );
+
+                if( effort > 0 ) 
+                {
+                    _bitnamec->mine_name( name, priv_key.get_public_key() );
+                }
+                else
+                {
+                    _bitnamec->stop_mining_name( name );
+                }
+                return fc::variant();
+            });
+
+            /**
+             *  params : []
+             *  result : [ "IP:PORT", "IP:PORT", ...] 
+             */
+            con->add_method( "get_connections", [=]( const fc::variants& params ) -> fc::variant 
+            {
+                FC_ASSERT( params.size() == 2 );
+                check_login( capture_con );
+                auto app = bts::application::instance();
+                auto net = app->get_network();
+                auto cons = net->get_connections();
+                std::vector<std::string> endpoints;
+                endpoints.reserve(cons.size());
+                for( auto itr = cons.begin(); itr != cons.end(); ++itr )
+                {
+                  endpoints.push_back( std::string( (*itr)->remote_endpoint() ) ); 
+                }
+                return fc::variant(endpoints);
+            });
+
          }
     };
   } // detail

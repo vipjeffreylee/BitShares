@@ -3,6 +3,7 @@
 #include <bts/profile.hpp>
 #include <bts/bitchat/bitchat_private_message.hpp>
 #include <bts/bitname/bitname_client.hpp>
+#include <bts/rpc/rpc_server.hpp>
 
 namespace bts {
 
@@ -12,13 +13,12 @@ namespace bts {
   {
       application_config()
       :network_port(NETWORK_DEFAULT_PORT),
-       rpc_port(RPC_DEFAULT_PORT),
        enable_upnp(false){}
 
-      fc::path  data_dir;
-      uint16_t  network_port;
-      uint16_t  rpc_port;
-      bool      enable_upnp;
+      fc::path                      data_dir;
+      uint16_t                      network_port;
+      bool                          enable_upnp;
+      rpc::server::config           rpc_config;
       std::vector<fc::ip::endpoint> default_nodes;
   };
 
@@ -29,7 +29,6 @@ namespace bts {
      virtual ~application_delegate(){}
 
      virtual void received_text( const bitchat::decrypted_message& msg) {}
-
      virtual void received_email( const bitchat::decrypted_message& msg) {}
   };
   
@@ -70,6 +69,10 @@ namespace bts {
       void  set_mining_intensity(int intensity);
       int   get_mining_intensity();
 
+      void  wait_until_quit();
+
+      bts::network::server_ptr get_network()const;
+
     private:
       std::unique_ptr<detail::application_impl> my;
   };
@@ -78,4 +81,4 @@ namespace bts {
 
 } // namespace bts
 
-FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_port)(enable_upnp)(default_nodes) )
+FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_config)(enable_upnp)(default_nodes) )
