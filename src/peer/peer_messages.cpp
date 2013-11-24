@@ -6,14 +6,16 @@
 
 namespace bts { namespace peer {
   
-const message_code config_msg::type;
-const message_code announce_msg::type;
-const message_code known_hosts_msg::type;
-const message_code subscribe_msg::type;
-const message_code unsubscribe_msg::type;
-const message_code get_subscribed_msg::type;
-const message_code error_report_msg::type;
-const message_code get_known_hosts_msg::type;
+const message_code config_msg::type = message_code::config;
+const message_code announce_msg::type = message_code::announce;
+const message_code known_hosts_msg::type = message_code::known_hosts;
+const message_code error_report_msg::type = message_code::error_report;
+const message_code subscribe_msg::type = message_code::subscribe;
+const message_code unsubscribe_msg::type = message_code::unsubscribe;
+const message_code get_known_hosts_msg::type = message_code::get_known_hosts;
+const message_code get_subscribed_msg::type = message_code::get_subscribed;
+const message_code announce_inv_msg::type = message_code::announce_inv;
+const message_code get_announce_msg::type = message_code::get_announce;
 
 announce_msg::announce_msg()
 :birthday_a(0),birthday_b(0),_cancel_birthday_search(false){}

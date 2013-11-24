@@ -10,6 +10,7 @@
 #include <fc/reflect/variant.hpp>
 #include <fc/time.hpp>
 #include <algorithm>
+#include <array>
 
 #include <fc/log/logger.hpp>
 
