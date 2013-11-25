@@ -46,16 +46,17 @@ namespace bts { namespace network {
                   char tmp[BUFFER_SIZE];
                   sock->read( tmp, BUFFER_SIZE );
                   #ifndef WIN32
-                  memcpy( (char*)&m, tmp, PACKED_MESSAGE_HEADER );
+                     memcpy( (char*)&m, tmp, PACKED_MESSAGE_HEADER );
                   #else //compiler adds padding to message_header on WIN32, so we write to individual fields
-                  char* tmpPtr = tmp;
-                  memcpy( (char*)(&m), tmpPtr, MESSAGE_HEADER_SIZE_FIELD_SIZE ); //3 bytes
-                  tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
-                  memcpy( (char*)(&(m.proto)), tmpPtr, sizeof(m.proto) );
-                  tmpPtr += sizeof(m.proto);
-                  memcpy( (char*)(&(m.chan_num)), tmpPtr, sizeof(m.chan_num) );
-                  tmpPtr += sizeof(m.chan_num);
-                  memcpy( (char*)(&(m.msg_type)), tmpPtr, 2);
+                     // TODO: clean this up...
+                     char* tmpPtr = tmp;
+                     memcpy( (char*)(&m), tmpPtr, MESSAGE_HEADER_SIZE_FIELD_SIZE ); //3 bytes
+                     tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
+                     memcpy( (char*)(&(m.proto)), tmpPtr, sizeof(m.proto) );
+                     tmpPtr += sizeof(m.proto);
+                     memcpy( (char*)(&(m.chan_num)), tmpPtr, sizeof(m.chan_num) );
+                     tmpPtr += sizeof(m.chan_num);
+                     memcpy( (char*)(&(m.msg_type)), tmpPtr, 2);
                   #endif
                   m.data.resize( m.size + 16 ); //give extra 16 bytes to allow for padding added in send call
                   memcpy( (char*)m.data.data(), tmp + PACKED_MESSAGE_HEADER, LEFTOVER );
@@ -215,16 +216,17 @@ namespace bts { namespace network {
       len = 16*((len+15)/16); //pad the message we send to a multiple of 16 bytes
       std::vector<char> tmp(len);
       #ifndef WIN32
-      memcpy( tmp.data(), (char*)&m, PACKED_MESSAGE_HEADER );
+        memcpy( tmp.data(), (char*)&m, PACKED_MESSAGE_HEADER );
       #else
-      char* tmpPtr = tmp.data();
-      memcpy( tmpPtr, (char*)(&m), MESSAGE_HEADER_SIZE_FIELD_SIZE );
-      tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
-      memcpy( tmpPtr, (char*)&(m.proto), sizeof(m.proto) );
-      tmpPtr += sizeof(m.proto);
-      memcpy( tmpPtr, (char*)&(m.chan_num), sizeof(m.chan_num) );
-      tmpPtr += sizeof(m.chan_num);
-      memcpy( tmpPtr, (char*)&(m.msg_type), sizeof(m.msg_type) );
+         // TODO: clean this up
+         char* tmpPtr = tmp.data();
+         memcpy( tmpPtr, (char*)(&m), MESSAGE_HEADER_SIZE_FIELD_SIZE );
+         tmpPtr += MESSAGE_HEADER_SIZE_FIELD_SIZE;
+         memcpy( tmpPtr, (char*)&(m.proto), sizeof(m.proto) );
+         tmpPtr += sizeof(m.proto);
+         memcpy( tmpPtr, (char*)&(m.chan_num), sizeof(m.chan_num) );
+         tmpPtr += sizeof(m.chan_num);
+         memcpy( tmpPtr, (char*)&(m.msg_type), sizeof(m.msg_type) );
       #endif
       memcpy( tmp.data() + PACKED_MESSAGE_HEADER, m.data.data(), m.size );
       my->sock->write( tmp.data(), tmp.size() );

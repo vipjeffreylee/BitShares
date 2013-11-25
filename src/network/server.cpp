@@ -90,13 +90,9 @@ namespace bts { namespace network {
               auto cptr = c.shared_from_this();
               FC_ASSERT( ser_del != nullptr );
               FC_ASSERT( cptr );
-              ilog( "..." );
               ser_del->on_disconnected( cptr );
-              ilog( "find.." );
               auto itr = connections.find(c.remote_endpoint());
-              ilog( "erase.." );
               connections.erase( itr ); //c.remote_endpoint() );
-              ilog( "donee.." );
             } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
           }
 
@@ -280,6 +276,10 @@ namespace bts { namespace network {
    fc::ip::address server::get_external_ip()const
    {
         return my->_external_ip;
+   }
+   fc::ip::endpoint server::get_external_endpoint()const
+   {
+        return fc::ip::endpoint(my->_external_ip, my->cfg.port);
    }
 
 

@@ -111,7 +111,8 @@ namespace bts { namespace network {
         void broadcast( const message& m );
 
         void set_external_ip( const fc::ip::address& );
-        fc::ip::address get_external_ip()const;
+        fc::ip::address  get_external_ip()const;
+        fc::ip::endpoint get_external_endpoint()const;
 
       private:
         std::unique_ptr<detail::server_impl> my;
