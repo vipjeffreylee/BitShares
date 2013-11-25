@@ -7,6 +7,22 @@
 #include <fc/interprocess/signals.hpp>
 #include <iostream>
 
+#include <signal.h>
+
+void handle_signal( int sig )
+{
+    static int count = 0;
+    if( count == 0 )
+    {
+      ++count;
+      bts::application::instance()->quit();
+    }
+    else
+    {
+        exit(1);
+    }
+}
+
 bts::application_config load_config( const fc::path& data_dir )
 { try {
      fc::create_directories(data_dir);
@@ -34,11 +50,11 @@ int main( int argc, char** argv )
    {
       fc::path data_dir = ( argc > 1 ) ? std::string(argv[1]) : ".";
 
-      bts::application_ptr  app = std::make_shared<bts::application>();
+      bts::application_ptr  app = bts::application::instance(); //std::make_shared<bts::application>();
 
       app->configure( load_config( data_dir ) );
-
-      fc::set_signal_handler( [=](int num){ app->quit(); }, SIGINT );
+      signal( SIGINT, handle_signal );
+      //fc::set_signal_handler( [=](int num){ app->quit(); }, SIGINT );
       app->wait_until_quit();
    } 
    catch ( const fc::exception& e )

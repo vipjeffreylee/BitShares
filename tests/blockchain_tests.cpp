@@ -272,7 +272,6 @@ BOOST_AUTO_TEST_CASE( blockchain_build )
 
      new_trx[0].inputs.push_back( 
         trx_input( output_reference( block1.trxs[0].id(), 0 ) ) );
-
      new_trx[0].outputs.push_back( 
         trx_output( claim_by_signature_output( address( a4 ) ), 100000000, asset::bts ) );
      new_trx[0].outputs.push_back( 

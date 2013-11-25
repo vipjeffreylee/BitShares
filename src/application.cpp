@@ -3,6 +3,7 @@
 #include <bts/bitchat/bitchat_client.hpp>
 #include <bts/network/upnp.hpp>
 #include <bts/rpc/rpc_server.hpp>
+#include <bts/blockchain/blockchain_client.hpp>
 #include <fc/reflect/variant.hpp>
 
 #include <fc/log/logger.hpp>
@@ -31,6 +32,7 @@ namespace bts {
           bts::peer::peer_channel_ptr       _peers;
           bts::bitname::client_ptr          _bitname_client;
           bts::bitchat::client_ptr          _bitchat_client;     
+      //    bts::blockchain::client_ptr         _blockchain_client;     
           bts::network::upnp_service        _upnp;
           bts::rpc::server                  _rpc_server;
 
