@@ -25,7 +25,7 @@ namespace bts { namespace peer {
 
   struct config_msg
   {
-      static const message_code type = message_code::config;
+      static const message_code type;
       /** The host_id is the city hash of the IP
        *  a hash is used to 'randomize' IPs and ensure that
        *  a client is connected to a wide range of IP 
@@ -45,19 +45,19 @@ namespace bts { namespace peer {
 
   struct announce_inv_msg
   {
-      static const message_code type = message_code::announce_inv;
+      static const message_code type;
       std::vector<uint64_t> announce_msgs;
   };
   struct get_announce_msg
   {
-      static const message_code type = message_code::get_announce;
+      static const message_code type;
       uint64_t announce_id;
   };
 
 
   struct known_hosts_msg
   {
-      static const message_code type = message_code::known_hosts;
+      static const message_code type;
       known_hosts_msg(){}
       known_hosts_msg( std::vector<host> h )
       :hosts( std::move(h) ){}
@@ -71,7 +71,7 @@ namespace bts { namespace peer {
    */
   struct announce_msg : public config_msg
   {
-      static const message_code type = message_code::announce;
+      static const message_code type;
       announce_msg();
 
       /** returns a hash for this announcement used when broadcasting the
@@ -97,7 +97,7 @@ namespace bts { namespace peer {
 
   struct subscribe_msg
   {
-     static const message_code type = message_code::subscribe;
+     static const message_code type;
      subscribe_msg(){}
      subscribe_msg( std::vector<network::channel_id> chans )
      :channels( std::move(chans) ){}
@@ -107,24 +107,24 @@ namespace bts { namespace peer {
 
   struct unsubscribe_msg
   {
-     static const message_code type = message_code::unsubscribe;
+     static const message_code type;
      std::vector<network::channel_id> channels;
   };
 
   struct get_subscribed_msg 
   {
-     static const message_code type = message_code::get_subscribed;
+     static const message_code type;
   };
 
   struct get_known_hosts_msg
   {
-      static const message_code type = message_code::get_known_hosts;
+      static const message_code type;
       get_known_hosts_msg(){}
   };
 
   struct error_report_msg
   {
-     static const message_code type = message_code::error_report;
+     static const message_code type;
      uint32_t     code;
      std::string  message;
   };
