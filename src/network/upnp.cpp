@@ -29,6 +29,7 @@ namespace bts { namespace network {
           fc::thread       upnp_thread;
           bool             done;
           fc::future<void> map_port_complete;
+          fc::ip::address  external_ip;
      };
 
   }
@@ -36,7 +37,11 @@ namespace bts { namespace network {
 upnp_service::upnp_service()
 :my( new detail::upnp_service_impl() )
 {
-  
+}
+
+fc::ip::address upnp_service::external_ip()const
+{
+    return my->external_ip;
 }
 
 upnp_service::~upnp_service()
@@ -96,6 +101,7 @@ void upnp_service::map_port( uint16_t local_port )
                    if(externalIPAddress[0])
                    {
                        printf("UPnP: ExternalIPAddress = %s\n", externalIPAddress);
+                       my->external_ip = fc::ip::address( std::string(externalIPAddress) );
                        // AddLocal(CNetAddr(externalIPAddress), LOCAL_UPNP);
                    }
                    else

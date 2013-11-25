@@ -103,13 +103,15 @@ namespace bts {
      
      fc::create_directories( my->_profile_dir );
 
-     if( cfg.enable_upnp )
-     {
-        my->_upnp.map_port( cfg.network_port );
-     }
 
 
      my->_server = std::make_shared<bts::network::server>();    
+
+     if( cfg.enable_upnp )
+     {
+        my->_upnp.map_port( cfg.network_port );
+        my->_server->set_external_ip( my->_upnp.external_ip() );
+     }
 
      bts::network::server::config server_cfg;
      server_cfg.port = cfg.network_port;

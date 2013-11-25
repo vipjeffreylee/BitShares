@@ -172,12 +172,14 @@ namespace bts { namespace rpc {
             con->add_method( "add_nodes", [=]( const fc::variants& params ) -> fc::variant 
             {
                 check_login( capture_con );
+                ilog( "add_nodes ${params}", ("params",params) );
                 auto app = bts::application::instance();
                 auto net = app->get_network();
                 for( auto itr = params.begin(); itr != params.end(); ++itr )
                 {
-                    auto ep = fc::ip::endpoint( itr->as_string() );
-                    fc::async( [=]() {  net->connect_to(ep); } );
+                    auto ep = fc::ip::endpoint::from_string( itr->as_string() );
+                    ilog( "connect to ${ep}", ("ep",ep) );
+                    net->connect_to(ep);
                 }
                 return fc::variant();
             });

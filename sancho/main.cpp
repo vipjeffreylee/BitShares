@@ -53,8 +53,9 @@ int main( int argc, char** argv )
       bts::application_ptr  app = bts::application::instance(); //std::make_shared<bts::application>();
 
       app->configure( load_config( data_dir ) );
+
+
       signal( SIGINT, handle_signal );
-      //fc::set_signal_handler( [=](int num){ app->quit(); }, SIGINT );
       app->wait_until_quit();
    } 
    catch ( const fc::exception& e )

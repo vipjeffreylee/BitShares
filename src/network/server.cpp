@@ -57,6 +57,7 @@ namespace bts { namespace network {
               }
           }
           server_delegate*                                            ser_del;
+          fc::ip::address                                             _external_ip;
 
           std::unordered_map<fc::ip::endpoint,connection_ptr>         connections;
 
@@ -269,6 +270,16 @@ namespace bts { namespace network {
          return nullptr;
       }
       return itr->second;
+   }
+
+   void server::set_external_ip( const fc::ip::address& ext_ip )
+   {
+        my->_external_ip = ext_ip;
+   }
+
+   fc::ip::address server::get_external_ip()const
+   {
+        return my->_external_ip;
    }
 
 
