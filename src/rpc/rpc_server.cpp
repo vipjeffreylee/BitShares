@@ -167,6 +167,22 @@ namespace bts { namespace rpc {
             });
 
             /**
+             *  params : ["IP:PORT","IP:PORT",...]
+             */
+            con->add_method( "add_nodes", [=]( const fc::variants& params ) -> fc::variant 
+            {
+                check_login( capture_con );
+                auto app = bts::application::instance();
+                auto net = app->get_network();
+                for( auto itr = params.begin(); itr != params.end(); ++itr )
+                {
+                    auto ep = fc::ip::endpoint( itr->as_string() );
+                    fc::async( [=]() {  net->connect_to(ep); } );
+                }
+                return fc::variant();
+            });
+
+            /**
              *  params : []
              *  result : [ "IP:PORT", "IP:PORT", ...] 
              */
