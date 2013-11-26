@@ -141,6 +141,7 @@ namespace bts {
      for( auto itr = cfg.default_nodes.begin(); itr != cfg.default_nodes.end(); ++itr )
      {
           try {
+             ilog( "${e}", ("e",*itr) );
              my->_server->connect_to(*itr);
           } 
           catch ( const fc::exception& e )
