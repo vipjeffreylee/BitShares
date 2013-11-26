@@ -2,6 +2,7 @@
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
 #include <bts/network/upnp.hpp>
+#include <bts/network/ipecho.hpp>
 #include <bts/rpc/rpc_server.hpp>
 #include <bts/blockchain/blockchain_client.hpp>
 #include <fc/reflect/variant.hpp>
@@ -103,14 +104,18 @@ namespace bts {
      
      fc::create_directories( my->_profile_dir );
 
-
-
      my->_server = std::make_shared<bts::network::server>();    
 
+     auto ext_ip = bts::network::get_external_ip();
+     ilog( "external IP ${ip}", ("ip",ext_ip) );
      if( cfg.enable_upnp )
      {
         my->_upnp.map_port( cfg.network_port );
         my->_server->set_external_ip( my->_upnp.external_ip() );
+     }
+     else
+     {
+        my->_server->set_external_ip( ext_ip );
      }
 
      bts::network::server::config server_cfg;

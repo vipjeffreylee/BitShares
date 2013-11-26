@@ -101,6 +101,7 @@ set( sources
      src/network/server.cpp
      src/network/get_public_ip.cpp
      src/network/upnp.cpp
+     src/network/ipecho.cpp
 
      src/peer/peer_channel.cpp
      src/peer/peer_messages.cpp
