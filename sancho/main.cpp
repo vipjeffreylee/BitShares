@@ -38,7 +38,9 @@ int main( int argc, char** argv )
 
       app->configure( load_config( data_dir ) );
 
+      #ifdef UNIX
       fc::set_signal_handler( [=](int num){ app->quit(); }, SIGINT );
+      #endif
       app->wait_until_quit();
    } 
    catch ( const fc::exception& e )
