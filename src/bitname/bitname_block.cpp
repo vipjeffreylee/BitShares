@@ -75,7 +75,7 @@ namespace bts { namespace bitname {
 
   uint64_t min_name_difficulty() 
   {
-      return 1000000/4;
+      return 10000000;
   }
 
   name_block create_genesis_block()
