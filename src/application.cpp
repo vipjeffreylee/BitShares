@@ -3,6 +3,7 @@
 #include <bts/bitchat/bitchat_client.hpp>
 #include <bts/network/upnp.hpp>
 #include <bts/rpc/rpc_server.hpp>
+#include <bts/blockchain/blockchain_client.hpp>
 #include <fc/reflect/variant.hpp>
 
 #include <fc/log/logger.hpp>
@@ -31,6 +32,7 @@ namespace bts {
           bts::peer::peer_channel_ptr       _peers;
           bts::bitname::client_ptr          _bitname_client;
           bts::bitchat::client_ptr          _bitchat_client;     
+      //    bts::blockchain::client_ptr         _blockchain_client;     
           bts::network::upnp_service        _upnp;
           bts::rpc::server                  _rpc_server;
 
@@ -101,13 +103,15 @@ namespace bts {
      
      fc::create_directories( my->_profile_dir );
 
-     if( cfg.enable_upnp )
-     {
-        my->_upnp.map_port( cfg.network_port );
-     }
 
 
      my->_server = std::make_shared<bts::network::server>();    
+
+     if( cfg.enable_upnp )
+     {
+        my->_upnp.map_port( cfg.network_port );
+        my->_server->set_external_ip( my->_upnp.external_ip() );
+     }
 
      bts::network::server::config server_cfg;
      server_cfg.port = cfg.network_port;

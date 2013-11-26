@@ -44,19 +44,19 @@ namespace bts {
       application();
       ~application();
 
-      void                                  quit();
-      static std::shared_ptr<application>   instance();
+      void                                 quit();
+      static std::shared_ptr<application>  instance();
 
-      void                        configure( const application_config& cfg );
-      application_config          get_configuration()const;
-
-      void                        add_node( const fc::ip::endpoint& remote_node_ip_port );
-      void                        set_application_delegate( application_delegate* del );
-                                  
-      bool                        has_profile()const;                              
-      profile_ptr                 get_profile();
-      profile_ptr                 load_profile( const std::string& password );
-      profile_ptr                 create_profile( const profile_config& cfg, const std::string& password );
+      void                                 configure( const application_config& cfg );
+      application_config                   get_configuration()const;
+                                           
+      void                                 add_node( const fc::ip::endpoint& remote_node_ip_port );
+      void                                 set_application_delegate( application_delegate* del );
+                                           
+      bool                                 has_profile()const;                              
+      profile_ptr                          get_profile();
+      profile_ptr                          load_profile( const std::string& password );
+      profile_ptr                          create_profile( const profile_config& cfg, const std::string& password );
                                   
       fc::optional<bitname::name_record>   lookup_name( const std::string& name );
       fc::optional<bitname::name_record>   reverse_name_lookup( const fc::ecc::public_key& key );

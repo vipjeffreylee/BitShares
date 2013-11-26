@@ -57,6 +57,7 @@ namespace bts { namespace network {
               }
           }
           server_delegate*                                            ser_del;
+          fc::ip::address                                             _external_ip;
 
           std::unordered_map<fc::ip::endpoint,connection_ptr>         connections;
 
@@ -89,13 +90,9 @@ namespace bts { namespace network {
               auto cptr = c.shared_from_this();
               FC_ASSERT( ser_del != nullptr );
               FC_ASSERT( cptr );
-              ilog( "..." );
               ser_del->on_disconnected( cptr );
-              ilog( "find.." );
               auto itr = connections.find(c.remote_endpoint());
-              ilog( "erase.." );
               connections.erase( itr ); //c.remote_endpoint() );
-              ilog( "donee.." );
             } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
           }
 
@@ -269,6 +266,20 @@ namespace bts { namespace network {
          return nullptr;
       }
       return itr->second;
+   }
+
+   void server::set_external_ip( const fc::ip::address& ext_ip )
+   {
+        my->_external_ip = ext_ip;
+   }
+
+   fc::ip::address server::get_external_ip()const
+   {
+        return my->_external_ip;
+   }
+   fc::ip::endpoint server::get_external_endpoint()const
+   {
+        return fc::ip::endpoint(my->_external_ip, my->cfg.port);
    }
 
 

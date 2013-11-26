@@ -46,6 +46,7 @@ namespace bts { namespace rpc {
 
          void register_methods( const fc::rpc::json_connection_ptr& con )
          {
+            ilog( "login!" );
             // don't capture the shared ptr, it would create a circular reference
             fc::rpc::json_connection* capture_con = con.get(); 
             con->add_method( "login", [=]( const fc::variants& params ) -> fc::variant 
@@ -166,12 +167,29 @@ namespace bts { namespace rpc {
             });
 
             /**
+             *  params : ["IP:PORT","IP:PORT",...]
+             */
+            con->add_method( "add_nodes", [=]( const fc::variants& params ) -> fc::variant 
+            {
+                check_login( capture_con );
+                ilog( "add_nodes ${params}", ("params",params) );
+                auto app = bts::application::instance();
+                auto net = app->get_network();
+                for( auto itr = params.begin(); itr != params.end(); ++itr )
+                {
+                    auto ep = fc::ip::endpoint::from_string( itr->as_string() );
+                    ilog( "connect to ${ep}", ("ep",ep) );
+                    net->connect_to(ep);
+                }
+                return fc::variant();
+            });
+
+            /**
              *  params : []
              *  result : [ "IP:PORT", "IP:PORT", ...] 
              */
             con->add_method( "get_connections", [=]( const fc::variants& params ) -> fc::variant 
             {
-                FC_ASSERT( params.size() == 2 );
                 check_login( capture_con );
                 auto app = bts::application::instance();
                 auto net = app->get_network();

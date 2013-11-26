@@ -51,7 +51,6 @@ namespace bts { namespace network {
             std::string              chain; ///< the name of the chain this server is operating on (test,main,etc)
 
             std::vector<std::string> bootstrap_endpoints; // host:port strings for initial connection to the network.
-
             std::vector<std::string> blacklist;  // host's that are blocked from connecting
         };
         
@@ -110,6 +109,11 @@ namespace bts { namespace network {
 
         /** send the message to all connected peers */
         void broadcast( const message& m );
+
+        void set_external_ip( const fc::ip::address& );
+        fc::ip::address  get_external_ip()const;
+        fc::ip::endpoint get_external_endpoint()const;
+
       private:
         std::unique_ptr<detail::server_impl> my;
   };
