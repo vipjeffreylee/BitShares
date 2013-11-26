@@ -54,9 +54,8 @@ int main( int argc, char** argv )
 
       app->configure( load_config( data_dir ) );
 
-
       signal( SIGINT, handle_signal );
-      #endif
+
       app->wait_until_quit();
    } 
    catch ( const fc::exception& e )
