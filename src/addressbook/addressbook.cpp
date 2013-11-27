@@ -126,7 +126,7 @@ namespace bts { namespace addressbook {
       my->_number_to_contact[contact.wallet_index] = contact;
       if( contact.public_key.valid() )
          my->_key_to_number[contact.public_key.serialize()] = contact.wallet_index;
-      FC_ASSERT(!contact.dac_id_string.empty());
+      //FC_ASSERT(!contact.dac_id_string.empty());
       contact.dac_id_hash = bitname::name_hash(contact.dac_id_string);
       my->_id_to_number[contact.dac_id_hash] = contact.wallet_index;
       auto full_name_hash = bitname::name_hash(contact.getFullName());
