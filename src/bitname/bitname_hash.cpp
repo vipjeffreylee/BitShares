@@ -17,8 +17,8 @@ char replace_similar( char c )
 {
   switch( c )
   {
+     case 'H': return 'H';
      case '4': 
-     case 'H': 
      case 'A': return 'A';
 
 
@@ -38,23 +38,23 @@ char replace_similar( char c )
      case '7':
      case 'T': return 'T';
 
-     case 'X': // XXXXYXYXYYXXXYXYYX 
-     case 'Y': return 'X'; 
+     case 'X': return 'X';
+     case 'Y': return 'Y'; 
 
      case '3': 
-     case 'E':
-     case 'F': return 'E';
+     case 'E': return 'E';
+     case 'F': return 'F';
 
      case 'L':
      case 'I':
-     case '1': 
-     case 'J': return 'I';
+     case '1': return 'I';
+     case 'J': return 'J';
 
      case 'R': // when next to m or n is confusing ie: rn rm 
      case 'M':
      case 'N': return 'N';
 
-     case 'C': // cocococoooocoooccooc
+     case 'C': return 'C';
      case '0': 
      case '8': // D 0 8 O B are all easily confused
      case 'B': 
@@ -91,15 +91,22 @@ void replace_char_runs( std::string& s )
   }
 }
 
+/**
+ * @param n - the name in UTF-8 format
+ */
 uint64_t  name_hash( const std::string& n )
 {
   if( n.size() == 0 ) return 0;
+
+  // TODO: Use http://www.gnu.org/software/libidn/doxygen/ to convert Chinese to ASCII
 
   std::locale loc = std::locale::classic();
   std::string up(n);
   int length  = n.size();
   for(int i=0;i<length;++i)
     up[i] = std::toupper( n[i], loc );
+
+
   for( auto itr = up.begin(); itr != up.end(); ++itr )
     *itr = replace_similar(*itr);
  
@@ -115,7 +122,7 @@ uint64_t  name_hash( const std::string& n )
   replace_char_runs(up);
 
   if( up.size() && up.front() == '.' ) up.erase(0,1);
-  if( up.size() && up.back() == '.' )  up.pop_back();
+  if( up.size() && up.back() == '.' )  up.resize( up.size()-1);
   FC_ASSERT( up.size() > 0 );
 
   // secure hash function

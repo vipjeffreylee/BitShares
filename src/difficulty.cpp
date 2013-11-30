@@ -20,7 +20,6 @@ namespace bts
       if( hash_value == fc::sha224() ) return uint64_t(-1); // div by 0
 
       auto dif = max224() / fc::bigint( (char*)&hash_value, sizeof(hash_value) );
-// TODO... restore this     dif >>= 24;
       int64_t tmp = dif.to_int64();
       // possible if hash_value starts with 1
       if( tmp < 0 ) tmp = 0;

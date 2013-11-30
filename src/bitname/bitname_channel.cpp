@@ -489,7 +489,10 @@ namespace bts { namespace bitname {
           }  // handle_message
 
 
-          /* ===================================================== */   
+          /* ===================================================== 
+           *  When a new node connects it must locate the best block chain that extends the
+           *  current known chain.  
+           **/   
           void request_block_headers( const connection_ptr& con )
           { try {
               ilog( "requesting block headers from ${ep}", ("ep",con->remote_endpoint() ));
@@ -497,7 +500,6 @@ namespace bts { namespace bitname {
               if( cdat.requested_headers ) 
                   return;
 
-              ilog( "requesting block headers from ${ep}", ("ep",con->remote_endpoint() ));
               get_headers_message  request;
               const std::vector<name_id_type>& ids = _name_db.get_header_ids();
               uint32_t delta = 1;
@@ -721,7 +723,8 @@ namespace bts { namespace bitname {
               cdat.requested_headers.reset();
               
               // TODO: validate that all ids reported have the min proof of work for a name.
-              ilog( "received ${msg}", ("msg",msg) );
+
+              ilog( "received ${x} block headers", ("msg",msg.headers.size() ) );
               _fork_db.cache_header( msg.first );
               _new_block_info = true;
               name_id_type prev_id = msg.first.id();
@@ -731,6 +734,15 @@ namespace bts { namespace bitname {
                  ilog( "${id} = ${next_head}", ("id",next_head.id())("next_head",next_head) );
                  _fork_db.cache_header( next_head );
                  prev_id = next_head.id();
+
+                 if( prev_id > max_name_hash() )
+                 {
+                    // then we should disconnect.... 
+                    wlog( "node produced name header with insufficient minimum work" );
+                    con->close();
+                    return;
+                 }
+
                  cdat.available_blocks.insert(prev_id);
               }
 

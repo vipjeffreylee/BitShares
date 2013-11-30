@@ -73,9 +73,19 @@ namespace bts { namespace bitname {
     return name_header( *this, prev ).difficulty();
   }
 
+  const name_id_type& max_name_hash()
+  {
+     static name_id_type max_hash = []() -> name_id_type {
+       name_id_type tmp;
+       memset( (char*)&tmp, sizeof(tmp), 0xff );
+       memset( (char*)&tmp, 1, 0x00 );
+     }();
+     return max_hash;
+  }
+
   uint64_t min_name_difficulty() 
   {
-      return 10000000;
+      return difficulty(max_name_hash()); //10000000;
   }
 
   name_block create_genesis_block()
