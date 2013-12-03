@@ -76,14 +76,12 @@ namespace bts { namespace bitname {
   const name_id_type& max_name_hash()
   {
      static name_id_type max_hash = []() -> name_id_type {
-       /// [BW]: Lets generate initial value for max_hash using its dedicated interface.
-       /// memset caused a crash.
-       /// Initial value should be: 0x00ffffffffffffffffffffffffffffffffffffffffffffffffffffff
-       std::string initialHashValue("00");
-       std::string helper(2*sizeof(name_id_type) - 2, 'f');
-       initialHashValue += helper;
-       name_id_type tmp(initialHashValue);
-       return tmp;
+         name_id_type tmp;
+         //initialize to 0x00ff...ff
+         char* tmpPtr = (char*)&tmp;
+         memset( tmpPtr,   0x00, 1 );
+         memset( tmpPtr+1, 0xff, sizeof(tmp)-1 );
+         return tmp;
      }();
      return max_hash;
   }
