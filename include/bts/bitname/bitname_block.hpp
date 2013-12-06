@@ -197,8 +197,9 @@ namespace bts { namespace bitname {
     };
 
 
-    name_block create_genesis_block();
-    uint64_t    min_name_difficulty();
+    name_block          create_genesis_block();
+    const name_id_type& max_name_hash();
+    uint64_t            min_name_difficulty();
 } } // namespace bts::bitname
 
 
