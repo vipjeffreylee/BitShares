@@ -33,7 +33,7 @@ namespace bts { namespace blockchain {
        * most recent block.  Contains the hashes of
        * blocks  [ChainLength-items.size, ChainLength] 
        */
-      std::vector<fc::sha224> items;
+      std::vector<block_id_type> items;
   };
 
   struct get_trx_inv_message
@@ -48,7 +48,7 @@ namespace bts { namespace blockchain {
        * in powers of 2 for up to 1 year so that the
        * remote node can detect where our chains converge.
        */
-      std::vector<fc::sha224> known;
+      std::vector<block_id_type> known;
   };
 
   struct get_trxs_message
@@ -65,21 +65,21 @@ namespace bts { namespace blockchain {
   struct get_full_block_message
   {
       static const message_type type = get_full_block_msg;
-      get_full_block_message( const fc::sha224& b )
+      get_full_block_message( const block_id_type& b )
       :block_id(b){}
       get_full_block_message(){}
 
-      fc::sha224 block_id;
+      block_id_type block_id;
   };
 
   struct get_trx_block_message
   {
       static const message_type type = get_trx_block_msg;
-      get_trx_block_message( const fc::sha224& b )
+      get_trx_block_message( const block_id_type& b )
       :block_id(b){}
       get_trx_block_message(){}
 
-      fc::sha224 block_id;
+      block_id_type block_id;
   };
 
   struct trxs_message

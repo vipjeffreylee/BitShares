@@ -17,12 +17,13 @@ namespace bts { namespace blockchain {
      */
     struct trx_eval
     {
+       trx_eval():coindays_destroyed(0){}
        asset  fees; // any fees that would be generated
-       asset  coinbase; // how many new bitshares are created by a trx.
+       uint64_t coindays_destroyed;
        trx_eval& operator += ( const trx_eval& e )
        {
-         fees += e.fees;
-         coinbase += e.coinbase;
+         fees               += e.fees;
+         coindays_destroyed += e.coindays_destroyed;
          return *this;
        }
     };
@@ -78,8 +79,6 @@ namespace bts { namespace blockchain {
        trx_num           source;
        uint8_t           output_num;
        trx_output        output;
-       asset             dividends;
-       asset             dividend_fees;
        meta_trx_output   meta_output;
     };
 
@@ -108,6 +107,7 @@ namespace bts { namespace blockchain {
           void close();
 
           uint32_t head_block_num()const;
+          uint64_t get_stake(); // head - 1 
 
          /**
           *  Validates that trx could be included in a future block, that
@@ -123,45 +123,18 @@ namespace bts { namespace blockchain {
          trx_eval   evaluate_signed_transactions( const std::vector<signed_transaction>& trxs );
 
          std::vector<signed_transaction> match_orders();
-         trx_block  generate_next_block( const address& coinbase_addr, const std::vector<signed_transaction>& trx );
+         trx_block  generate_next_block( const std::vector<signed_transaction>& trx );
 
          trx_num    fetch_trx_num( const uint160& trx_id );
          meta_trx   fetch_trx( const trx_num& t );
 
-         /**
-          *  @param head - the block that we want to calculate dividends relative to.
-          *  @return the outputs referenced by the inputs
-          *  @throw if any input cannot be found.
-          */
          std::vector<meta_trx_input> fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head = -1/*head_block_num*/ );
 
-         uint32_t   fetch_block_num( const fc::sha224& block_id );
-         block      fetch_block( uint32_t block_num );
-         full_block fetch_full_block( uint32_t block_num );
-         trx_block  fetch_trx_block( uint32_t block_num );
+         uint32_t     fetch_block_num( const block_id_type& block_id );
+         block_header fetch_block( uint32_t block_num );
+         full_block   fetch_full_block( uint32_t block_num );
+         trx_block    fetch_trx_block( uint32_t block_num );
 
-         /**
-          *  Calculate the dividends due to a given asset accumulated durrning blocks from_num to to_num
-          *
-          *  @return only the dividends, not the balance including a
-          */
-         asset      calculate_dividends( const asset& a, uint32_t from_num, uint32_t to_num );
-
-         /**
-          *  The most recent blocks do not pay dividends, except to the miner, becaues the dividends
-          *  would be lost in a chain reorg.  
-          *
-          *  @return only the dividends, not the balance
-          */
-         asset      calculate_dividend_fees( const asset& b, uint32_t from_num, uint32_t ref_head = -1 );
-
-         /**
-          *  Returns all dividends due to an output with balance b in block from_num not
-          *  including dividends from the last 100 blocks.
-          *
-          *  @return only the dividends paid, not including the initial balance
-          */
-         asset      calculate_output_dividends( const asset& b, uint32_t from_num, uint32_t ref_head = -1 );
          uint64_t   current_bitshare_supply();
          
          /**
@@ -186,7 +159,7 @@ namespace bts { namespace blockchain {
 
 }  } // bts::blockchain
 
-FC_REFLECT( bts::blockchain::trx_eval, (fees)(coinbase) )
+FC_REFLECT( bts::blockchain::trx_eval, (fees)(coindays_destroyed) )
 FC_REFLECT( bts::blockchain::trx_num, (block_num)(trx_idx) );
 FC_REFLECT( bts::blockchain::meta_trx_output, (trx_id)(input_num) )
 FC_REFLECT( bts::blockchain::meta_trx_input, (source)(output_num)(output)(meta_output) )

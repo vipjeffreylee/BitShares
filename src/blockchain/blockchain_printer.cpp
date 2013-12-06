@@ -64,8 +64,6 @@ namespace bts { namespace blockchain {
            out << "<li>\n";
            out << "<div>" << state.inputs[i].output.amount << " " << fc::variant( state.inputs[i].output.unit ).as_string();
            out << "   " << fc::variant(state.inputs[i].output.claim_func).as_string();
-           out << "</br>\n   " << fc::variant(state.inputs[i].dividends).as_string() << " dividends";
-           out << "</br>\n   " << fc::variant(state.inputs[i].dividend_fees).as_string() << " dividend fees";
            out << "</br>\n   Source: Block#  "<<state.inputs[i].source.block_num 
                                  << " Trx # " <<state.inputs[i].source.trx_idx <<"\n"
                                  << " Out # " << uint32_t(state.inputs[i].output_num) <<"\n";
@@ -149,9 +147,8 @@ namespace bts { namespace blockchain {
 
   std::string pretty_print( const trx_block& b, blockchain_db& db )
   {
-     uint64_t reward = calculate_mining_reward( b.block_num);
-     uint64_t fees = 2*(b.trxs[0].outputs[0].amount - reward/2);
-     uint64_t dividends = (reward + fees) / 2;
+     //uint64_t reward = calculate_mining_reward( b.block_num);
+     uint64_t fees = 2*(b.trxs[0].outputs[0].amount);
 
      std::stringstream ss;
      ss.imbue( std::locale( std::locale::classic(), new thousands_separator<char>(',')) );
@@ -163,9 +160,7 @@ namespace bts { namespace blockchain {
      ss << "    <th width=\"80px\">Id      </th>\n";
      ss << "    <th width=\"80px\">Prev Id </th>\n";
      ss << "    <th width=\"200px\">Fees    </th>\n";
-     ss << "    <th width=\"200px\">Reward  </th>\n";
-     ss << "    <th width=\"200px\">Dividends (Fee+Reward)/2</th>\n";
-     ss << "    <th width=\"80px\">POW     </th>\n";
+     ss << "    <th width=\"80px\">CDD     </th>\n";
      ss << "  </tr>\n";
      ss << "  <tr>\n";
      ss << "    <td>" << b.block_num                                            <<"</td>\n";
@@ -173,9 +168,7 @@ namespace bts { namespace blockchain {
      ss << "    <td>" << std::string( b.id() ).substr(0,8)                      <<"</td>\n";
      ss << "    <td>" << std::string( b.prev ).substr(0,8)                      <<"</td>\n";
      ss << "    <td align=right cellpadding=5>" << fees                                                   <<"</td>\n";
-     ss << "    <td align=right cellpadding=5>" << reward                                                 <<"</td>\n";
-     ss << "    <td align=right cellpadding=5>" << dividends                                              <<"</td>\n";
-     ss << "    <td cellpadding=5>" << fc::variant(b.proof_of_work()).as_string().substr(0,8) <<"</td>\n";
+     ss << "    <td cellpadding=5>" << b.total_coindays_destroyed <<"</td>\n";
      ss << "  </tr>\n";
      ss << "</table>\n";
      ss << "</td></tr>\n";

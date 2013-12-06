@@ -9,7 +9,7 @@
 namespace bts  { namespace blockchain { 
 
 trx_validation_state::trx_validation_state( const signed_transaction& t, blockchain_db* d, bool enf, uint32_t h )
-:trx(t),balance_sheet( asset::count ),issue_sheet(asset::count),db(d),enforce_unspent(enf),ref_head(h)
+:trx(t),balance_sheet( asset::count ),db(d),enforce_unspent(enf),ref_head(h)
 { 
   inputs  = d->fetch_inputs( t.inputs, ref_head );
   if( ref_head == std::numeric_limits<uint32_t>::max()  )
@@ -223,8 +223,6 @@ void trx_validation_state::validate_password( const trx_output& o )
 /**
  *  Adds the owner to the required signature list
  *  Adds the balance to the trx balance sheet
- *  Adds dividends from the balance to the balance sheet
- *  Adds fee dividends to the fee total.
  *
  *  TODO: this input is also valid if it is 1 year old and an output exists
  *        paying 95% of the balance back to the owner.
@@ -244,15 +242,6 @@ void trx_validation_state::validate_signature( const meta_trx_input& in )
 
        asset output_bal( in.output.amount, in.output.unit );
        balance_sheet[(asset::type)in.output.unit].in += output_bal;
-
-       dividend_fees  += db->calculate_dividend_fees( output_bal, in.source.block_num, ref_head );
-       auto new_div = db->calculate_output_dividends( output_bal, in.source.block_num, ref_head );
-       dividends      += new_div;
-
-       elog( "dividends ${D}   new_div ${nd}    IN: ${IN}", ("D", dividends )("IN",in)("nd",new_div) );
-
-       // dividends are always paid in bts
-       balance_sheet[asset::bts].in += new_div;
    
    } FC_RETHROW_EXCEPTIONS( warn, "validating signature input ${i}", ("i",in) );
 }
@@ -274,24 +263,14 @@ void trx_validation_state::validate_bid( const meta_trx_input& in )
     asset output_bal( in.output.amount, in.output.unit );
     balance_sheet[(asset::type)in.output.unit].in += output_bal;
 
-    dividend_fees  += db->calculate_dividend_fees( output_bal, in.source.block_num, ref_head );
-    auto new_div = db->calculate_output_dividends( output_bal, in.source.block_num, ref_head );
-    dividends      += new_div;
-
-    balance_sheet[asset::bts].in += new_div;
-
 
     // if the pay address has signed the trx, then that means this is a cancel request
     if( signed_addresses.find( cbb.pay_address ) != signed_addresses.end() )
     {
-       // canceled orders can reclaim their dividends (assuming the order has been open long enough)
-       balance_sheet[asset::bts].in += db->calculate_output_dividends( output_bal, in.source.block_num );
+       balance_sheet[asset::bts].in += output_bal; 
     }
     else // someone else accepted the offer based upon the terms of the bid.
     {
-       // accepted bids pay their dividends to the miner, if there are any to speak of
-       dividend_fees  += db->calculate_output_dividends( output_bal, in.source.block_num );
-
        // some orders may be split and thus result in
        // two outputs being generated... look for the split order first, then look
        // for the change!  Easy peesy..
@@ -337,11 +316,6 @@ void trx_validation_state::validate_long( const meta_trx_input& in )
     asset output_bal( in.output.amount, in.output.unit );
     balance_sheet[(asset::type)in.output.unit].in += output_bal;
 
-    dividend_fees  += db->calculate_dividend_fees( output_bal, in.source.block_num, ref_head );
-    auto new_div = db->calculate_output_dividends( output_bal, in.source.block_num, ref_head );
-    dividends      += new_div;
-
-    balance_sheet[asset::bts].in += new_div;
 
 /*
     if( signed_addresses.find( long_claim.pay_address ) != signed_addresses.end() )

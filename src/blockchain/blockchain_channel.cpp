@@ -19,19 +19,19 @@ namespace bts { namespace blockchain {
      class chan_data : public network::channel_data
      {
         public:
-          std::unordered_set<uint160>     known_trx_inv;
-          std::unordered_set<fc::sha224>  known_block_inv;
+          std::unordered_set<uint160>        known_trx_inv;
+          std::unordered_set<block_id_type>  known_block_inv;
 
           // fetches for which we have not yet received a reply...
           // TODO: add a timestamp so we can time it out properly....
           // Any connection that pushes data we didn't request is 
           // punished...
-          std::unordered_set<uint160>      requested_trxs; 
-          std::unordered_set<fc::sha224>   requested_blocks; 
+          std::unordered_set<uint160>         requested_trxs; 
+          std::unordered_set<block_id_type>   requested_blocks; 
 
           // only one request at a time, null hash means nothing pending
-          fc::sha224                     requested_full_block; 
-          fc::sha224                     requested_trx_block; 
+          block_id_type                     requested_full_block; 
+          block_id_type                     requested_trx_block; 
      };
 
 
@@ -56,10 +56,10 @@ namespace bts { namespace blockchain {
           std::unordered_map<uint160,signed_transaction>   _pending_trx;
 
           // full blocks that are awaiting verification, these should not be forwarded
-          std::unordered_map<fc::sha224,full_block>        _pending_full_blocks;
+          std::unordered_map<block_id_type,full_block>        _pending_full_blocks;
 
           // full blocks with their trxs as they are downloaded, these should not be forwarded
-          std::unordered_map<fc::sha224,trx_block>         _pending_trx_blocks;
+          std::unordered_map<block_id_type,trx_block>         _pending_trx_blocks;
 
           network::channel_id                              _chan_id; 
           blockchain_db_ptr                                _db;
@@ -75,7 +75,7 @@ namespace bts { namespace blockchain {
           std::unordered_set<uint160>                      _recently_invalid_trx;
 
           std::unordered_set<uint160>                      _trxs_pending_fetch;
-          std::unordered_set<fc::sha224>                   _blocks_pending_fetch;
+          std::unordered_set<block_id_type>                _blocks_pending_fetch;
 
           std::vector<signed_transaction>                  _verify_queue;
 
@@ -313,7 +313,7 @@ namespace bts { namespace blockchain {
            */
           void handle_full_block( const connection_ptr& c, chan_data& cdat, full_block_message msg )
           { try {
-              fc::sha224 block_id = msg.block_data.id();
+              auto block_id = msg.block_data.id();
               if( cdat.requested_full_block != block_id )
               {
                   FC_THROW_EXCEPTION( exception, "unsolicited full block ${block_id}", 
@@ -328,7 +328,7 @@ namespace bts { namespace blockchain {
            */
           void handle_trx_block( const connection_ptr& c, chan_data& cdat, trx_block_message msg )
           { try {
-              fc::sha224 block_id = msg.block_data.id();
+              auto block_id = msg.block_data.id();
               if( cdat.requested_trx_block != block_id )
               {
                   FC_THROW_EXCEPTION( exception, "unsolicited trx block ${block_id}", 

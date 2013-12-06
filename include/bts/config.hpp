@@ -29,6 +29,7 @@
 #define BITNAME_BLOCK_FETCH_TIMEOUT_SEC  (60)
 #define RPC_DEFAULT_PORT                 (NETWORK_DEFAULT_PORT+1)
 #define WALLET_INVALID_INDEX             (uint32_t(-1))
+#define COIN                          (100000000ll)
 
 #define SHARE                         (1000ll)                    // used to position the decimal place
 #define MAX_BITSHARE_SUPPLY           (2000000000000ll * SHARE)   // 1 Trillion with 3 decimal places
@@ -68,7 +69,7 @@
  *  leave room for the block header, proof, and state as well as some room for merged mining
  *  merkle root and future growth without having a full block ever exceed 1MB
  */
-#define MAX_BLOCK_TRXS_SIZE           (1024*1024 - 2*sizeof( bts::blockchain::block )  )
+#define MAX_BLOCK_TRXS_SIZE           (1024*1024 - 2*sizeof( bts::blockchain::block_header)  )
 
 
 #define BLOCKCHAIN_TIMEKEEPER_MIN_BACK_SEC (60*60) // 60 minutes

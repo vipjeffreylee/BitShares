@@ -114,6 +114,7 @@ struct trx_output
     std::vector<char>                           claim_data;
 };
 
+typedef uint160 transaction_id_type;
 
 /**
  *  @brief maps inputs to outputs.
@@ -121,11 +122,13 @@ struct trx_output
  */
 struct transaction
 {
+   transaction():prev_block_id(0){}
    fc::sha256                   digest()const;
 
-   fc::unsigned_int             version;      ///< trx version number
-   fc::unsigned_int             valid_after;  ///< trx is only valid after block num, 0 means always valid
-   fc::unsigned_int             valid_blocks; ///< number of blocks after valid after that this trx is valid, 0 means always valid
+   fc::unsigned_int             version;        ///< trx version number
+   uint64_t                     prev_block_id;  ///< used for proof of stake, last 8 bytes of block.id()
+   fc::unsigned_int             valid_after;    ///< trx is only valid after block num, 0 means always valid
+   fc::unsigned_int             valid_blocks;   ///< number of blocks after valid after that this trx is valid, 0 means always valid
    std::vector<trx_input>       inputs;
    std::vector<trx_output>      outputs;
 };
@@ -133,7 +136,7 @@ struct transaction
 struct signed_transaction : public transaction
 {
     std::unordered_set<address>      get_signed_addresses()const;
-    uint160                          id()const;
+    transaction_id_type              id()const;
     void                             sign( const fc::ecc::private_key& k );
 
     std::unordered_set<fc::ecc::compact_signature> sigs;
@@ -165,6 +168,6 @@ namespace std {
 FC_REFLECT( bts::blockchain::output_reference, (trx_hash)(output_idx) )
 FC_REFLECT( bts::blockchain::trx_input, (output_ref)(input_data) )
 FC_REFLECT( bts::blockchain::trx_output, (amount)(unit)(claim_func)(claim_data) )
-FC_REFLECT( bts::blockchain::transaction, (version)(valid_after)(valid_blocks)(inputs)(outputs) )
+FC_REFLECT( bts::blockchain::transaction, (version)(prev_block_id)(valid_after)(valid_blocks)(inputs)(outputs) )
 FC_REFLECT_DERIVED( bts::blockchain::signed_transaction, (bts::blockchain::transaction), (sigs) );
 

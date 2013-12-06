@@ -169,6 +169,7 @@ BOOST_AUTO_TEST_CASE( keychain_test )
   }
 }
 
+/*
 BOOST_AUTO_TEST_CASE( mining_reward_rate )
 {
   uint64_t supply = 0;
@@ -188,6 +189,7 @@ BOOST_AUTO_TEST_CASE( mining_reward_rate )
   BOOST_REQUIRE( 0 == calculate_mining_reward(BLOCKS_WITH_REWARD+1));
   BOOST_REQUIRE( 0 == calculate_mining_reward(BLOCKS_WITH_REWARD));
 }
+*/
 
 BOOST_AUTO_TEST_CASE( fixed_math )
 {
@@ -225,6 +227,7 @@ BOOST_AUTO_TEST_CASE( fixed_math )
   }
 }
 
+#if 0
 /**
  *  Test the process of validating the block chain given
  *  a known initial condition and fixed transactions. 
@@ -422,6 +425,7 @@ BOOST_AUTO_TEST_CASE( blockchain_build )
      throw;
   }
 }
+#endif
 
 BOOST_AUTO_TEST_CASE( bts_address )
 {

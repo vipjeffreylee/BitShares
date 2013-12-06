@@ -13,9 +13,6 @@ namespace bts { namespace blockchain {
      *
      *  TODO: add current bid/ask spread for all pairs in the block chain as this
      *        information is required for margin call inputs.
-     *
-     *  TODO: add a reference to the current dividend table so that inputs can
-     *        be calculated using their full balance w/ dividends.
      */
     class trx_validation_state
     {
@@ -54,7 +51,7 @@ namespace bts { namespace blockchain {
            std::vector<meta_trx_input>         inputs;
                                              
            std::vector<asset_balance>          balance_sheet; // validate 0 sum 
-           std::vector<asset_issuance>         issue_sheet; // update backing info
+       //    std::vector<asset_issuance>         issue_sheet; // update backing info
 
 
            /** spending of some inputs depends upon the existance of outputs to the
@@ -121,8 +118,8 @@ FC_REFLECT( bts::blockchain::trx_validation_state,
     (trx)
     (inputs)
     (ref_head)
-    (dividends)
-    (issue_sheet)
+    //(dividends)
+    //(issue_sheet)
     (balance_sheet)
     (used_outputs)
     (required_sigs)

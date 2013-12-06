@@ -17,7 +17,7 @@ namespace bts { namespace blockchain {
          *  called.  
          */
         virtual void handle_trx( const signed_transaction& trx ){};
-        virtual void handle_block(  const block& b ){};
+        virtual void handle_block(  const block_header& b ){};
         virtual void handle_trx_block( const trx_block& b ){};
   };
 

@@ -137,6 +137,7 @@ set( sources
      src/blockchain/blockchain_channel.cpp
      src/blockchain/blockchain_client.cpp
      src/blockchain/blockchain_time_keeper.cpp
+     src/blockchain/blockchain_wallet.cpp
 
      src/rpc/rpc_server.cpp
 
