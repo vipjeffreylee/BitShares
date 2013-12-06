@@ -763,6 +763,10 @@ namespace bts { namespace blockchain {
     {
        return 0;
     }
+    asset    blockchain_db::get_fee_rate()const
+    {
+       return asset(1000, asset::bts);
+    }
 
 }  } // bts::blockchain
 

@@ -126,7 +126,7 @@ struct transaction
    fc::sha256                   digest()const;
 
    fc::unsigned_int             version;        ///< trx version number
-   uint64_t                     prev_block_id;  ///< used for proof of stake, last 8 bytes of block.id()
+   uint64_t                     stake;          ///< used for proof of stake, last 8 bytes of block.id()
    fc::unsigned_int             valid_after;    ///< trx is only valid after block num, 0 means always valid
    fc::unsigned_int             valid_blocks;   ///< number of blocks after valid after that this trx is valid, 0 means always valid
    std::vector<trx_input>       inputs;
@@ -168,6 +168,6 @@ namespace std {
 FC_REFLECT( bts::blockchain::output_reference, (trx_hash)(output_idx) )
 FC_REFLECT( bts::blockchain::trx_input, (output_ref)(input_data) )
 FC_REFLECT( bts::blockchain::trx_output, (amount)(unit)(claim_func)(claim_data) )
-FC_REFLECT( bts::blockchain::transaction, (version)(prev_block_id)(valid_after)(valid_blocks)(inputs)(outputs) )
+FC_REFLECT( bts::blockchain::transaction, (version)(stake)(valid_after)(valid_blocks)(inputs)(outputs) )
 FC_REFLECT_DERIVED( bts::blockchain::signed_transaction, (bts::blockchain::transaction), (sigs) );
 

@@ -16,8 +16,8 @@ namespace bts { namespace blockchain {
        extended_private_key                                 base_key; 
        uint32_t                                             last_used_key;
        uint32_t                                             last_scanned_block_num;
-       std::unordered_map<std::string,bts::address>         recv_addresses;
-       std::unordered_map<std::string,bts::address>         send_addresses;
+       std::unordered_map<bts::address,std::string>         recv_addresses;
+       std::unordered_map<bts::address,std::string>         send_addresses;
        std::vector<fc::ecc::private_key>                    extra_keys;
        std::vector<bts::blockchain::signed_transaction>     out_trx;
        std::vector<bts::blockchain::signed_transaction>     in_trx;
@@ -43,6 +43,7 @@ namespace bts { namespace blockchain {
           public:
               fc::path                                                   _wallet_dat;
               wallet_data                                                _data;
+              asset                                                      _current_fee_rate;
 
               std::unordered_map<output_reference,trx_output>            _unspent_outputs;
               std::unordered_map<output_reference,trx_output>            _spent_outputs;
@@ -77,6 +78,7 @@ namespace bts { namespace blockchain {
 
    void           wallet::set_stake( uint64_t stake )
    {
+      my->_stake = stake;
    }
 
    void           wallet::import_key( const fc::ecc::private_key& key )
@@ -95,14 +97,25 @@ namespace bts { namespace blockchain {
       return  addr;
    }
 
-   signed_transaction    wallet::transfer( const asset& amnt, const bts::address& to, const asset& fee )
+   void                  wallet::set_fee_rate( const asset& pts_per_byte )
+   {
+      my->_current_fee_rate = pts_per_byte;
+   }
+
+   signed_transaction    wallet::transfer( const asset& amnt, const bts::address& to )
    {
        signed_transaction trx; 
 
-       std::vector<bts::address> req_sigs;
+       // TODO: make a set...
+       std::vector<bts::address> req_sigs; 
 
        asset total;
+       auto fee = my->_current_fee_rate * 1024*4; // just assume 4 kb per trx
+       ilog( "fee: ${fee}", ("fee",fee) );
        asset req_in = amnt + fee;
+
+       // TODO: factor this out into a helper method that will fetch the desired inputs for
+       // any asset type.
        for( auto itr = my->_unspent_outputs.begin(); itr != my->_unspent_outputs.end(); ++itr )
        {
            if( itr->second.claim_func == claim_by_signature && itr->second.unit == amnt.unit )
@@ -113,16 +126,22 @@ namespace bts { namespace blockchain {
 
                if( total >= req_in )
                {
-
                   break;
                }
            }
        }
+
        // make sure there is sufficient funds
        FC_ASSERT( total >= req_in );
       
        trx.outputs.push_back( 
          trx_output( claim_by_signature_output( to ), amnt) );
+
+       // TODO: estimate fee
+       //   - estimating the fee should calculate teh total size of the transaction
+       //     plus the estimated size of the required signatures.  The fee must be
+       //     set so that 
+       //req_in += fee  
 
        auto change = total - req_in;
 
@@ -171,7 +190,7 @@ namespace bts { namespace blockchain {
        return trx;
    }
 
-   signed_transaction    wallet::borrow( const asset& amnt )
+   signed_transaction    wallet::borrow( const asset& amnt, const asset& collateral )
    {
        signed_transaction trx; 
        return trx;
@@ -216,7 +235,10 @@ namespace bts { namespace blockchain {
                             if( !trx.meta_outputs[out_idx].is_spent() )
                                my->_unspent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
                             else
+                            {
+                               mark_as_spent( output_reference(trx.id(), out_idx ) );
                                my->_spent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
+                            }
                             std::cerr<<"found block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"] => "<<std::string(owner)<<"\n";
                         }
                         else

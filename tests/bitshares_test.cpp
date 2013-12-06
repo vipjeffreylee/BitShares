@@ -43,7 +43,7 @@ bts::blockchain::trx_block create_test_genesis_block()
 
 
 
-BOOST_AUTO_TEST_CASE( bitname_db_test )
+BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
 {
    try {
      fc::temp_directory temp_dir;
@@ -63,6 +63,7 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
      wallet.scan_chain( chain );
      ilog("dump" );
      wallet.dump();
+     wallet.set_fee_rate( chain.get_fee_rate() );
 
      auto balance = wallet.get_balance(bts::blockchain::asset::bts);
 
@@ -73,7 +74,7 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
 
      wallet.set_stake(chain.get_stake());
                   
-     auto trx1    = wallet.transfer( asset(20*COIN,asset::bts), a1, asset(1*COIN,asset::bts) );
+     auto trx1    = wallet.transfer( asset(20*COIN,asset::bts), a1 );
      wallet.dump();
 
      std::vector<signed_transaction> trxs;
@@ -85,7 +86,7 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
      wallet.scan_chain( chain, block1.block_num );
      wallet.dump();
 
-     auto trx2    = wallet.transfer( asset(25*COIN,asset::bts), a2, asset(1*COIN,asset::bts) );
+     auto trx2    = wallet.transfer( asset(25*COIN,asset::bts), a2 );
      wallet.dump();
 
      trxs[0] = trx2;
@@ -95,9 +96,6 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
 
      wallet.scan_chain( chain, block2.block_num );
      wallet.dump();
-
-
-
 
    //  auto trx2    = wallet.transfer( 2000*COIN, asset::bts, a2 );
    //  auto trx3    = wallet.transfer( 3000*COIN, asset::bts, a3 );
