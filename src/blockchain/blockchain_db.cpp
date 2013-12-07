@@ -364,12 +364,8 @@ namespace bts { namespace blockchain {
          my->_market_db.open( dir / "market" );
 
          
-         block_header blk;
          // read the last block from the DB
-         my->blocks.last( my->head_block.block_num, blk );
-
-    //     my->current_bitshare_supply  = blk.state.issuance.data[asset::bts].issued;
-    //     my->current_bitshare_supply += calculate_mining_reward( my->head_block.block_num ) / 2;
+         my->blocks.last( my->head_block.block_num, my->head_block );
 
        } FC_RETHROW_EXCEPTIONS( warn, "error loading blockchain database ${dir}", ("dir",dir)("create",create) );
      }
@@ -602,7 +598,7 @@ namespace bts { namespace blockchain {
 
     uint64_t blockchain_db::current_bitshare_supply()
     {
-       return 0; //my->current_bitshare_supply; // cache this every time we push a block
+       return my->head_block.total_shares; // cache this every time we push a block
     }
 
     /**
@@ -712,8 +708,8 @@ namespace bts { namespace blockchain {
          // destroyed as the means of paying dividends.
          
        //  wlog( "mining reward: ${mr}", ("mr", calculate_mining_reward( head_block_num() + 1) ) );
-         asset miner_fees( (total_fees.amount / 2).high_bits(), asset::bts );
-         wlog( "miner fees: ${t}", ("t", miner_fees) );
+        // asset miner_fees( (total_fees.amount).high_bits(), asset::bts );
+        // wlog( "miner fees: ${t}", ("t", miner_fees) );
 
          trx_block new_blk;
          new_blk.trxs.reserve( 1 + stats.size() - conflicts ); 
@@ -730,8 +726,8 @@ namespace bts { namespace blockchain {
          new_blk.timestamp                 = fc::time_point::now();
          new_blk.block_num                 = head_block_num() + 1;
          new_blk.prev                      = my->head_block_id;
-         new_blk.total_shares              = 0; // TODO: Prev Block.Shares - Fees 
-         new_blk.total_coindays_destroyed  = 0; // TODO: Prev Block.CDD + CDD
+         new_blk.total_shares              = my->head_block.total_shares - total_fees.amount.high_bits(); 
+         new_blk.total_coindays_destroyed  = my->head_block.total_coindays_destroyed; // TODO: Prev Block.CDD + CDD
 
          new_blk.trx_mroot = new_blk.calculate_merkle_root();
 

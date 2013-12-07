@@ -159,15 +159,15 @@ namespace bts { namespace blockchain {
      ss << "    <th width=\"200px\">Time    </th>\n";
      ss << "    <th width=\"80px\">Id      </th>\n";
      ss << "    <th width=\"80px\">Prev Id </th>\n";
-     ss << "    <th width=\"200px\">Fees    </th>\n";
-     ss << "    <th width=\"80px\">CDD     </th>\n";
+     ss << "    <th width=\"200px\">Total Shares</th>\n";
+     ss << "    <th width=\"80px\">TCDD     </th>\n";
      ss << "  </tr>\n";
      ss << "  <tr>\n";
      ss << "    <td>" << b.block_num                                            <<"</td>\n";
      ss << "    <td>" << std::string( fc::time_point(b.timestamp) )             <<"</td>\n";
      ss << "    <td>" << std::string( b.id() ).substr(0,8)                      <<"</td>\n";
      ss << "    <td>" << std::string( b.prev ).substr(0,8)                      <<"</td>\n";
-     ss << "    <td align=right cellpadding=5>" << fees                                                   <<"</td>\n";
+     ss << "    <td align=right cellpadding=5>" << b.total_shares               <<"</td>\n";
      ss << "    <td cellpadding=5>" << b.total_coindays_destroyed <<"</td>\n";
      ss << "  </tr>\n";
      ss << "</table>\n";

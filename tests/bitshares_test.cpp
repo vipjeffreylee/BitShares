@@ -24,10 +24,11 @@ fc::ecc::private_key test_genesis_private_key()
 bts::blockchain::trx_block create_test_genesis_block()
 {
    bts::blockchain::trx_block b;
-   b.version    = 0;
-   b.prev       = block_id_type();
-   b.block_num  = 0;
-   b.timestamp  = fc::time_point::from_iso_string("20131201T054434");
+   b.version      = 0;
+   b.prev         = block_id_type();
+   b.block_num    = 0;
+   b.total_shares = 100*COIN;
+   b.timestamp    = fc::time_point::from_iso_string("20131201T054434");
 
    signed_transaction coinbase;
    coinbase.version = 0;
