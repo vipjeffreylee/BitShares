@@ -33,8 +33,8 @@ namespace bts { namespace bitname {
      *  The minimum difficulty for finding a name is about 1 hr of CPU time, but
      *  could be as high as block target / 10K.  
      *
-     *  When a block is name_trx is found, the name earns one repute point, when
-     *  a name block is found, the name the found it earns an additional repute point 
+     *  When a name_trx is found, the name earns one repute point, when
+     *  a name block is found, the name that found it earns an additional repute point 
      *  for each included transaction.
      *
      *  Users mine for the following benefits:

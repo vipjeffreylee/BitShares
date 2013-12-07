@@ -181,7 +181,7 @@ namespace bts { namespace blockchain {
        }
        else /// fee is in bts, but we are transferring something else
        {
-           if( change.amount == 0 ) trx.outputs.pop_back(); // no change required
+           if( change.amount == fc::uint128_t(0) ) trx.outputs.pop_back(); // no change required
 
            // TODO: this function should be recursive here, but having 2x the fee should be good enough, some
            // transactions may overpay in this case, but this can be optimized later to reduce fees.. for now
