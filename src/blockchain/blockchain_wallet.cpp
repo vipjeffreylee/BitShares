@@ -127,10 +127,9 @@ namespace bts { namespace blockchain {
    {
       my->_data.last_used_key++;
       auto new_key = my->_data.base_key.child( my->_data.last_used_key );
+      import_key(new_key);
       bts::address addr = new_key.get_public_key();
-      my->_my_addresses[addr] = my->_data.extra_keys.size();
-      my->_data.extra_keys.push_back(new_key);
-      return  addr;
+      return  new_key.get_public_key();
    }
 
    void                  wallet::set_fee_rate( const asset& pts_per_byte )
@@ -169,8 +168,11 @@ namespace bts { namespace blockchain {
           }
           else
           {
+             elog( "NOT ENOUGH TO COVER AMOUNT + FEE... GRAB MORE.." );
               // TODO: this function should be recursive here, but having 2x the fee should be good enough
               fee = fee + fee; // double the fee in this case to cover the growth
+              req_sigs.clear();
+              total_in = asset();
               trx.inputs = my->collect_inputs( amnt+fee, total_in, req_sigs );
               change =  total_in - amnt - fee;
               trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );

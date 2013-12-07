@@ -519,7 +519,9 @@ namespace bts { namespace blockchain {
               {
                  // TODO: verify minimum fee
                  FC_ASSERT( vstate.balance_sheet[asset::bts].out < vstate.balance_sheet[asset::bts].in, 
-                            "All transactions must pay some fee");
+                            "All transactions must pay some fee",
+                 ("out", vstate.balance_sheet[asset::bts].out)("in",vstate.balance_sheet[asset::bts].in )
+                            );
               }
               else
               {

@@ -92,6 +92,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
     ilog( "TRX1: ${TRX}", ("TRX",trxs[0]) );
      auto block1 = chain.generate_next_block( trxs );
      chain.push_block( block1 );
+     wallet.set_stake(chain.get_stake());
 
      wallet.scan_chain( chain, block1.block_num );
      wallet.dump();
@@ -103,9 +104,31 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
     ilog( "TRX2: ${TRX}", ("TRX",trxs[0]) );
      auto block2 = chain.generate_next_block( trxs );
      chain.push_block( block2 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block2.block_num );
+     wallet.dump();
+
+     std::vector<trx_block> blcks;
+     for( uint32_t i = 0; i < 10; ++i )
+     {
+        auto trx2    = wallet.transfer( asset(2*COIN,asset::bts), wallet.get_new_address() );
+        trxs[0] = trx2;
+        auto block2 = chain.generate_next_block( trxs );
+        chain.push_block( block2 );
+        wallet.set_stake(chain.get_stake());
+      
+        blcks.push_back(block2);
+        wallet.scan_chain( chain, block2.block_num );
+        wallet.dump();
+     }
+
      html << bts::blockchain::pretty_print( genesis, chain );
      html << bts::blockchain::pretty_print( block1, chain );
      html << bts::blockchain::pretty_print( block2, chain );
+     for( uint32_t i = 0; i < blcks.size(); ++i )
+     {
+        html << bts::blockchain::pretty_print( blcks[i], chain );
+     }
 
      wallet.scan_chain( chain, block2.block_num );
      wallet.dump();
