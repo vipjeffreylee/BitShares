@@ -11,6 +11,9 @@
 #include <fc/io/raw.hpp>
 #include <bts/config.hpp>
 
+#include <fstream>
+#include <bts/blockchain/blockchain_printer.hpp>
+
 using namespace bts::blockchain;
 
 fc::ecc::private_key test_genesis_private_key()
@@ -50,9 +53,14 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      bts::blockchain::blockchain_db chain;
      chain.open( temp_dir.path() / "chain" );
 
+     std::ofstream html( "chain.html" );
+
+
      auto genesis = create_test_genesis_block();
+
      ilog( "genesis block: \n${s}", ("s", fc::json::to_pretty_string(genesis) ) );
      chain.push_block( genesis );
+
 
      bts::blockchain::wallet  wallet;
      wallet.open( temp_dir.path() / "chain" );
@@ -80,19 +88,23 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      std::vector<signed_transaction> trxs;
      trxs.push_back(trx1);
 
+    ilog( "TRX1: ${TRX}", ("TRX",trxs[0]) );
      auto block1 = chain.generate_next_block( trxs );
      chain.push_block( block1 );
 
      wallet.scan_chain( chain, block1.block_num );
      wallet.dump();
 
-     auto trx2    = wallet.transfer( asset(25*COIN,asset::bts), a2 );
+     auto trx2    = wallet.transfer( asset(90*COIN,asset::bts), a2 );
      wallet.dump();
 
      trxs[0] = trx2;
-
+    ilog( "TRX2: ${TRX}", ("TRX",trxs[0]) );
      auto block2 = chain.generate_next_block( trxs );
      chain.push_block( block2 );
+     html << bts::blockchain::pretty_print( genesis, chain );
+     html << bts::blockchain::pretty_print( block1, chain );
+     html << bts::blockchain::pretty_print( block2, chain );
 
      wallet.scan_chain( chain, block2.block_num );
      wallet.dump();

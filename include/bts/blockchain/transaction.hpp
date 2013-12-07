@@ -122,7 +122,7 @@ typedef uint160 transaction_id_type;
  */
 struct transaction
 {
-   transaction():prev_block_id(0){}
+   transaction():stake(0){}
    fc::sha256                   digest()const;
 
    fc::unsigned_int             version;        ///< trx version number
@@ -139,7 +139,7 @@ struct signed_transaction : public transaction
     transaction_id_type              id()const;
     void                             sign( const fc::ecc::private_key& k );
 
-    std::unordered_set<fc::ecc::compact_signature> sigs;
+    std::set<fc::ecc::compact_signature> sigs;
 };
 
 } }  // namespace bts::blockchain

@@ -103,6 +103,8 @@ namespace bts { namespace blockchain {
              */
             void store( const signed_transaction& t, const trx_num& tn )
             {
+               ilog( "trxid: ${id}   ${tn}\n\n  ${trx}\n\n", ("id",t.id())("tn",tn)("trx",t) );
+
                trx_id2num.store( t.id(), tn ); 
                meta_trxs.store( tn, meta_trx(t) );
 
@@ -154,6 +156,7 @@ namespace bts { namespace blockchain {
 
             void match_orders( std::vector<signed_transaction>& matched,  asset::type quote, asset::type base )
             { try {
+                     return;
                 ilog( "match orders.." );
                auto bids = _market_db.get_bids( quote, base );
                auto asks = _market_db.get_asks( quote, base );
