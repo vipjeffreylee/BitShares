@@ -18,7 +18,8 @@ namespace bts { namespace bitname {
      void     set_name_hash( uint64_t h );
 
      fc::time_point_sec          last_update; ///< the most recent update of this name
-     fc::ecc::public_key_data    pub_key;     ///< the public key paired to this name.
+     fc::ecc::public_key_data    master_key;  ///< the public key paired to this name.
+     fc::ecc::public_key_data    active_key;  ///< the public key paired to this name.
      bool                        revoked;     ///< this name has been canceled, by its owner (invalidating the public key)
      uint32_t                    age;         ///< first block this name was registered in
      uint32_t                    repute;      ///< how many repute points have been earned by this name
@@ -31,7 +32,8 @@ namespace bts { namespace bitname {
 #include <fc/reflect/reflect.hpp>
 FC_REFLECT( bts::bitname::name_record,
     (last_update)
-    (pub_key)
+    (master_key)
+    (active_key)
     (revoked)
     (age)
     (repute)

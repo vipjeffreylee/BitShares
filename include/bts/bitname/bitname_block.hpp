@@ -110,7 +110,8 @@ namespace bts { namespace bitname {
         *  Public key, must be the same as the prior public key unless this
         *  is a new registration or solves the block.
         */
-       fc::ecc::public_key_data                 key;           
+       fc::ecc::public_key_data                 master_key;           
+       fc::ecc::public_key_data                 active_key;           
 
        /**
         * Only valid when repute_points is 0 and indicates that a name
@@ -211,7 +212,8 @@ FC_REFLECT( bts::bitname::name_trx,
     (trxs_hash)
     (name_hash)
     (repute_points)
-    (key)
+    (master_key)
+    (active_key)
     (change_sig)
 )
 FC_REFLECT_DERIVED( bts::bitname::name_header, (bts::bitname::name_trx), (prev) )
@@ -222,7 +224,8 @@ FC_REFLECT( bts::bitname::name_block_index, (header)(name_trxs) )
 /**
  *  Define custom serialization that conditionally includes either the public key or a 
  *  signature to cancel it.  
- */
+ *
+ *  THIS IS DEPRECATED NOW
 namespace fc {  namespace raw {
     template<typename Stream>
     inline void pack( Stream& s, const bts::bitname::name_trx& t )
@@ -233,12 +236,9 @@ namespace fc {  namespace raw {
        fc::raw::pack(s,t.trxs_hash);
        fc::raw::pack(s,t.name_hash);
        fc::raw::pack(s,t.repute_points);
-       fc::raw::pack(s,t.key);
-       if( t.repute_points.value == 0 )
-       {
-           FC_ASSERT( !!t.change_sig );
-           fc::raw::pack(s,*t.change_sig);
-       }
+       fc::raw::pack(s,t.master_key);
+       fc::raw::pack(s,t.active_key);
+       fc::raw::pack(s,t.change_sig);
     }
 
     template<typename Stream>
@@ -250,12 +250,9 @@ namespace fc {  namespace raw {
        fc::raw::unpack(s,t.trxs_hash);
        fc::raw::unpack(s,t.name_hash);
        fc::raw::unpack(s,t.repute_points);
-       fc::raw::unpack(s,t.key);
-
-       if( t.repute_points.value == 0 )
-       {
-           t.change_sig = fc::ecc::compact_signature();
-           fc::raw::unpack( s, *t.change_sig );
-       }
+       fc::raw::unpack(s,t.master_key);
+       fc::raw::unpack(s,t.active_key);
+       fc::raw::unpack(s,t.change_sig);
     }
 } }
+ */

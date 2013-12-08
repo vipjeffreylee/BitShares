@@ -41,7 +41,8 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
     block1.utc_sec = fc::time_point::now();
     block1.age = 1;
     block1.name_hash = 10001;
-    block1.key = fc::ecc::private_key::generate().get_public_key();
+    block1.master_key = fc::ecc::private_key::generate().get_public_key();
+    block1.active_key = block1.master_key;
     block1.trxs_hash = block1.calc_trxs_hash();
     block1.repute_points = 1;
     block1.prev = chain.head_block_id();
@@ -68,7 +69,7 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
     block2.repute_points = 1;
     block2.utc_sec = fc::time_point::now();
     block2.name_hash = 2000;
-    block2.key = fc::ecc::private_key::generate().get_public_key();
+    block2.master_key = fc::ecc::private_key::generate().get_public_key();
     
     for( uint32_t i = 0; i < 10; ++i )
     {
@@ -77,7 +78,7 @@ BOOST_AUTO_TEST_CASE( bitname_db_test )
        trx.age = 2;
        trx.repute_points = 1;
        trx.utc_sec = block2.utc_sec;
-       trx.key = fc::ecc::private_key::generate().get_public_key();
+       trx.master_key = fc::ecc::private_key::generate().get_public_key();
 
        block2.name_trxs.push_back(trx);
     }

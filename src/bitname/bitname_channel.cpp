@@ -865,10 +865,11 @@ namespace bts { namespace bitname {
           name_record  name_rec;
 
           name_rec.last_update = last_trx.utc_sec;
-          name_rec.pub_key     = last_trx.key;
+          name_rec.master_key  = last_trx.master_key;
+          name_rec.active_key  = last_trx.active_key;
           name_rec.age         = last_trx.age;
           name_rec.repute      = my->_name_db.fetch_repute( name_hash(name) ); //last_trx.repute_points;
-          name_rec.revoked     = last_trx.key == fc::ecc::public_key_data();
+          name_rec.revoked     = last_trx.master_key == fc::ecc::public_key_data();
           name_rec.name_hash   = fc::to_hex((char*)&last_trx.name_hash, sizeof(last_trx.name_hash));
           name_rec.name        = name;
 

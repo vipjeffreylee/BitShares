@@ -157,6 +157,7 @@ set( sources
 
 add_library( bshare ${sources} )
 add_subdirectory( sancho )
+add_subdirectory( server )
 
 #add_executable( wallet_test tests/wallet_test.cpp )
 #target_link_libraries( wallet_test bshare fc ${BOOST_LIBRARIES})
