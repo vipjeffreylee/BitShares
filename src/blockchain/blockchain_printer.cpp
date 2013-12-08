@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include <fc/crypto/hex.hpp>
 #include <fc/log/logger.hpp>
 
 namespace bts { namespace blockchain {
@@ -52,6 +53,7 @@ namespace bts { namespace blockchain {
   void pretty_print( std::ostream& out, blockchain_db& db, const trx_num& tn )
   {
      try {
+        uint64_t total_cdd = 0;
         auto mtrx = db.fetch_trx(tn);
         trx_validation_state state( mtrx, &db, false, tn.block_num - 1 );
         state.validate();
@@ -66,10 +68,16 @@ namespace bts { namespace blockchain {
            out << "   " << fc::variant(state.inputs[i].output.claim_func).as_string();
            out << "</br>\n   Source: Block#  "<<state.inputs[i].source.block_num 
                                  << " Trx # " <<state.inputs[i].source.trx_idx <<"\n"
-                                 << " Out # " << uint32_t(state.inputs[i].output_num) <<"\n";
+                                 << " Out # " << uint32_t(state.inputs[i].output_num) <<"<br/>\n";
+           uint64_t cdd = (tn.block_num - state.inputs[i].source.block_num) * state.inputs[i].output.amount;
+           if( state.inputs[i].output.unit != asset::bts ) 
+                cdd = 0;
+           total_cdd += cdd;
+           out << " CDD: " << cdd << "<br/>\n";
            out << "<p/></div>\n</li>\n";
         }
         out << "</ol>\n";
+        out << "Total CDD: " << total_cdd<<"<br/>\n";
         out << "</td>\n";
         out << "<td width=\"33%\" align=\"right\" valign=\"top\" padding=10>\n";
         out << "<ol start=\"0\">\n";
@@ -148,7 +156,7 @@ namespace bts { namespace blockchain {
   std::string pretty_print( const trx_block& b, blockchain_db& db )
   {
      //uint64_t reward = calculate_mining_reward( b.block_num);
-     uint64_t fees = 2*(b.trxs[0].outputs[0].amount);
+     // uint64_t fees = 2*(b.trxs[0].outputs[0].amount);
 
      std::stringstream ss;
      ss.imbue( std::locale( std::locale::classic(), new thousands_separator<char>(',')) );
@@ -159,15 +167,15 @@ namespace bts { namespace blockchain {
      ss << "    <th width=\"200px\">Time    </th>\n";
      ss << "    <th width=\"80px\">Id      </th>\n";
      ss << "    <th width=\"80px\">Prev Id </th>\n";
-     ss << "    <th width=\"200px\">Fees    </th>\n";
-     ss << "    <th width=\"80px\">CDD     </th>\n";
+     ss << "    <th width=\"200px\">Total Shares</th>\n";
+     ss << "    <th width=\"80px\">TCDD     </th>\n";
      ss << "  </tr>\n";
      ss << "  <tr>\n";
      ss << "    <td>" << b.block_num                                            <<"</td>\n";
      ss << "    <td>" << std::string( fc::time_point(b.timestamp) )             <<"</td>\n";
      ss << "    <td>" << std::string( b.id() ).substr(0,8)                      <<"</td>\n";
      ss << "    <td>" << std::string( b.prev ).substr(0,8)                      <<"</td>\n";
-     ss << "    <td align=right cellpadding=5>" << fees                                                   <<"</td>\n";
+     ss << "    <td align=right cellpadding=5>" << b.total_shares               <<"</td>\n";
      ss << "    <td cellpadding=5>" << b.total_coindays_destroyed <<"</td>\n";
      ss << "  </tr>\n";
      ss << "</table>\n";
@@ -179,7 +187,9 @@ namespace bts { namespace blockchain {
 
              for( uint32_t i = 0; i < b.trxs.size(); ++i )
              {
-                ss << "<tr><td>"<<i<<" - "<< std::string(b.trxs[i].id()).substr(0,8) <<"</td><td>\n";
+                ss << "<tr><td width=\"80\" align=\"center\"> #"<<i<<" <br/><br/> ID <br/>"<< std::string(b.trxs[i].id()).substr(0,8) <<"<br/>";
+                ss << "<br/> Stake <br/>"<< fc::to_hex( (char*)&b.trxs[i].stake, 4 ) <<"\n";
+                ss << "</td><td>\n";
                 pretty_print( ss, db, trx_num( b.block_num, i ) );
                 ss << "</td></tr>\n";
              }

@@ -108,6 +108,7 @@ namespace bts { namespace blockchain {
 
           uint32_t head_block_num()const;
           uint64_t get_stake(); // head - 1 
+          asset    get_fee_rate()const;
 
          /**
           *  Validates that trx could be included in a future block, that
