@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include <fc/crypto/hex.hpp>
 #include <fc/log/logger.hpp>
 
 namespace bts { namespace blockchain {
@@ -187,7 +188,7 @@ namespace bts { namespace blockchain {
              for( uint32_t i = 0; i < b.trxs.size(); ++i )
              {
                 ss << "<tr><td width=\"80\" align=\"center\"> #"<<i<<" <br/><br/> ID <br/>"<< std::string(b.trxs[i].id()).substr(0,8) <<"<br/>";
-                ss << "<br/> Stake <br/>"<< b.trxs[i].stake <<"\n";
+                ss << "<br/> Stake <br/>"<< fc::to_hex( (char*)&b.trxs[i].stake, 4 ) <<"\n";
                 ss << "</td><td>\n";
                 pretty_print( ss, db, trx_num( b.block_num, i ) );
                 ss << "</td></tr>\n";

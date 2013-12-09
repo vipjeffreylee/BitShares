@@ -1,0 +1,7 @@
+{
+   "host":"127.0.0.1",
+   "datadir" : "client_data",
+   "rpc_port" : 5432,
+   "rpc_user" : "user",
+   "rpc_password" : "pass"
+}

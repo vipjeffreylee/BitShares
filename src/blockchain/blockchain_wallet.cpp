@@ -114,6 +114,7 @@ namespace bts { namespace blockchain {
 
    void           wallet::set_stake( uint64_t stake )
    {
+      wlog( "STAKE ${S}", ("S",stake) );
       my->_stake = stake;
    }
 
@@ -193,6 +194,7 @@ namespace bts { namespace blockchain {
        }
 
        trx.sigs.clear();
+       trx.stake = my->_stake;
        my->sign_transaction(trx, req_sigs);
 
 

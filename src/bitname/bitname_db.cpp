@@ -371,8 +371,13 @@ namespace bts { namespace bitname {
           if( trx.repute_points != 0 ) // this is an update
           {
              FC_ASSERT( trx.repute_points.value == prev_trx.repute_points.value + repute, "", ("prev_trx", prev_trx)("repute",repute) );
-             FC_ASSERT( trx.key  == prev_trx.key );
+             FC_ASSERT( trx.master_key  == prev_trx.master_key );
              FC_ASSERT( trx.age  == prev_trx.age );
+             if( trx.active_key != prev_trx.active_key )
+             {
+                 auto digest = fc::sha256::hash( trx.active_key.data, trx.active_key.size() );
+                 FC_ASSERT( trx.master_key == fc::ecc::public_key(*trx.change_sig,digest) );
+             }
           }
           else // this is a transfer or cancel
           {
@@ -384,7 +389,7 @@ namespace bts { namespace bitname {
              auto trx_id = trx.id(chain_head_id);
              auto digest = fc::sha256::hash( (char*)&trx_id, sizeof(trx_id) );
              fc::ecc::public_key signed_key( *trx.change_sig, digest );
-             if( trx.key == fc::ecc::public_key_data() )  // this is a cancel attempt
+             if( trx.master_key == fc::ecc::public_key_data() )  // this is a cancel attempt
              {
                  // cancel attempt within the transfer window, must be signed
                  // by the prior public key rather than the new public key.
@@ -396,25 +401,25 @@ namespace bts { namespace bitname {
                      {
    //                       ilog( "prev_prev_update_loc.block_num ${block_num}", ("block_num",prev_prev_update_loc.block_num) );
                         auto prev_prev_header =  my->_block_num_to_header.fetch( prev_prev_update_loc.block_num );
-                        FC_ASSERT( prev_prev_header.key == signed_key );
+                        FC_ASSERT( prev_prev_header.master_key == signed_key );
                      }
                      else
                      {
     //                      ilog( "prev_prev_update_loc.block_num ${block_num}", ("block_num",prev_prev_update_loc.block_num) );
                         std::vector<name_trx>  prev_prev_block_trxs = my->_block_num_to_name_trxs.fetch( prev_prev_update_loc.block_num );
                         FC_ASSERT( prev_prev_block_trxs.size() > prev_prev_update_loc.trx_num );
-                        FC_ASSERT( prev_prev_block_trxs[prev_prev_update_loc.trx_num].key == signed_key );
+                        FC_ASSERT( prev_prev_block_trxs[prev_prev_update_loc.trx_num].master_key == signed_key );
                      }
                  }
                  else // we are outside the transfer window, we can cancel with current key
                  {
-                     FC_ASSERT( signed_key == prev_trx.key );
+                     FC_ASSERT( signed_key == prev_trx.master_key );
                  }
              }
              else // this is a transfer attempt
              {
                  FC_ASSERT( is_header );
-                 FC_ASSERT( signed_key == prev_trx.key );
+                 FC_ASSERT( signed_key == prev_trx.master_key );
                  FC_ASSERT( last_update > BITNAME_BLOCKS_BEFORE_TRANSFER );
              }
           }
@@ -423,7 +428,7 @@ namespace bts { namespace bitname {
        {
           FC_ASSERT( trx.age == my->_header_ids.size(), "", ("header_ids.size()", my->_header_ids.size()) );
           FC_ASSERT( trx.repute_points == 1 );
-          FC_ASSERT( trx.key != fc::ecc::public_key_data() );
+          FC_ASSERT( trx.master_key != fc::ecc::public_key_data() );
           FC_ASSERT( trx.name_hash > 1000 ); // first 1000 hash slots are reserved for future use
        }
     } FC_RETHROW_EXCEPTIONS( warn, "error validating ${trx} header: ${is_header}", 
@@ -619,7 +624,8 @@ namespace bts { namespace bitname {
              std::cerr<<"age: "<<std::setw(5) << blkhead.age <<" ";
              std::cerr<<"repute: "<<std::setw(5) << blkhead.repute_points.value <<" ";
              std::cerr<<"prev: "<<std::setw(10) << fc::variant(blkhead.prev).as_string().substr(0,10) <<" ";
-             std::cerr<<"key: "<<std::setw(12)<<fc::variant(blkhead.key).as_string().substr(0,10)<<" ";
+             std::cerr<<"master key: "<<std::setw(12)<<fc::variant(blkhead.master_key).as_string().substr(0,10)<<" ";
+             std::cerr<<"active key: "<<std::setw(12)<<fc::variant(blkhead.active_key).as_string().substr(0,10)<<" ";
              std::cerr<<"med interval: "<<std::setw(6)<<timekeep.median_interval()<<" sec ";
              std::cerr<<"target interval: "<<std::setw(6)<<timekeep.target_interval()<<" sec ";
              std::cerr<<"curr_diff: "<<std::setw(14)<<timekeep.current_difficulty()<<" ";
@@ -642,7 +648,7 @@ namespace bts { namespace bitname {
                 std::cerr<<"age: "<<std::setw(3)<<blktrxs[t].age<<" ";
                 std::cerr<<"repute: "<<std::setw(3)<<blktrxs[t].repute_points.value<<" ";
                 std::cerr<<"difficulty: "<<std::setw(3)<<blktrxs[t].difficulty(blkhead.prev)<<" ";
-                std::cerr<<"key: "<<std::setw(66)<<fc::json::to_string(blktrxs[t].key)<<" ";
+                std::cerr<<"key: "<<std::setw(66)<<fc::json::to_string(blktrxs[t].master_key)<<" ";
                 std::cerr<<"\n";
              }
           }

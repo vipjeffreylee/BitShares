@@ -78,7 +78,7 @@ namespace bts { namespace bitname {
                     *  raise any errors if we are unable to mine a name.
                     */
                    try {
-                     FC_ASSERT( name_rec->pub_key == itr->second, "attempt to renew name with different public key" );
+                     FC_ASSERT( name_rec->master_key == itr->second, "attempt to renew name with different public key" );
                      FC_ASSERT( name_rec->revoked == false );
                      if( !min_repute_record.valid() )
                      {
@@ -110,7 +110,8 @@ namespace bts { namespace bitname {
                     */
                    name_header new_name;
                    new_name.name_hash     = name_hash( itr->first );
-                   new_name.key           = itr->second;
+                   new_name.master_key    = itr->second;
+                   new_name.active_key    = itr->second;
                    new_name.repute_points = 1;
                    new_name.age           = _chan->get_head_block_number() + 1;
                    new_name.prev          = _chan->get_head_block_id();
@@ -131,7 +132,8 @@ namespace bts { namespace bitname {
                 //ilog( "update name reg" );
                 name_header renew_name;
                 renew_name.name_hash       = min_repute_record->get_name_hash();
-                renew_name.key             = min_repute_record->pub_key;
+                renew_name.master_key      = min_repute_record->master_key;
+                renew_name.active_key      = min_repute_record->active_key;
                 renew_name.age             = min_repute_record->age;
                 // TODO: handle repute + num_trxs in case last renewal was a block header
                 renew_name.repute_points   = min_repute_record->repute + 1;
@@ -217,7 +219,7 @@ namespace bts { namespace bitname {
   void client::mine_name( const std::string& bitname_id, const fc::ecc::public_key& name_key)
   { try {
      auto current_record = my->_chan->lookup_name( bitname_id );
-     if( current_record  && current_record->pub_key != name_key )
+     if( current_record  && current_record->master_key != name_key )
      {
         FC_THROW_EXCEPTION( exception, "name ${bitname_id} has already been reserved as ${record}",
                                          ("bitname_id",bitname_id)("record",*current_record) );

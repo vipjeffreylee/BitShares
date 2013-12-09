@@ -24,6 +24,7 @@ namespace bts { namespace blockchain {
            void                  set_stake( uint64_t stake );
            void                  import_key( const fc::ecc::private_key& key );
            void                  set_fee_rate( const asset& pts_per_byte );
+           uint64_t              last_scanned()const;
 
 
            signed_transaction    transfer( const asset& amnt, const bts::address& to );

@@ -762,7 +762,7 @@ namespace bts { namespace blockchain {
 
     uint64_t blockchain_db::get_stake()
     {
-       return 0;
+       return my->head_block_id._hash[0];
     }
     asset    blockchain_db::get_fee_rate()const
     {

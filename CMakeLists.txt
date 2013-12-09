@@ -26,20 +26,15 @@ IF( WIN32 )
   MESSAGE(status "Compiling on WIN32")
   ADD_DEFINITIONS( -DWIN32 )
   ADD_DEFINITIONS( -DNOMINMAX )
-  #ADD_DEFINITIONS( -DBOOST_CONTEXT_NO_LIB )
   ADD_DEFINITIONS( -D_SCL_SECURE_NO_WARNINGS )
   ADD_DEFINITIONS( -D_WIN32_WINNT=0x0501 )
   ADD_DEFINITIONS( -D_CRT_SECURE_NO_WARNINGS )
-  #ADD_DEFINITIONS( -DBOOST_ALL_NO_LIB -DBOOST_THREAD_BUILD_LIB)
-  ADD_DEFINITIONS( -DWIN32)
-  ADD_DEFINITIONS( -D_WIN32_WINNT=0x0501 )
   ADD_DEFINITIONS( -DLEVELDB_PLATFORM_WINDOWS )
   # Activate C++ exception handling
   IF (NOT CMAKE_CXX_FLAGS MATCHES "/EHsc")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")    
   ENDIF()
-  #boost
-  SET( Boost_INCLUDE_DIR $ENV{BOOST_ROOT} )
+
   #openssl
   #set( OPENSSL_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openssl" )
   #set( LIB_EAY_RELEASE "${CMAKE_CURRENT_SOURCE_DIR}/vendor/openssl/out32dll/libeay32.lib" )
@@ -157,6 +152,7 @@ set( sources
 
 add_library( bshare ${sources} )
 add_subdirectory( sancho )
+add_subdirectory( server )
 
 #add_executable( wallet_test tests/wallet_test.cpp )
 #target_link_libraries( wallet_test bshare fc ${BOOST_LIBRARIES})
