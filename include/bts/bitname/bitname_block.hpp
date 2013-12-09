@@ -6,12 +6,15 @@
 
 namespace bts { namespace bitname { struct name_trx; }}
 
+/*
+ *  THIS IS DEPRECATED NOW
 namespace fc {  namespace raw {
     template<typename Stream>
     inline void pack( Stream& s, const bts::bitname::name_trx& t );
     template<typename Stream>
     inline void unpack( Stream& s, bts::bitname::name_trx& t );
 } }
+*/
 
 namespace bts { namespace bitname {
 
