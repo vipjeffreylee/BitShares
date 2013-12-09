@@ -133,8 +133,8 @@ namespace bts { namespace bitname {
     struct name_header : public name_trx
     {
        name_header(){}
-       name_header( const name_trx& b, const name_id_type& p )
-       :name_trx(b),prev(p){}
+       name_header( const name_trx& b, const name_id_type& previous_block )
+       :name_trx(b),prev(previous_block){}
 
        uint64_t   difficulty()const;
        name_id_type       id()const;
