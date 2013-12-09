@@ -53,7 +53,7 @@ namespace bts {
       void                                 add_node( const fc::ip::endpoint& remote_node_ip_port );
       void                                 set_application_delegate( application_delegate* del );
                                            
-      bool                                 has_profile()const;                              
+      bool                                 has_profile()const;
       profile_ptr                          get_profile();
       profile_ptr                          load_profile( const std::string& password );
       profile_ptr                          create_profile( const profile_config& cfg, const std::string& password );
