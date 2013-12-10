@@ -53,6 +53,53 @@ namespace bts
    {
         return fc::to_base58( addr.data, sizeof(addr) );
    }
+
+
+   pts_address::pts_address()
+   {
+      memset( addr.data, 0, sizeof(addr.data) );
+   }
+
+   pts_address::pts_address( const std::string& base58str )
+   {
+      std::vector<char> v = fc::from_base58( fc::string(base58str) );
+      if( v.size() )
+         memcpy( addr.data, v.data(), std::min<size_t>( v.size(), sizeof(addr) ) );
+
+      if( !is_valid() )
+      {
+         FC_THROW_EXCEPTION( exception, "invalid pts_address ${a}", ("a", base58str) );  
+      }
+   }
+
+   pts_address::pts_address( const fc::ecc::public_key& pub )
+   {
+       auto dat      = pub.serialize_ecc_point();
+       auto sha2     = fc::sha256::hash(dat.data, sizeof(dat) );
+       auto rep      = fc::ripemd160::hash((char*)&sha2,sizeof(sha2));
+       addr.data[0] = 0;
+       memcpy( addr.data+1, (char*)&rep, sizeof(rep) );
+       auto check    = fc::sha256::hash( addr.data, sizeof(rep)+1 );
+       check = fc::sha256::hash(check); // double
+       memcpy( addr.data+1+sizeof(rep), (char*)&check, 4 );
+   }
+
+   /**
+    *  Checks the address to verify it has a 
+    *  valid checksum and prefix.
+    */
+   bool pts_address::is_valid()const
+   {
+      // TODO implement is_valid
+       FC_ASSERT( !"Implemented!" );
+   }
+
+   pts_address::operator std::string()const
+   {
+        return fc::to_base58( addr.data, sizeof(addr) );
+   }
+
+
 } // namespace bts
 
 
