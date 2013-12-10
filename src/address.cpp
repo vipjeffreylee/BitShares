@@ -77,7 +77,7 @@ namespace bts
        auto dat      = pub.serialize_ecc_point();
        auto sha2     = fc::sha256::hash(dat.data, sizeof(dat) );
        auto rep      = fc::ripemd160::hash((char*)&sha2,sizeof(sha2));
-       addr.data[0] = 0;
+       addr.data[0]  = 56;
        memcpy( addr.data+1, (char*)&rep, sizeof(rep) );
        auto check    = fc::sha256::hash( addr.data, sizeof(rep)+1 );
        check = fc::sha256::hash(check); // double
@@ -90,8 +90,10 @@ namespace bts
     */
    bool pts_address::is_valid()const
    {
-      // TODO implement is_valid
-       FC_ASSERT( !"Implemented!" );
+       if( addr.data[0]  != 56 ) return false;
+       auto check    = fc::sha256::hash( addr.data, sizeof(fc::ripemd160)+1 );
+       check = fc::sha256::hash(check); // double
+       return memcmp( addr.data+1+sizeof(fc::ripemd160), (char*)&check, 4 ) == 0;
    }
 
    pts_address::operator std::string()const
