@@ -117,7 +117,7 @@ class client
                 check_login( capture_con );
                 FC_ASSERT( params.size() == 1 );
                 auto key    = params[0].as<fc::ecc::private_key>();
-                wallet.import_key( key );
+                this->wallet.import_key( key );
                 return fc::variant();
             });
 
@@ -125,7 +125,7 @@ class client
             con->add_method( "rescanchain", [=]( const fc::variants& params ) -> fc::variant 
             {
                 check_login( capture_con );
-                wallet.scan_chain( chain, 0 );
+                this->wallet.scan_chain( chain, 0 );
                 return fc::variant();
             });
 

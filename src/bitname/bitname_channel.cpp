@@ -842,9 +842,20 @@ namespace bts { namespace bitname {
 
   void name_channel::submit_block( const name_block& block_to_submit )
   {
+     //make sure the block is not stale (we could have already got a new block before we
+     //found this one). If the current head block doesn't match this transaction's previous block,
+     //a new block must have been added already.
+     fc::sha224 chain_head_id = my->_name_db.head_block_id();
+     if (block_to_submit.prev != chain_head_id)
+       {
+         wlog("DISCARDING STALE BLOCK");
+         return;
+       }
+
      auto id = block_to_submit.id();
      uint64_t block_difficulty = bts::difficulty(id);
-     //ilog( "target: ${target}  block ${block}", ("target",my->_name_db.target_difficulty())("block",block_difficulty) );
+     //DLNFIX temp debug, recomment
+     ilog( "target diff: ${td}  block diff ${bd} prev block:${pb}" , ("td",my->_name_db.target_difficulty())("bd",block_difficulty)("pb",block_to_submit.prev) );
      if( block_difficulty >= my->_name_db.target_difficulty() )
      {
          my->submit_block( block_to_submit );

@@ -6,12 +6,15 @@
 
 namespace bts { namespace bitname { struct name_trx; }}
 
+/*
+ *  THIS IS DEPRECATED NOW
 namespace fc {  namespace raw {
     template<typename Stream>
     inline void pack( Stream& s, const bts::bitname::name_trx& t );
     template<typename Stream>
     inline void unpack( Stream& s, bts::bitname::name_trx& t );
 } }
+*/
 
 namespace bts { namespace bitname {
 
@@ -134,8 +137,8 @@ namespace bts { namespace bitname {
     struct name_header : public name_trx
     {
        name_header(){}
-       name_header( const name_trx& b, const name_id_type& p )
-       :name_trx(b),prev(p){}
+       name_header( const name_trx& b, const name_id_type& previous_block )
+       :name_trx(b),prev(previous_block){}
 
        uint64_t   difficulty()const;
        name_id_type       id()const;
