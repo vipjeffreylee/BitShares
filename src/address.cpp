@@ -53,6 +53,7 @@ namespace bts
    {
         return fc::to_base58( addr.data, sizeof(addr) );
    }
+
 } // namespace bts
 
 

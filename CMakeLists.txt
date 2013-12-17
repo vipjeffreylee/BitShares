@@ -143,6 +143,7 @@ set( sources
      src/small_hash.cpp
      src/merkle_tree.cpp
      src/address.cpp
+     src/pts_address.cpp
      src/wallet.cpp
      src/keychain.cpp
      src/wallet_cache.cpp

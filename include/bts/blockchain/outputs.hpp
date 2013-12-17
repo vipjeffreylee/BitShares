@@ -1,5 +1,6 @@
 #pragma once
 #include <bts/address.hpp>
+#include <bts/pts_address.hpp>
 #include <bts/small_hash.hpp>
 #include <bts/blockchain/asset.hpp>
 #include <fc/time.hpp>
@@ -12,14 +13,15 @@ enum claim_type_enum
 {
    /** basic claim by single address */
    null_claim_type      = 0,
-   claim_by_signature   = 1, ///< someone signs with an address
-   claim_by_bid         = 2, ///< someone makes an acceptable bid
-   claim_by_long        = 3, ///< someone agrees to go long against a short
-   claim_by_cover       = 4, ///< someone covers a short, freeing collateral
-   claim_by_opt_execute = 5, ///< someone executes an option
-   claim_by_multi_sig   = 6, ///< N of M signatures required
-   claim_by_escrow      = 7, ///< claimable with 2 of 3 signatures, 3rd signature can only split between 1&2
-   claim_by_password    = 8, ///< used for cross-chain trading
+   claim_by_pts         = 1, ///< someone importing a PTS balance
+   claim_by_signature   = 2, ///< someone signs with an address
+   claim_by_bid         = 3, ///< someone makes an acceptable bid
+   claim_by_long        = 4, ///< someone agrees to go long against a short
+   claim_by_cover       = 5, ///< someone covers a short, freeing collateral
+   claim_by_opt_execute = 6, ///< someone executes an option
+   claim_by_multi_sig   = 7, ///< N of M signatures required
+   claim_by_escrow      = 8, ///< claimable with 2 of 3 signatures, 3rd signature can only split between 1&2
+   claim_by_password    = 9, ///< used for cross-chain trading
    num_claim_types
 };
 
@@ -45,6 +47,14 @@ struct claim_by_signature_output
    claim_by_signature_output( const address& a ):owner(a){}
    claim_by_signature_output(){}
    address  owner; // checksummed hash of public key
+};
+
+struct claim_by_pts_output
+{
+   static const claim_type_enum type;
+   claim_by_pts_output( const pts_address& a ):owner(a){}
+   claim_by_pts_output(){}
+   pts_address  owner; // checksummed hash of public key
 };
 
 
@@ -313,6 +323,7 @@ FC_REFLECT_ENUM( bts::blockchain::claim_type_enum,
     )
 
 FC_REFLECT( bts::blockchain::claim_by_signature_output, (owner) )
+FC_REFLECT( bts::blockchain::claim_by_pts_output, (owner) )
 FC_REFLECT( bts::blockchain::claim_by_bid_output, (pay_address)(ask_price)(min_trade) )
 FC_REFLECT( bts::blockchain::claim_by_long_output, (pay_address)(ask_price)(min_trade) )
 FC_REFLECT( bts::blockchain::claim_by_cover_output, (payoff_unit)(payoff_amount)(owner) )

@@ -3,6 +3,7 @@
 namespace bts { namespace blockchain {
 
    const claim_type_enum claim_by_signature_output::type    = claim_type_enum::claim_by_signature;
+   const claim_type_enum claim_by_pts_output::type          = claim_type_enum::claim_by_pts;
    const claim_type_enum claim_by_bid_output::type          = claim_type_enum::claim_by_bid;
    const claim_type_enum claim_by_long_output::type         = claim_type_enum::claim_by_long;
    const claim_type_enum claim_by_cover_output::type        = claim_type_enum::claim_by_cover;
