@@ -77,12 +77,18 @@ namespace bts { namespace bitname {
   {
      static name_id_type max_hash = []() -> name_id_type {
          name_id_type tmp;
-         //initialize to 0x00ff...ff
+         //set initial difficulty
          char* tmpPtr = (char*)&tmp;
          memset( tmpPtr, 0xff, sizeof(tmp) );
+         //set initial difficulty low for debugging and testing
+         #ifdef _DEBUG
+         //initialize to 0x00ff...ff
+         tmpPtr[0] = 0;
+         #else  //set higher initial difficulty for release version of mining (//initialize to 0x00000f...ff)         
          tmpPtr[0] = 0;
          tmpPtr[1] = 0;
          tmpPtr[2] = 0x0f;
+         #endif
          return tmp;
      }();
      return max_hash;
