@@ -58,6 +58,8 @@ namespace bts {
       profile_ptr                          load_profile( const std::string& password );
       profile_ptr                          create_profile( const profile_config& cfg, const std::string& password );
                                   
+      void                                 add_receive_key( const fc::ecc::private_key& k );
+
       fc::optional<bitname::name_record>   lookup_name( const std::string& name );
       fc::optional<bitname::name_record>   reverse_name_lookup( const fc::ecc::public_key& key );
       void                                 mine_name( const std::string& name, const fc::ecc::public_key& key, float effort = 0.1 );

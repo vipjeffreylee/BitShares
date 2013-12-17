@@ -168,20 +168,21 @@ namespace bts {
      my->_delegate = del;
   }
 
-  bool                        application::has_profile()const
+  bool          application::has_profile()const
   {
      return fc::exists( my->_profile_dir / "default" );
   }
 
-  profile_ptr                 application::get_profile()
+  profile_ptr   application::get_profile()
   {
     FC_ASSERT( my->_config );
     return my->_profile;
   }
 
-  profile_ptr                 application::load_profile( const std::string& password )
+  profile_ptr   application::load_profile( const std::string& password )
   { try {
     FC_ASSERT( my->_config );
+    if( my->_profile ) my->_profile.reset();
 
     // note: stored in temp incase open throws.
     auto tmp_profile = std::make_shared<profile>();
@@ -200,8 +201,12 @@ namespace bts {
     return my->_profile = tmp_profile;
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
+  void  application::add_receive_key( const fc::ecc::private_key& k )
+  {
+     my->_bitchat_client->add_receive_key( k );
+  }
 
-  profile_ptr                 application::create_profile( const profile_config& cfg, const std::string& password )
+  profile_ptr   application::create_profile( const profile_config& cfg, const std::string& password )
   { try {
     fc::create_directories( my->_profile_dir  );
 
