@@ -8,6 +8,7 @@ namespace fc
 };
 
 namespace bts { namespace blockchain {
+    #define INVALID_BLOCK_NUM uint32_t(-1)
 
     namespace detail  { class blockchain_db_impl; }
 
@@ -33,7 +34,7 @@ namespace bts { namespace blockchain {
       /** 
        *  -1 block_num is used to identifiy default initialization.
        */
-      static const uint32_t invalid_block_id = -1;
+      static const uint32_t invalid_block_id = INVALID_BLOCK_NUM;
       trx_num(uint32_t b = invalid_block_id, uint16_t t = 0):block_num(b),trx_idx(t){}
       uint32_t block_num;
       uint16_t trx_idx;
@@ -129,7 +130,7 @@ namespace bts { namespace blockchain {
          trx_num    fetch_trx_num( const uint160& trx_id );
          meta_trx   fetch_trx( const trx_num& t );
 
-         std::vector<meta_trx_input> fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head = -1/*head_block_num*/ );
+         std::vector<meta_trx_input> fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head = INVALID_BLOCK_NUM );
 
          uint32_t     fetch_block_num( const block_id_type& block_id );
          block_header fetch_block( uint32_t block_num );

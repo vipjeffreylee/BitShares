@@ -99,6 +99,8 @@ bool encrypted_message::validate_proof()const
    if( nonceb > MAX_MOMENTUM_NONCE ) return false;
    auto    tmpa = noncea;
    auto    tmpb = nonceb;
+   noncea = 0;
+   nonceb = 0;
    auto    cur_id = id();
    noncea = tmpa;
    nonceb = tmpb;

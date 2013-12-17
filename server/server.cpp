@@ -1,11 +1,14 @@
 #include "messages.hpp"
 #include "connection.hpp"
+#include <bts/config.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/network/ip.hpp>
 
 #include <unordered_map>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <fc/io/raw.hpp>
 #include <bts/blockchain/blockchain_db.hpp>
 
@@ -17,6 +20,50 @@ class server
       std::unordered_map<fc::ip::endpoint,connection>   connections;
       fc::future<void>                                  accept_loop_complete;
       bts::blockchain::blockchain_db                    chain;
+
+      
+      void init_chain()
+      {
+           // build genesis block if there is no chain data 
+           if( chain.head_block_num() == INVALID_BLOCK_NUM )
+           {
+               bts::blockchain::trx_block b;
+               b.version      = 0;
+               b.prev         = block_id_type();
+               b.block_num    = 0;
+               b.timestamp    = fc::time_point::from_iso_string("20131201T054434");
+               b.trxs.emplace_back( load_genesis( "genesis.csv", b.total_shares) );
+               b.trx_mroot   = b.calculate_merkle_root();
+
+               chain.push_block(b);
+           }
+      }
+
+      signed_transaction load_genesis( const fc::path& csv, uint64_t& total_coins )
+      {
+          total_coins = 0;
+          signed_transaction coinbase;
+          coinbase.version = 0;
+          coinbase.valid_after = 0;
+          coinbase.valid_blocks = 0;
+
+          std::ifstream in(csv.generic_string().c_str(), std::ios::binary);
+          std::string line;
+          std::getline( in, line );
+          while( in.good() )
+          {
+            std::stringstream ss(line);
+            std::string addr;
+            uint64_t amnt;
+            ss >> addr >> amnt;
+            total_coins += amnt;
+            coinbase.outputs.push_back( 
+              trx_output( claim_by_pts_output( bts::pts_address(addr) ), amnt, asset::bts) );
+            std::getline( in, line );
+          }
+
+          return coinbase;
+      }
 
       void process_connection( connection con )
       {
@@ -131,6 +178,7 @@ int main( int argc, char** argv )
       server serv;
       serv.chain.open( fc::path(argv[1])/"chain" );
       serv.tcp_serv.listen( 8901 );
+      serv.init_chain();
        
       serv.accept_loop_complete = fc::async( [&](){ serv.accept_loop(); } );
       serv.accept_loop_complete.wait();

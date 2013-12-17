@@ -173,6 +173,11 @@ namespace bts { namespace network {
          if( my->sock )
          {
            my->sock->close();
+           if( my->read_loop_complete.valid() )
+           {
+              wlog( "waiting for socket to close" );
+              my->read_loop_complete.wait();
+           }
          }
      } FC_RETHROW_EXCEPTIONS( warn, "exception thrown while closing socket" );
   }

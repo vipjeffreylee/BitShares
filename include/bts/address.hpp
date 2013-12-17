@@ -37,11 +37,10 @@ namespace bts
 
        fc::array<char,20> addr;      ///< binary representation of address
    };
-
-
    inline bool operator == ( const address& a, const address& b ) { return a.addr == b.addr; }
    inline bool operator != ( const address& a, const address& b ) { return a.addr != b.addr; }
    inline bool operator <  ( const address& a, const address& b ) { return a.addr <  b.addr; }
+
 
 } // namespace bts
 

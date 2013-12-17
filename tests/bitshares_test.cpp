@@ -45,6 +45,29 @@ bts::blockchain::trx_block create_test_genesis_block()
    return b;
 }
 
+BOOST_AUTO_TEST_CASE( pts_address_test )
+{
+  try {
+   bts::pts_address addr( "PijzuuWFBcgeQTt5rQZdMr3L2Ztf2Aum5x" );
+   FC_ASSERT( addr.is_valid() );
+
+   auto test_key = fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "Genesis", 7 ) );
+   auto test_pub = test_key.get_public_key();
+   bts::pts_address test_addr(test_pub);
+   std::string test_str(test_addr);
+
+   ilog( "test pts addr ${addr}", ("addr", test_str) );
+   bts::pts_address fromstr(test_str);
+   FC_ASSERT( test_addr == fromstr );
+   FC_ASSERT( test_addr.is_valid() );
+  } 
+  catch ( const fc::exception& e )
+  {
+     elog( "${e}", ("e", e.to_detail_string() ) );
+     throw;
+  }
+}
+
 
 
 BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
