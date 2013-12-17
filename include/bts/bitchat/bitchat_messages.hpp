@@ -10,11 +10,28 @@ namespace bts { namespace bitchat {
       std::vector<fc::uint128>  items;
   };
 
+  // other protocol messages... not encapsulated by data_message
+  struct cache_inv_message 
+  {
+      static const message_type type = message_type::cache_inv_msg;
+      std::vector<fc::uint128>  items;
+  };
+
   struct get_priv_message
   {
       static const message_type type = message_type::get_priv_msg;
       get_priv_message(){}
       get_priv_message( const fc::uint128& p )
+      {
+        items.push_back(p);
+      }
+      std::vector<fc::uint128>  items;
+  };
+  struct get_cache_priv_message
+  {
+      static const message_type type = message_type::get_cache_priv_msg;
+      get_cache_priv_message(){}
+      get_cache_priv_message( const fc::uint128& p )
       {
         items.push_back(p);
       }
@@ -30,8 +47,22 @@ namespace bts { namespace bitchat {
       fc::time_point_sec after;
   };
 
+  /**
+   *  
+   */
+  struct get_cache_inv_message
+  {
+      static const message_type type = message_type::get_cache_inv_msg;
+      fc::time_point_sec start_time;
+      fc::time_point_sec end_time;
+  };
+
 } } // bts::bitchat
 
 FC_REFLECT( bts::bitchat::inv_message,      (items) )
 FC_REFLECT( bts::bitchat::get_priv_message, (items) )
 FC_REFLECT( bts::bitchat::get_inv_message,  (after) )
+
+FC_REFLECT( bts::bitchat::cache_inv_message,      (items) )
+FC_REFLECT( bts::bitchat::get_cache_priv_message, (items) )
+FC_REFLECT( bts::bitchat::get_cache_inv_message,  (start_time)(end_time) )
