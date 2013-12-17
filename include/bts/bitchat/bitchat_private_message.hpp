@@ -13,10 +13,13 @@ namespace bts { namespace bitchat {
 
     enum message_type
     {
-       inv_msg        = 1, ///< publishes known inventory
-       get_inv_msg    = 2, ///< requests inventory
-       get_priv_msg   = 3, ///< sent to request an private message in the inventory
-       encrypted_msg  = 4  ///< a message encrypted to unknown receip (sent in reponse to get_priv_msg)
+       inv_msg             = 1, ///< publishes known active inventory
+       cache_inv_msg       = 2, ///< publishes known historic inventory
+       get_inv_msg         = 3, ///< requests active inventory
+       get_cache_inv_msg   = 4, ///< requests historic inventory
+       get_priv_msg        = 5, ///< sent to request an private message in the active inventory
+       get_cache_priv_msg  = 6, ///< sent to request an private message in the historic inventory
+       encrypted_msg       = 7  ///< a message encrypted to unknown receip (sent in reponse to get_priv_msg)
     };
 
     enum compression_type
@@ -201,7 +204,15 @@ namespace bts { namespace bitchat {
 
 #include <fc/reflect/reflect.hpp>
 FC_REFLECT_ENUM( bts::bitchat::account_status, (unknown)(active)(away)(idle) )
-FC_REFLECT_ENUM( bts::bitchat::message_type, (inv_msg)(get_inv_msg)(get_priv_msg)(encrypted_msg) )
+FC_REFLECT_ENUM( bts::bitchat::message_type, 
+       (inv_msg)
+       (cache_inv_msg)
+       (get_inv_msg)
+       (get_cache_inv_msg)
+       (get_priv_msg)
+       (get_cache_priv_msg)
+       (encrypted_msg) )
+
 FC_REFLECT_ENUM( bts::bitchat::private_message_type, (unknown_msg)(text_msg)(email_msg)(contact_request_msg)(contact_auth_msg)(status_msg) )
 FC_REFLECT_ENUM( bts::bitchat::compression_type, (no_compression)(smaz_compression)(lzma_compression) )
 FC_REFLECT_ENUM( bts::bitchat::encryption_type, (no_encryption)(blowfish_encryption)(twofish_encryption)(aes_encryption) )

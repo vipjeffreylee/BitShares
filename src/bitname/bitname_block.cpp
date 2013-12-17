@@ -79,8 +79,10 @@ namespace bts { namespace bitname {
          name_id_type tmp;
          //initialize to 0x00ff...ff
          char* tmpPtr = (char*)&tmp;
-         memset( tmpPtr,   0x00, 3 );
-         memset( tmpPtr+3, 0xff, sizeof(tmp)-3 );
+         memset( tmpPtr, 0xff, sizeof(tmp) );
+         tmpPtr[0] = 0;
+         tmpPtr[1] = 0;
+         tmpPtr[2] = 0x0f;
          return tmp;
      }();
      return max_hash;
@@ -88,7 +90,7 @@ namespace bts { namespace bitname {
 
   uint64_t min_name_difficulty() 
   {
-      return difficulty(max_name_hash()); //* 10000000;
+      return difficulty(max_name_hash()); 
   }
 
   name_block create_genesis_block()

@@ -25,11 +25,15 @@ namespace bts { namespace bitchat {
      class channel_impl : public bts::network::channel 
      {
         public:
+          channel_impl()
+          :target_difficulty(1){}
+
           channel_id                                         chan_id;
           channel_delegate*                                  del;
           peer::peer_channel_ptr                             peers;
                                                              
           message_cache                                      _message_cache;
+          uint64_t                                           target_difficulty;
 
           std::map<fc::time_point, fc::uint128>              msg_time_index;
           std::unordered_map<fc::uint128,encrypted_message>  priv_msgs;
@@ -228,16 +232,22 @@ namespace bts { namespace bitchat {
           {
               auto mid = msg.id();
               // TODO: verify that we requested this message
+              
+              FC_ASSERT( msg.validate_proof() );
+              FC_ASSERT( msg.difficulty() >= target_difficulty );
 
-              //TODO:
-              // validate proof of work 
-              // validate timestamp
-              // store in index
               // track messages that I've requested and make sure that no one sends us a msg we haven't requested
               if( priv_msgs.find(mid) == priv_msgs.end() )
               {
-                 new_msgs.push_back( mid );
-                 msg_time_index[fc::time_point::now()] = mid;
+
+                 // must not be more than 30 minutes old
+                 if( (fc::time_point::now() - msg.timestamp) < fc::seconds(60*30) &&
+                      msg.timestamp < (fc::time_point::now()+fc::seconds(60*5)) ) 
+                 {
+                    new_msgs.push_back( mid ); // store so message can be broadcast... but only if time is right
+                    msg_time_index[fc::time_point::now()] = mid;
+                 }   
+
                  const encrypted_message& m = (priv_msgs[mid] = std::move(msg));
 
                  _message_cache.cache( m );
@@ -248,7 +258,6 @@ namespace bts { namespace bitchat {
               {
                  wlog( "duplicate message received" );
               }
-              // schedule to broadcast to peers on channel that haven't told us about it yet
           }
      };
 
