@@ -94,8 +94,8 @@ namespace bts {
       /**
        *  Checks the transaction to see if any of the inp
        */
-      //void                          cache( const bts::blockchain::meta_transaction& mtrx );
-      void                                cache( const bts::bitchat::decrypted_message& msg    );
+      //void                        cache( const bts::blockchain::meta_transaction& mtrx );
+      void                          cache( const bts::bitchat::decrypted_message& msg    );
 
       // std::vector<meta_transaction> get_transactions()const;
       bitchat::message_db_ptr       get_inbox_db() const;
