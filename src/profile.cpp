@@ -1,6 +1,7 @@
 #include <bts/profile.hpp>
 #include <bts/keychain.hpp>
 #include <bts/addressbook/addressbook.hpp>
+#include <bts/addressbook/contact.hpp>
 #include <bts/db/level_map.hpp>
 #include <bts/db/level_pod_map.hpp>
 #include <fc/io/raw.hpp>
@@ -26,7 +27,7 @@ namespace bts {
             bitchat::message_db_ptr                         _pending_db;
             bitchat::message_db_ptr                         _sent_db;
             bitchat::message_db_ptr                         _chat_db;
-            db::level_map<std::string, identity>            _idents;
+            db::level_map<std::string, addressbook::wallet_identity>            _idents;
             
 /*
             void import_draft( const std::vector<char> crypt, const fc::uint512& key )
@@ -106,9 +107,9 @@ namespace bts {
 */
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir) ) }
 
-  std::vector<identity>   profile::identities()const
+  std::vector<addressbook::wallet_identity>   profile::identities()const
   { try {
-     std::vector<identity> idents;
+     std::vector<addressbook::wallet_identity> idents;
      for( auto itr = my->_idents.begin(); itr.valid(); ++itr )
      {
        idents.push_back(itr.value());
@@ -116,9 +117,9 @@ namespace bts {
      return idents;
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
   
-  void    profile::store_identity( const identity& id )
+  void    profile::store_identity( const addressbook::wallet_identity& id )
   { try {
-      my->_idents.store( id.dac_id, id ); 
+      my->_idents.store( id.dac_id_string, id ); 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
   
   /**
