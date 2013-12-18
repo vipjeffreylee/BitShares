@@ -150,7 +150,7 @@ namespace bts {
           }
      }
 
-  } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "error configuring application", ("config",cfg) ) }
 
   bts::network::server_ptr application::get_network()const
   {
