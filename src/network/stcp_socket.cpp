@@ -41,8 +41,7 @@ void     stcp_socket::connect_to( const fc::ip::endpoint& ep )
  *   will buffer any left-over.
  */
 size_t   stcp_socket::readsome( char* buffer, size_t len )
-{
-    //wlog( "readsome ${s}", ("s",len) );
+{ try {
     assert( (len % 16) == 0 );
     assert( len >= 16 );
     char crypt_buf[2048];
@@ -55,9 +54,8 @@ size_t   stcp_socket::readsome( char* buffer, size_t len )
         s = 16;
     }
     _recv_aes.decode( crypt_buf, s, buffer );
-    //memcpy( buffer, crypt_buf, s );
     return s;
-}
+} FC_RETHROW_EXCEPTIONS( warn, "", ("len",len) ) }
 
 bool     stcp_socket::eof()const
 {
@@ -65,7 +63,7 @@ bool     stcp_socket::eof()const
 }
 
 size_t   stcp_socket::writesome( const char* buffer, size_t len )
-{
+{ try {
     assert( len % 16 == 0 );
     assert( len > 0 );
     char crypt_buf[2048];
@@ -80,10 +78,11 @@ size_t   stcp_socket::writesome( const char* buffer, size_t len )
     //auto cipher_len =
     _send_aes.encode( buffer, len, crypt_buf );
     FC_ASSERT( len >= 16 );
+    FC_ASSERT( len % 16 == 0);
    // memcpy( crypt_buf, buffer, len );
     _sock.write( (char*)crypt_buf, len );
     return len;
-}
+} FC_RETHROW_EXCEPTIONS( warn, "", ("len",len) ) }
 
 void     stcp_socket::flush()
 {

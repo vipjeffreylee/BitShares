@@ -191,10 +191,10 @@ namespace bts {
     std::vector<fc::ecc::private_key> recv_keys;
     auto keychain =  tmp_profile->get_keychain();
 
-    std::vector<identity>   idents = tmp_profile->identities();
+    std::vector<bts::addressbook::wallet_identity>   idents = tmp_profile->identities();
     for( auto itr = idents.begin(); itr != idents.end(); ++itr )
     {
-       recv_keys.push_back( keychain.get_identity_key( itr->dac_id ) );
+       recv_keys.push_back( keychain.get_identity_key( itr->dac_id_string ) );
     }
     my->_bitchat_client->set_receive_keys( recv_keys );
 

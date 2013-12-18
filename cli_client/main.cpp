@@ -14,7 +14,7 @@ using namespace bts;
 
 void create_identity( const std::shared_ptr<bts::application>& app )
 {
-    bts::identity new_id;
+    bts::wallet_identity new_id;
 
     std::cout<<"\n Create new Identity\n";
     std::cout<<"Label: ";
