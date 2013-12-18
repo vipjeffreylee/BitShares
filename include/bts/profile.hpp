@@ -11,15 +11,6 @@
 namespace bts {
   namespace detail { class profile_impl; }
 
-  struct identity
-  {
-     std::string                  label;  // user presented label
-     std::string                  dac_id; // underlying BitID label
-                                  
-     float                        mining_effort; // how much effort to apply to mining (0-1)
-     fc::variant_object           properties; // custom properties attached to the identity.
-  };
-
   /*
   struct meta_transaction 
   {
@@ -88,8 +79,8 @@ namespace bts {
       void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password );
       void  open( const fc::path& profile_dir, const std::string& password );
 
-      std::vector<identity>               identities()const;
-      void                                store_identity( const identity& id );
+      std::vector<addressbook::wallet_identity>        identities()const;
+      void                                store_identity( const addressbook::wallet_identity& id );
       
       /**
        *  Checks the transaction to see if any of the inp
@@ -115,8 +106,6 @@ namespace bts {
 
 
 } // namespace bts
-
-FC_REFLECT( bts::identity, (label)(dac_id)(mining_effort)(properties) )
 
 FC_REFLECT( bts::profile_config,
   (firstname)

@@ -80,7 +80,7 @@ namespace bts { namespace addressbook {
   /**
    *  Static information known about a contact that may
    *  be shared with other people.  This should not include
-   *  things like the index the wallet (which is different for 
+   *  things like the index in the wallet (which is different for 
    *  everyone).
    */
   struct contact 
@@ -96,10 +96,10 @@ namespace bts { namespace addressbook {
        */
       fc::ecc::public_key             public_key;
 
-      /// @note should be kept consistant with doc_id_hash
+      /// @note should be kept consistant with dac_id_string
       mutable uint64_t                dac_id_hash;
 
-      /// @note should be kept consistant with doc_id_hash
+      /// @note This is keyhoteeId. dac_id_hash is hash of keyhoteeId.
       std::string                     dac_id_string; 
 
       std::vector<contact_property>   properties;
@@ -219,3 +219,10 @@ FC_REFLECT_DERIVED( bts::addressbook::wallet_contact, (bts::addressbook::contact
      (bitchat_recv_broadcast_key)
 )
   
+FC_REFLECT_DERIVED( bts::addressbook::wallet_identity, (bts::addressbook::contact),
+     (wallet_ident)
+     (mining_effort)
+     (first_name)
+     (last_name)
+     (private_icon_png)
+)
