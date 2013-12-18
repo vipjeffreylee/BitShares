@@ -302,8 +302,8 @@ namespace bts { namespace bitchat {
    */
   void channel::broadcast( encrypted_message&& m )
   {
-      //TODO: make 30 a constant in bts/config.hpp
-      FC_ASSERT( fc::time_point::now() - m.timestamp  <  fc::seconds(30) );
+      //TODO: make 5 minute a constant in bts/config.hpp
+      FC_ASSERT( fc::time_point::now() - m.timestamp  <  fc::seconds(60*5) );
       FC_ASSERT( fc::time_point(m.timestamp) <= fc::time_point::now() );
 
       auto id = m.id();

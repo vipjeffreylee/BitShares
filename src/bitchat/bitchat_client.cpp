@@ -4,6 +4,7 @@
 #include <fc/crypto/base58.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/log/logger.hpp>
+#include <fc/thread/thread.hpp>
 #include <unordered_map>
 #include <map>
 
@@ -77,9 +78,10 @@ namespace bts { namespace bitchat {
    { try {
         auto cipher_message = m.encrypt( to );
         cipher_message.timestamp = fc::time_point::now();
-     //   work_thread.async( [&]() {
+        fc::thread work_thread;
+        work_thread.async( [&]() {
             cipher_message.do_proof_work(1);
-     //   } ).wait();
+        } ).wait();
 
         auto itr = my->_channels.find( chan );
         if( itr == my->_channels.end() )
@@ -92,6 +94,10 @@ namespace bts { namespace bitchat {
    void client::set_receive_keys( const std::vector<fc::ecc::private_key>& recv_keys )
    {
      my->_recv_keys = recv_keys;
+   }
+   void client::add_receive_key( const fc::ecc::private_key& recv_key )
+   {
+     my->_recv_keys.emplace_back(recv_key);
    }
 
    void client::configure( const fc::path& dir )
