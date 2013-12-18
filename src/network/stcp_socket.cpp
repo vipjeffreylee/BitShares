@@ -44,14 +44,15 @@ size_t   stcp_socket::readsome( char* buffer, size_t len )
 { try {
     assert( (len % 16) == 0 );
     assert( len >= 16 );
-    char crypt_buf[2048];
+    char crypt_buf[4096];
     len = std::min<size_t>(sizeof(crypt_buf),len);
 
     size_t s = _sock.readsome( crypt_buf, len );
-    if( s < 16 ) 
+    if( s % 16 ) 
     {
-        _sock.read( crypt_buf + s, 16 - s );
-        s = 16;
+        ilog( "s: %{s}", ("s",s) );
+        _sock.read( crypt_buf + s, 16 - (s%16) );
+        s += 16-(s%16);
     }
     _recv_aes.decode( crypt_buf, s, buffer );
     return s;
@@ -66,7 +67,7 @@ size_t   stcp_socket::writesome( const char* buffer, size_t len )
 { try {
     assert( len % 16 == 0 );
     assert( len > 0 );
-    char crypt_buf[2048];
+    char crypt_buf[4096];
     len = std::min<size_t>(sizeof(crypt_buf),len);
     memcpy( crypt_buf, buffer, len );
     /**
