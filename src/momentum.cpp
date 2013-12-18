@@ -21,8 +21,10 @@ namespace bts
    #define SEARCH_SPACE_BITS 50
    #define BIRTHDAYS_PER_HASH 8
 
-
-  const int TABLE_SIZE =  (1<<26);
+  //Reduced hash table size to accomodate machines with less ram
+  //and to avoid problems on WIN32 with allocating large contiguous blocks
+  //of memory.
+  const int TABLE_SIZE =  (1<<25);
 
   class hashtable
   {
