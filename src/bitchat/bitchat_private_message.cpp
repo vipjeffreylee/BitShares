@@ -75,6 +75,7 @@ bool  encrypted_message::do_proof_work( uint64_t tar_per_kb )
      nonce  = i;
      noncea = 0;
      nonceb = 0;
+     timestamp = fc::time_point::now();
      auto     cur_id = id();
      auto     seed   = fc::sha256::hash( (char*)&cur_id, sizeof(cur_id) );
      auto     pairs  = momentum_search( seed );
