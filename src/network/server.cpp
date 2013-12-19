@@ -241,6 +241,12 @@ namespace bts { namespace network {
      try
      {
        ilog( "connect to ${ep}", ("ep",ep) );
+       auto current = my->connections.find(ep);
+       if( current != my->connections.end() )
+       {
+          wlog( "already connected to ${ep}", ("ep",ep) );
+          return current->second;
+       }
        FC_ASSERT( my->ser_del != nullptr );
        connection_ptr con = std::make_shared<connection>( my.get() );
        con->connect(ep);
