@@ -89,11 +89,32 @@ namespace bts { namespace bitchat {
                   case encrypted_msg:
                      handle_priv_msg( c, cdat, m.as<encrypted_message>()  );
                      break;
+                  case cache_inv_msg:
+                     handle_cache_inv( c, cdat, m.as<cache_inv_message>() );
+                     break;
+                  case get_cache_priv_msg:
+                     handle_get_cache_priv_msg( c, cdat, m.as<get_cache_priv_message>() );
+                     break;
+                  case get_cache_inv_msg:
+                     handle_get_cache_inv( c, cdat, m.as<get_cache_inv_message>() );
+                     break;
                   default:
                      // TODO: figure out how to document this / punish the connection that sent us this 
                      // message.
                      wlog( "unknown bitchat message type ${t}", ("t",uint64_t(m.msg_type)) );
               }
+          }
+
+          void handle_cache_inv( const connection_ptr& c, chan_data& cdat, cache_inv_message msg )
+          {
+          }
+
+          void handle_get_cache_priv_msg(const connection_ptr& c, chan_data& cdat, get_cache_priv_message msg )
+          {
+          }
+
+          void handle_get_cache_inv( const connection_ptr& c, chan_data& cdat, get_cache_inv_message msg)
+          {
           }
 
           void fetch_loop()
