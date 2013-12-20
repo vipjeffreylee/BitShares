@@ -162,8 +162,12 @@ namespace bts {
      my->_rpc_server.configure( cfg.rpc_config );
      my->_rpc_server.set_bitname_client( my->_bitname_client );
 
-     my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
+
+  void application::connect_to_network()
+  {
+     my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
+  }
 
   bts::network::server_ptr application::get_network()const
   {

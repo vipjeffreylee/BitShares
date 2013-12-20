@@ -25,6 +25,14 @@ bool operator == ( const age_index& a, const age_index& b )
 {
    return (a.timestamp == b.timestamp) && (a.message_id == b.message_id);
 }
+struct stats_data
+{
+    stats_data()
+    :cache_size(0){}
+
+    size_t         cache_size;
+    fc::time_point last_timestamp;
+};
 
 
 namespace bts { namespace bitchat {
@@ -36,7 +44,7 @@ namespace bts { namespace bitchat {
         public:
           db::level_pod_map<fc::uint128, encrypted_message> _cache_by_id;
           db::level_pod_map<age_index,uint32_t>             _age_index; // TODO: convert to set, value not used
-          fc::mmap_struct<size_t>                           _stats;
+          fc::mmap_struct<stats_data>                       _stats;
 
           void purge_old()
           { try {
@@ -49,7 +57,7 @@ namespace bts { namespace bitchat {
                 {
                   _age_index.remove(key);
                   auto msg = _cache_by_id.fetch(key.message_id);
-                  *_stats -= msg.data.size();
+                  _stats->cache_size -= msg.data.size();
                   _cache_by_id.remove(key.message_id);
                 }
                 ++itr;
@@ -64,7 +72,7 @@ namespace bts { namespace bitchat {
              {
                if( key > target )
                {
-                  *_stats        -= val.data.size();
+                  _stats->cache_size        -= val.data.size();
                   required_space -= val.data.size();
                   _cache_by_id.remove(key);
                   _age_index.remove( age_index( val.timestamp, key ) );
@@ -93,43 +101,56 @@ namespace bts { namespace bitchat {
   } FC_RETHROW_EXCEPTIONS( warn, "", ("db_dir",db_dir) ) }
 
   void    message_cache::cache( const encrypted_message& msg )
-  {
+  { try {
      my->purge_old();
      auto      id     = msg.id();
 
-     if( (*my->_stats + msg.data.size() ) > BITCHAT_CHANNEL_SIZE )
+     if( (my->_stats->cache_size + msg.data.size() ) > BITCHAT_CHANNEL_SIZE )
      {
        my->purge_easy( id, msg.data.size() );
      }
 
-     if( (*my->_stats + msg.data.size()) > BITCHAT_CHANNEL_SIZE )
+     if( (my->_stats->cache_size + msg.data.size()) > BITCHAT_CHANNEL_SIZE )
      {
        return;  // not difficult enough to bother storing
      }
 
      my->_cache_by_id.store( id, msg );
      my->_age_index.store( age_index(msg.timestamp, id), 0  );
-     *my->_stats += msg.data.size();
-  }
+     my->_stats->cache_size += msg.data.size();
+     if( my->_stats->last_timestamp < fc::time_point(msg.timestamp) )
+     {
+        my->_stats->last_timestamp = fc::time_point(msg.timestamp);
+     }
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
 
   std::vector<fc::uint128> message_cache::get_inventory( const fc::time_point& start_time, const fc::time_point& end_time )
   {
-     fc::time_point_sec endtime(end_time);
-
-     std::vector<fc::uint128> invent;
-     auto itr = my->_age_index.lower_bound( age_index(start_time,fc::uint128()) );
-     while( itr.valid() )
-     {
-       auto key = itr.key();
-       if( key.timestamp > endtime ) 
-       {
-          return invent;
-       }
-       invent.push_back( itr.key().message_id );
-       ++itr;
-     }
-     return invent;
+      fc::time_point_sec endtime(end_time);
+      
+      std::vector<fc::uint128> invent;
+      auto itr = my->_age_index.lower_bound( age_index(start_time,fc::uint128()) );
+      while( itr.valid() )
+      {
+          auto key = itr.key();
+          if( key.timestamp > endtime ) 
+          {
+             return invent;
+          }
+          invent.push_back( itr.key().message_id );
+          ++itr;
+      }
+      return invent;
   }
 
+  encrypted_message message_cache::fetch( const fc::uint128& msg_id )
+  { try {
+      return my->_cache_by_id.fetch( msg_id );
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("msg_id",msg_id) ) }
+
+  fc::time_point message_cache::last_message_timestamp()
+  {
+      return my->_stats->last_timestamp;
+  }
 
 } } // bts::bitchat
