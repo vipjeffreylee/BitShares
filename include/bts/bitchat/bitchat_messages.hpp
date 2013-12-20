@@ -35,6 +35,10 @@ namespace bts { namespace bitchat {
       {
         items.push_back(p);
       }
+      get_cache_priv_message( const std::vector<fc::uint128>& i )
+      :items(i)
+      {}
+
       std::vector<fc::uint128>  items;
   };
 
@@ -53,6 +57,9 @@ namespace bts { namespace bitchat {
   struct get_cache_inv_message
   {
       static const message_type type = message_type::get_cache_inv_msg;
+      get_cache_inv_message( const fc::time_point& s, const fc::time_point e )
+      :start_time(s),end_time(e){}
+      get_cache_inv_message(){}
       fc::time_point_sec start_time;
       fc::time_point_sec end_time;
   };

@@ -20,6 +20,9 @@ namespace bts { namespace bitchat {
 
        void                     cache( const encrypted_message& msg );
        std::vector<fc::uint128> get_inventory( const fc::time_point& start_time, const fc::time_point& end_time );
+       encrypted_message        fetch( const fc::uint128& msg_id );
+
+       fc::time_point           last_message_timestamp();
 
      private:
        std::unique_ptr<detail::message_cache_impl> my;

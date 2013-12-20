@@ -18,7 +18,9 @@ namespace bts { namespace bitchat {
      class chan_data : public network::channel_data
      {
         public:
+          chan_data():check_cache(true){}
           std::unordered_set<fc::uint128> known_inv;
+          bool                            check_cache;
      };
 
 
@@ -74,6 +76,14 @@ namespace bts { namespace bitchat {
           {
               chan_data& cdat = get_channel_data(c);
 
+              /** when we first connect to a new node, download the message cache... */
+              if( cdat.check_cache )
+              {
+                 cdat.check_cache = false;
+                 c->send( network::message( get_cache_inv_message( _message_cache.last_message_timestamp(), 
+                                                               fc::time_point::now() ), chan_id )  ); 
+              }
+
               ilog( "${msg_type}", ("msg_type", (bitchat::message_type)m.msg_type ) );
               switch( (bitchat::message_type)m.msg_type )
               {
@@ -106,16 +116,26 @@ namespace bts { namespace bitchat {
           }
 
           void handle_cache_inv( const connection_ptr& c, chan_data& cdat, cache_inv_message msg )
-          {
-          }
+          { try {
+               c->send( network::message( get_cache_priv_message( msg.items ) ) );
+          } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
 
           void handle_get_cache_priv_msg(const connection_ptr& c, chan_data& cdat, get_cache_priv_message msg )
-          {
-          }
+          { try {
+              for( auto itr = msg.items.begin(); itr != msg.items.end(); ++itr )
+              {
+                 auto msg = _message_cache.fetch( *itr );
+                 c->send( network::message( msg, chan_id ) );
+              }
+          } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
 
           void handle_get_cache_inv( const connection_ptr& c, chan_data& cdat, get_cache_inv_message msg)
-          {
-          }
+          { try { 
+              // TODO: rate limit this message from c
+              cache_inv_message reply;
+              reply.items = _message_cache.get_inventory( msg.start_time, msg.end_time );
+              c->send( network::message( reply, chan_id ) ); 
+          } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
 
           void fetch_loop()
           {
