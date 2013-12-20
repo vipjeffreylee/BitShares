@@ -172,11 +172,12 @@ namespace bts { namespace network {
      try {
          if( my->sock )
          {
-           my->sock->close();
+           my->sock->get_socket().close();
            if( my->read_loop_complete.valid() )
            {
               wlog( "waiting for socket to close" );
               my->read_loop_complete.wait();
+              wlog( "socket closed" );
            }
          }
      } FC_RETHROW_EXCEPTIONS( warn, "exception thrown while closing socket" );

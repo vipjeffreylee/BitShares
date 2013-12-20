@@ -6,6 +6,7 @@
 #include <bts/rpc/rpc_server.hpp>
 #include <bts/blockchain/blockchain_client.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/thread/thread.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -22,7 +23,8 @@ namespace bts {
           application_impl()
           :_delegate(nullptr),
            _quit_promise( new fc::promise<void>() )
-           {}
+           {
+           }
 
           application_delegate*             _delegate;
           fc::optional<application_config>  _config;
@@ -37,10 +39,32 @@ namespace bts {
           bts::network::upnp_service        _upnp;
           bts::rpc::server                  _rpc_server;
 
+          fc::future<void>                  _connect_loop_complete;
+
           fc::promise<void>::ptr            _quit_promise;
 
           void set_mining_intensity(int intensity) { _bitname_client->set_mining_intensity(intensity); }
           int  get_mining_intensity() { return _bitname_client->get_mining_intensity(); }
+
+          void connect_loop()
+          {
+             assert(!!_config );
+             while( !_quit_promise->ready() )
+             {
+                for( auto itr = _config->default_nodes.begin(); itr != _config->default_nodes.end(); ++itr )
+                {
+                     try {
+                        ilog( "${e}", ("e",*itr) );
+                        _server->connect_to(*itr);
+                     } 
+                     catch ( const fc::exception& e )
+                     {
+                        wlog( "${e}", ("e",e.to_detail_string()));
+                     }
+                }
+                fc::usleep( fc::seconds(3) );
+             }
+          }
 
 
           virtual void bitchat_message_received( const bitchat::decrypted_message& msg )
@@ -138,18 +162,7 @@ namespace bts {
      my->_rpc_server.configure( cfg.rpc_config );
      my->_rpc_server.set_bitname_client( my->_bitname_client );
 
-     for( auto itr = cfg.default_nodes.begin(); itr != cfg.default_nodes.end(); ++itr )
-     {
-          try {
-             ilog( "${e}", ("e",*itr) );
-             my->_server->connect_to(*itr);
-          } 
-          catch ( const fc::exception& e )
-          {
-             wlog( "${e}", ("e",e.to_detail_string()));
-          }
-     }
-
+     my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
 
   bts::network::server_ptr application::get_network()const
