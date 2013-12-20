@@ -49,6 +49,7 @@ namespace bts {
       static std::shared_ptr<application>  instance();
 
       void                                 configure( const application_config& cfg );
+      void                                 connect_to_network();
       application_config                   get_configuration()const;
                                            
       void                                 add_node( const fc::ip::endpoint& remote_node_ip_port );
