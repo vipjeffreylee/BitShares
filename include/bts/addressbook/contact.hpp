@@ -107,7 +107,7 @@ namespace bts { namespace addressbook {
 
   struct wallet_identity : public contact
   {
-      wallet_identity():mining_effort(0){}
+      wallet_identity() : mining_effort(0.2) {}
 
       std::string          wallet_ident;      // used to generate the master public key for this identity
       float                mining_effort;
