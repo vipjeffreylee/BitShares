@@ -34,8 +34,8 @@ namespace bts { namespace rpc {
               }
               catch ( const fc::exception& e )
               {
-                wlog( "error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
-                exit(1);
+                elog( "fatal: error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
+                //exit(1);
               }
 
               auto buf_istream = std::make_shared<fc::buffered_istream>( sock );
