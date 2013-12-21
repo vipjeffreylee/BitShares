@@ -160,6 +160,7 @@ namespace bts { namespace bitchat {
        std::string                        subject;
        std::string                        body;
        std::vector<attachment>            attachments;
+       std::vector<fc::ecc::public_key>   bcc_list;
     };
 
 
@@ -220,5 +221,5 @@ FC_REFLECT( bts::bitchat::attachment, (filename)(body) )
 FC_REFLECT( bts::bitchat::encrypted_message, (noncea)(nonceb)(nonce)(timestamp)(dh_key)(check)(data) );
 FC_REFLECT( bts::bitchat::decrypted_message, (msg_type)(data)(sig_time)(from_sig) )
 FC_REFLECT( bts::bitchat::private_text_message, (msg) )
-FC_REFLECT( bts::bitchat::private_email_message, (to_list)(cc_list)(subject)(body)(attachments) )
+FC_REFLECT( bts::bitchat::private_email_message, (to_list)(cc_list)(subject)(body)(attachments)(bcc_list) )
 FC_REFLECT( bts::bitchat::private_status_message, (status)(status_message) )
