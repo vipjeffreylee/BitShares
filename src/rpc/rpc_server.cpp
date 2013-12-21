@@ -28,7 +28,15 @@ namespace bts { namespace rpc {
            while( !_accept_loop_complete.canceled() )
            {
               fc::tcp_socket_ptr sock = std::make_shared<fc::tcp_socket>();
-              _tcp_serv.accept( *sock );
+              try 
+              {
+                _tcp_serv.accept( *sock );
+              }
+              catch ( const fc::exception& e )
+              {
+                wlog( "error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
+                exit(1);
+              }
 
               auto buf_istream = std::make_shared<fc::buffered_istream>( sock );
               auto buf_ostream = std::make_shared<fc::buffered_ostream>( sock );
