@@ -265,8 +265,11 @@ namespace bts {
                                  const fc::ecc::public_key& to, const fc::ecc::private_key& from )
   { try {
      FC_ASSERT( my->_config );
-
-     bitchat::decrypted_message msg( email );
+     //DLNFIX Later change to using derived class which has bcc_list as requested by bytemaster,
+     //       but this is safer for now.
+     bitchat::private_email_message email_no_bcc_list(email);
+     email_no_bcc_list.bcc_list.clear();
+     bitchat::decrypted_message msg( email_no_bcc_list );
      msg.sign(from);
      my->_bitchat_client->send_message( msg, to, 0/* chan 0 */ );
 

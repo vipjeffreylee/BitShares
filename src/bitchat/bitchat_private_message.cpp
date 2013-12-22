@@ -95,6 +95,9 @@ bool  encrypted_message::do_proof_work( uint64_t tar_per_kb )
 }
 bool encrypted_message::validate_proof()const
 {
+//DLNFIX temporarily disable message proof-of-work
+   return true;
+
    if( noncea == nonceb ) return false;
    if( noncea > MAX_MOMENTUM_NONCE ) return false;
    if( nonceb > MAX_MOMENTUM_NONCE ) return false;

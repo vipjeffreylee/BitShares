@@ -106,14 +106,30 @@ namespace bts { namespace addressbook {
    };
 
   struct wallet_identity : public contact
-  {
-      wallet_identity():mining_effort(0){}
+  { //DLNFIX can we derive wallet_identity from wallet_contact instead to avoid code duplication?
+      wallet_identity() : mining_effort(0.2) {}
+      std::string getFullName() const { return first_name + " " + last_name; }
+      std::string getDisplayName() const
+        {
+        std::string display_name;
+        bool hasAlias = first_name.empty() && last_name.empty();
+        if (hasAlias)
+          {
+          display_name = getFullName();
+          display_name += " <";
+          }
+        display_name += dac_id_string;
+        if (hasAlias)
+          display_name += '>';
+        return display_name;
+        }
 
       std::string          wallet_ident;      // used to generate the master public key for this identity
       float                mining_effort;
       std::string          first_name;     // kept locally, not shared
       std::string          last_name;     // kept locally, not shared
       std::vector<char>    private_icon_png;  // kept locally, not shared
+
   };
 
   /**
@@ -124,7 +140,21 @@ namespace bts { namespace addressbook {
   struct wallet_contact : public contact
   {
       wallet_contact() : wallet_index(WALLET_INVALID_INDEX), privacy_setting(secret_contact), next_send_trx_id(0) {}
-      std::string getFullName() const { return first_name + " " + last_name; }
+      std::string getDisplayName() const
+        {
+        std::string display_name;
+        bool hasAlias = !(first_name.empty() && last_name.empty());
+        if (hasAlias)
+          {
+          display_name = getFullName();
+          display_name += " <";
+          }
+        display_name += dac_id_string;
+        if (hasAlias)
+          display_name += '>';
+        return display_name;
+        }
+
       /** used to generate the extended private key for this contact */
       uint32_t                               wallet_index;
       fc::enum_type<uint8_t,privacy_level>   privacy_setting;
@@ -150,6 +180,8 @@ namespace bts { namespace addressbook {
       std::vector<uint16_t>                  bitchat_recv_channels; /// where this contact listens
       std::vector<uint16_t>                  bitchat_broadcast_channels; /// where contact broadcasts
       fc::ecc::private_key                   bitchat_recv_broadcast_key;
+    private:
+      std::string getFullName() const { return first_name + " " + last_name; }
   };
 
 
