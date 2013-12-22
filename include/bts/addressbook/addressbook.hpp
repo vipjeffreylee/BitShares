@@ -31,7 +31,7 @@ namespace bts { namespace addressbook {
 
         fc::optional<wallet_contact> get_contact_by_dac_id( const std::string& bitname_label    )const;
         fc::optional<wallet_contact> get_contact_by_public_key(const fc::ecc::public_key& dac_id_key )const;
-        fc::optional<wallet_contact> get_contact_by_full_name(const std::string& full_name )const;
+        fc::optional<wallet_contact> get_contact_by_display_name(const std::string& display_name )const;
 
         void store_contact(const wallet_contact& contact_to_store );
         void remove_contact(const wallet_contact& contact);

@@ -22,7 +22,7 @@ namespace bts { namespace addressbook {
            std::unordered_map<uint32_t,wallet_contact>             _number_to_contact;
            std::unordered_map<fc::ecc::public_key_data,uint32_t>   _key_to_number;
            std::unordered_map<uint64_t,uint32_t>                   _id_to_number;
-           std::unordered_map<uint64_t,uint32_t>                   _full_name_to_number;
+           std::unordered_map<uint64_t,uint32_t>                   _display_name_to_number;
      };
   }
 
@@ -91,12 +91,12 @@ namespace bts { namespace addressbook {
       return fc::optional<wallet_contact>();
   } FC_RETHROW_EXCEPTIONS( warn, "", ("dac_id_key", dac_id_key) ) }
 
-  fc::optional<wallet_contact> addressbook::get_contact_by_full_name(const std::string& full_name )const
+  fc::optional<wallet_contact> addressbook::get_contact_by_display_name(const std::string& full_name )const
   { try {
       fc::optional<wallet_contact> contact;
-      auto full_name_hash = bitname::name_hash(full_name);
-      auto itr = my->_full_name_to_number.find(full_name_hash);
-      if( itr != my->_full_name_to_number.end() )
+      auto display_name_hash = bitname::name_hash(full_name);
+      auto itr = my->_display_name_to_number.find(display_name_hash);
+      if( itr != my->_display_name_to_number.end() )
       {
           return my->_number_to_contact[itr->second];
       }
@@ -124,8 +124,8 @@ namespace bts { namespace addressbook {
 
       my->_id_to_number.erase(contact.dac_id_hash);
 
-      auto full_name_hash = bitname::name_hash(contact.getFullName());
-      my->_full_name_to_number.erase(full_name_hash);
+      auto full_name_hash = bitname::name_hash(contact.getDisplayName());
+      my->_display_name_to_number.erase(full_name_hash);
 
       my->_encrypted_contact_db.remove(contact.wallet_index);
   }
@@ -140,8 +140,8 @@ namespace bts { namespace addressbook {
       contact.dac_id_hash = bitname::name_hash(contact.dac_id_string);
       my->_id_to_number[contact.dac_id_hash] = contact.wallet_index;
 
-      auto full_name_hash = bitname::name_hash(contact.getFullName());
-      my->_full_name_to_number[full_name_hash] = contact.wallet_index;
+      auto full_name_hash = bitname::name_hash(contact.getDisplayName());
+      my->_display_name_to_number[full_name_hash] = contact.wallet_index;
   }
 
   void contact::set_dac_id( const std::string& dac_id )
