@@ -23,11 +23,11 @@
  *  TODO: update configs below to follow scheme described above
  */
 
-#define NETWORK_DEFAULT_PORT             (9876)
+#define NETWORK_DEFAULT_PORT             (0) //(9876)
 #define BITNAME_BLOCK_INTERVAL_SEC       (2*60)  // 2 minutes
 #define BITNAME_TIMEKEEPER_WINDOW        (64)    // blocks used for estimating time
 #define BITNAME_BLOCK_FETCH_TIMEOUT_SEC  (60)
-#define RPC_DEFAULT_PORT                 (NETWORK_DEFAULT_PORT+1)
+#define RPC_DEFAULT_PORT                 (0) // (NETWORK_DEFAULT_PORT+1)
 #define WALLET_INVALID_INDEX             (uint32_t(-1))
 #define COIN                          (100000000ll)
 
