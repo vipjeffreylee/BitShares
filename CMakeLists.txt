@@ -18,7 +18,7 @@ SET( ALL_OPENSSL_LIBRARIES
 if( UNIX ) 
   if( NOT APPLE )  
     set(rt_library rt )
-	set(pthread_library pthread) 
+    set(pthread_library pthread) 
   endif() 
 endif()
 
