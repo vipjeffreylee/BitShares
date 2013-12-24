@@ -34,8 +34,8 @@ namespace bts { namespace rpc {
               }
               catch ( const fc::exception& e )
               {
-                wlog( "error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
-                exit(1);
+                elog( "fatal: error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
+                //exit(1);
               }
 
               auto buf_istream = std::make_shared<fc::buffered_istream>( sock );
@@ -240,10 +240,11 @@ namespace bts { namespace rpc {
   void server::configure( const server::config& cfg )
   {
      try {
-       FC_ASSERT( cfg.port != 0 );
+      // FC_ASSERT( cfg.port != 0 );
        my->_config = cfg;
        ilog( "listening for rpc connections on port ${port}", ("port",cfg.port) );
        my->_tcp_serv.listen( cfg.port );
+       ilog( "listening for rpc connections on port ${port}", ("port",my->_tcp_serv.get_port()) );
      // TODO shutdown server if already configured prior to restarting it
      
        my->_accept_loop_complete = fc::async( [=]{ my->accept_loop(); } );
