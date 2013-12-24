@@ -124,7 +124,7 @@ namespace bts { namespace addressbook {
 
       my->_id_to_number.erase(contact.dac_id_hash);
 
-      auto full_name_hash = bitname::name_hash(contact.getDisplayName());
+      auto full_name_hash = bitname::name_hash(contact.get_display_name());
       my->_display_name_to_number.erase(full_name_hash);
 
       my->_encrypted_contact_db.remove(contact.wallet_index);
@@ -140,7 +140,7 @@ namespace bts { namespace addressbook {
       contact.dac_id_hash = bitname::name_hash(contact.dac_id_string);
       my->_id_to_number[contact.dac_id_hash] = contact.wallet_index;
 
-      auto full_name_hash = bitname::name_hash(contact.getDisplayName());
+      auto full_name_hash = bitname::name_hash(contact.get_display_name());
       my->_display_name_to_number[full_name_hash] = contact.wallet_index;
   }
 
