@@ -65,7 +65,7 @@ namespace bts {
 
       profile_ptr                          create_profile( const std::string& profile_name, 
                                                            const profile_config& cfg, 
-                                                           const std::string& password );
+                                                           const std::string& password, std::function<void(double)> progress = std::function<void(double)>() );
                                   
       void                                 add_receive_key( const fc::ecc::private_key& k );
 

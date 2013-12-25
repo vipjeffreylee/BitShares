@@ -1,6 +1,7 @@
 #pragma once
 #include <fc/crypto/elliptic.hpp>
 #include <bts/extended_address.hpp>
+#include <functional>
 
 namespace bts {
 
@@ -43,9 +44,9 @@ namespace bts {
          *  This method will take several minutes to run and is designed to
          *  make rainbow tables difficult to calculate.
          */
-        static fc::sha512     stretch_seed( const fc::sha512& seed );
+        static fc::sha512     stretch_seed( const fc::sha512& seed, std::function<void(double)> progress );
 
-        void                  set_seed( const fc::sha512& stretched_seed );
+        void                  set_seed( const fc::sha512& stretched_seed);
         fc::sha512            get_seed()const;
 
         extended_private_key  get_identity_key( const std::string& ident );
