@@ -14,7 +14,7 @@ namespace bts { namespace network {
       // terrible, but effective hack used to fetch my remote IP
       std::stringstream request;
       request << "GET /plain HTTP/1.1\r\n";
-      request << "Host: ipecho.net\r\n\r\n";
+      request << "Host: ipecho.net\r\n\r\nConnection:Close\r\n";
       auto req = request.str();
 
       auto endpoints = fc::resolve( "ipecho.net", 80 );

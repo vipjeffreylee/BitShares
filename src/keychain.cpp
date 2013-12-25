@@ -16,20 +16,24 @@ namespace bts {
    *  This method will take several minutes to run and is designed to
    *  make rainbow tables difficult to calculate.
    */
-  fc::sha512 keychain::stretch_seed( const fc::sha512& seed )
+  fc::sha512 keychain::stretch_seed( const fc::sha512& seed, std::function<void(double)> progress  )
   {
       fc::thread t("stretch_seed");
       return t.async( [=]() {
           fc::sha512 last = seed;
-          ilog( "stretchign seed" );
-          for( uint32_t i = 0; i < 1; ++i )
+          std::vector<fc::sha512> seeds(1024*1024*4);
+          seeds[0] = seed;
+          for( uint32_t i = 1; i < seeds.size(); ++i )
           {
-              ilog( ".\r" );
-              uint64_t nonces[3];
-              auto p = proof_of_work( fc::sha256::hash( (char*)&last, sizeof(last)) );  
-              last = fc::sha512::hash( (char*)&p, sizeof(p) );
+             seeds[i] = fc::sha512::hash((char*)&seeds[i-1], sizeof(fc::sha512) ); 
+             if( ((i%(1024*40))==0) && progress )
+             {
+                progress( double(i)/seeds.size() );
+             }
           }
-          return last; 
+          auto result = fc::sha512::hash( (char*)&seeds[0], sizeof(fc::sha512)*seeds.size() );
+          if( progress ) progress( double(1.0) );
+          return result;
       } ).wait();
   }
 

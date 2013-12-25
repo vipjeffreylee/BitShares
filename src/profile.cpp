@@ -28,6 +28,7 @@ namespace bts {
             bitchat::message_db_ptr                         _sent_db;
             bitchat::message_db_ptr                         _chat_db;
             db::level_map<std::string, addressbook::wallet_identity>            _idents;
+            std::string                                     _profile_name;
             
 /*
             void import_draft( const std::vector<char> crypt, const fc::uint512& key )
@@ -56,7 +57,7 @@ namespace bts {
   profile::~profile()
   {}
 
-  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password )
+  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
   { try {
        fc::sha512::encoder encoder;
        fc::raw::pack( encoder, password );
@@ -64,17 +65,24 @@ namespace bts {
        auto seed             = encoder.result();
 
        /// note: this could take a minute
-       auto stretched_seed   = keychain::stretch_seed( seed );
+       auto stretched_seed   = keychain::stretch_seed( seed, progress );
        
-       FC_ASSERT( !fc::exists( profile_dir ) );
+      // FC_ASSERT( !fc::exists( profile_dir ) );
        fc::create_directories( profile_dir );
        
        auto profile_cfg_key  = fc::sha512::hash( password.c_str(), password.size() );
        fc::aes_save( profile_dir / ".stretched_seed", profile_cfg_key, fc::raw::pack(stretched_seed) );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir)("config",cfg) ) }
 
+  std::string profile::get_name()const
+  {
+      return my->_profile_name;
+  }
+
   void profile::open( const fc::path& profile_dir, const std::string& password )
   { try {
+      my->_profile_name = profile_dir.filename().generic_string();
+
       fc::create_directories( profile_dir );
       fc::create_directories( profile_dir / "addressbook" );
       fc::create_directories( profile_dir / "idents" );
@@ -97,14 +105,6 @@ namespace bts {
       my->_sent_db->open( profile_dir / "mail" / "sent", profile_cfg_key );
       my->_chat_db->open( profile_dir / "chat", profile_cfg_key );
 
-/*
-      auto itr = my->_draft_db.begin();
-      while( itr.valid() )
-      {
-          my->import_draft( itr.value(), profile_cfg_key );
-          ++itr;
-      }
-*/
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir) ) }
 
   std::vector<addressbook::wallet_identity>   profile::identities()const
@@ -120,6 +120,11 @@ namespace bts {
   void    profile::store_identity( const addressbook::wallet_identity& id )
   { try {
       my->_idents.store( id.dac_id_string, id ); 
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
+
+  addressbook::wallet_identity    profile::get_identity( const std::string& id )const
+  { try {
+      return my->_idents.fetch( id ); 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
   
   /**

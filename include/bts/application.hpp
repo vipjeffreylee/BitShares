@@ -48,25 +48,37 @@ namespace bts {
       void                                 quit();
       static std::shared_ptr<application>  instance();
 
+      void                                 set_profile_directory( const fc::path& dir );
       void                                 configure( const application_config& cfg );
+      void                                 connect_to_network();
       application_config                   get_configuration()const;
                                            
       void                                 add_node( const fc::ip::endpoint& remote_node_ip_port );
       void                                 set_application_delegate( application_delegate* del );
                                            
       bool                                 has_profile()const;
+      std::vector<std::string>             get_profiles()const;
+
       profile_ptr                          get_profile();
-      profile_ptr                          load_profile( const std::string& password );
-      profile_ptr                          create_profile( const profile_config& cfg, const std::string& password );
+      profile_ptr                          load_profile( const std::string& profile_name, 
+                                                         const std::string& password );
+
+      profile_ptr                          create_profile( const std::string& profile_name, 
+                                                           const profile_config& cfg, 
+                                                           const std::string& password, std::function<void(double)> progress = std::function<void(double)>() );
                                   
       void                                 add_receive_key( const fc::ecc::private_key& k );
 
       fc::optional<bitname::name_record>   lookup_name( const std::string& name );
       fc::optional<bitname::name_record>   reverse_name_lookup( const fc::ecc::public_key& key );
-      void                                 mine_name( const std::string& name, const fc::ecc::public_key& key, float effort = 0.1 );
+
+      void                                 mine_name( const std::string& name, 
+                                                      const fc::ecc::public_key& key, 
+                                                      float effort = 0.1 );
 
       void  send_contact_request( const fc::ecc::public_key& to, const fc::ecc::private_key& from );
-      void  send_email( const bitchat::private_email_message& email, const fc::ecc::public_key& to, const fc::ecc::private_key& from );
+      void  send_email( const bitchat::private_email_message& email, 
+                        const fc::ecc::public_key& to, const fc::ecc::private_key& from );
       void  send_text_message( const bitchat::private_text_message& txtmsg, 
                                const fc::ecc::public_key& to, const fc::ecc::private_key& from );
       void  set_mining_intensity(int intensity);
