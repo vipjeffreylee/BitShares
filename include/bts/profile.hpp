@@ -89,13 +89,14 @@ namespace bts {
       void                          cache( const bts::bitchat::decrypted_message& msg    );
 
       // std::vector<meta_transaction> get_transactions()const;
-      bitchat::message_db_ptr       get_inbox_db() const;
-      bitchat::message_db_ptr       get_draft_db() const;
-      bitchat::message_db_ptr       get_pending_db() const;
-      bitchat::message_db_ptr       get_sent_db() const;
-      bitchat::message_db_ptr       get_chat_db() const;
-      addressbook::addressbook_ptr  get_addressbook() const;
-      keychain                      get_keychain() const;
+      bitchat::message_db_ptr       get_inbox_db()const;
+      bitchat::message_db_ptr       get_draft_db()const;
+      bitchat::message_db_ptr       get_pending_db()const;
+      bitchat::message_db_ptr       get_sent_db()const;
+      bitchat::message_db_ptr       get_chat_db()const;
+      addressbook::addressbook_ptr  get_addressbook()const;
+      keychain                      get_keychain()const;
+      std::string                   get_name()const;
     private:
       std::unique_ptr<detail::profile_impl> my;
   };

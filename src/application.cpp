@@ -197,7 +197,6 @@ namespace bts {
 
   profile_ptr   application::get_profile()
   {
-    FC_ASSERT( my->_config );
     return my->_profile;
   }
 
@@ -280,6 +279,7 @@ namespace bts {
      tmp_profile->create( pro_dir, cfg, password );
      tmp_profile->open( pro_dir, password );
      
+     configure(app_config);
      return my->_profile = tmp_profile;
 
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
