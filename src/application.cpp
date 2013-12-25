@@ -7,6 +7,8 @@
 #include <bts/blockchain/blockchain_client.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/thread/thread.hpp>
+#include <fc/io/fstream.hpp>
+#include <fc/io/json.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -121,12 +123,15 @@ namespace bts {
 
   application::~application(){}
 
+  void application::set_profile_directory( const fc::path& profile_dir )
+  {
+     my->_profile_dir = profile_dir;
+     fc::create_directories( my->_profile_dir );
+  }
+
   void application::configure( const application_config& cfg )
   { try {
      my->_config = cfg;
-     my->_profile_dir = cfg.data_dir / "profiles";
-     
-     fc::create_directories( my->_profile_dir );
 
      my->_server = std::make_shared<bts::network::server>();    
 
@@ -187,7 +192,7 @@ namespace bts {
 
   bool          application::has_profile()const
   {
-     return fc::exists( my->_profile_dir / "default" );
+     return get_profiles().size() != 0;
   }
 
   profile_ptr   application::get_profile()
@@ -196,14 +201,35 @@ namespace bts {
     return my->_profile;
   }
 
-  profile_ptr   application::load_profile( const std::string& password )
+  std::vector<std::string>  application::get_profiles()const
   { try {
-    FC_ASSERT( my->_config );
+     std::vector<std::string> profile_dirs;
+     fc::directory_iterator   profile_dir(my->_profile_dir);
+     while( profile_dir != fc::directory_iterator() )
+     {
+        auto p = *profile_dir;
+        if( fc::is_directory(p) && fc::exists( p / "config.json" ) )
+        {
+           ilog( "${p}", ("p",p) );
+           profile_dirs.push_back(p.filename().generic_string() );
+        }
+        ++profile_dir;
+     }
+     ilog( "profiles ${p}", ("p",profile_dirs) );
+     return profile_dirs;
+  } FC_RETHROW_EXCEPTIONS( warn, "error getting profiles" ) }
+
+  profile_ptr   application::load_profile( const std::string& profile_name, const std::string& password )
+  { try {
     if( my->_profile ) my->_profile.reset();
+
+    FC_ASSERT( fc::exists(my->_profile_dir/profile_name/"config.json") );
+    auto app_config = fc::json::from_file(my->_profile_dir/profile_name/"config.json").as<bts::application_config>();
+    configure(app_config);
 
     // note: stored in temp incase open throws.
     auto tmp_profile = std::make_shared<profile>();
-    tmp_profile->open( my->_profile_dir / "default", password );
+    tmp_profile->open( my->_profile_dir / profile_name, password );
 
     std::vector<fc::ecc::private_key> recv_keys;
     auto keychain =  tmp_profile->get_keychain();
@@ -223,17 +249,38 @@ namespace bts {
      my->_bitchat_client->add_receive_key( k );
   }
 
-  profile_ptr   application::create_profile( const profile_config& cfg, const std::string& password )
+  profile_ptr   application::create_profile( const std::string& profile_name,
+                                             const profile_config& cfg, const std::string& password )
   { try {
-    fc::create_directories( my->_profile_dir  );
+     auto pro_dir = my->_profile_dir / profile_name;
+     fc::create_directories( pro_dir );
+     auto config_file = pro_dir / "config.json";
+     
+     ilog("config_file: ${file}", ("file", config_file) );
+     if (fc::exists(config_file) == false)
+     {
+       bts::application_config default_cfg;
+       default_cfg.data_dir = pro_dir / "data";
+       default_cfg.network_port = 0;
+       default_cfg.rpc_config.port = 0;
+       default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
+       
+       fc::ofstream out(config_file);
+       out << fc::json::to_pretty_string(default_cfg);
+     }
 
-    // note: stored in temp incase create throws.
-    auto tmp_profile = std::make_shared<profile>();
-
-    tmp_profile->create( my->_profile_dir / "default", cfg, password );
-    tmp_profile->open( my->_profile_dir / "default", password );
-
-    return my->_profile = tmp_profile;
+     auto app_config = fc::json::from_file(config_file).as<bts::application_config>();
+     fc::ofstream out(config_file);
+     out << fc::json::to_pretty_string(app_config);
+     
+     
+     // note: stored in temp incase create throws.
+     auto tmp_profile = std::make_shared<profile>();
+     
+     tmp_profile->create( pro_dir, cfg, password );
+     tmp_profile->open( pro_dir, password );
+     
+     return my->_profile = tmp_profile;
 
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 

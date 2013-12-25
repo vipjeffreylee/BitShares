@@ -66,7 +66,7 @@ namespace bts {
        /// note: this could take a minute
        auto stretched_seed   = keychain::stretch_seed( seed );
        
-       FC_ASSERT( !fc::exists( profile_dir ) );
+      // FC_ASSERT( !fc::exists( profile_dir ) );
        fc::create_directories( profile_dir );
        
        auto profile_cfg_key  = fc::sha512::hash( password.c_str(), password.size() );
