@@ -135,13 +135,13 @@ namespace bts { namespace rpc {
             });
 
             /**
-             *   params : ["profile_password"]
+             *   params : ["profile_name","profile_password"]
              */
             con->add_method( "load_profile", [=]( const fc::variants& params ) -> fc::variant 
             {
                 FC_ASSERT( params.size() == 2 );
                 check_login( capture_con );
-                bts::application::instance()->load_profile( params[0].as_string() );
+                bts::application::instance()->load_profile( params[0].as_string(), params[1].as_string() );
                 return fc::variant();
             });
 

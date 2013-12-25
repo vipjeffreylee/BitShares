@@ -79,8 +79,12 @@ namespace bts {
       void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password );
       void  open( const fc::path& profile_dir, const std::string& password );
 
-      std::vector<addressbook::wallet_identity>        identities()const;
-      void                                store_identity( const addressbook::wallet_identity& id );
+      std::vector<addressbook::wallet_identity>   identities()const;
+      void                                        store_identity( const addressbook::wallet_identity& id );
+      /** 
+       * @throw key_not_found_exception if no such identity has been created
+       */
+      addressbook::wallet_identity                get_identity(const std::string& wallet_id )const;
       
       /**
        *  Checks the transaction to see if any of the inp
@@ -89,13 +93,14 @@ namespace bts {
       void                          cache( const bts::bitchat::decrypted_message& msg    );
 
       // std::vector<meta_transaction> get_transactions()const;
-      bitchat::message_db_ptr       get_inbox_db() const;
-      bitchat::message_db_ptr       get_draft_db() const;
-      bitchat::message_db_ptr       get_pending_db() const;
-      bitchat::message_db_ptr       get_sent_db() const;
-      bitchat::message_db_ptr       get_chat_db() const;
-      addressbook::addressbook_ptr  get_addressbook() const;
-      keychain                      get_keychain() const;
+      bitchat::message_db_ptr       get_inbox_db()const;
+      bitchat::message_db_ptr       get_draft_db()const;
+      bitchat::message_db_ptr       get_pending_db()const;
+      bitchat::message_db_ptr       get_sent_db()const;
+      bitchat::message_db_ptr       get_chat_db()const;
+      addressbook::addressbook_ptr  get_addressbook()const;
+      keychain                      get_keychain()const;
+      std::string                   get_name()const;
     private:
       std::unique_ptr<detail::profile_impl> my;
   };
