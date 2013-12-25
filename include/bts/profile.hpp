@@ -79,8 +79,12 @@ namespace bts {
       void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password );
       void  open( const fc::path& profile_dir, const std::string& password );
 
-      std::vector<addressbook::wallet_identity>        identities()const;
-      void                                store_identity( const addressbook::wallet_identity& id );
+      std::vector<addressbook::wallet_identity>   identities()const;
+      void                                        store_identity( const addressbook::wallet_identity& id );
+      /** 
+       * @throw key_not_found_exception if no such identity has been created
+       */
+      addressbook::wallet_identity                get_identity(const std::string& wallet_id )const;
       
       /**
        *  Checks the transaction to see if any of the inp

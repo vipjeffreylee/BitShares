@@ -298,10 +298,10 @@ namespace bts {
   } FC_RETHROW_EXCEPTIONS( warn, "", ("key",key) ) }
 
   void                        application::mine_name( const std::string& name, const fc::ecc::public_key& key, float effort )
-  {
+  { try {
      FC_ASSERT( my->_config );
      my->_bitname_client->mine_name( name, key );
-  }
+  } FC_RETHROW_EXCEPTIONS( warn, "name: ${name}", ("name",name) ) }
 
   void  application::send_contact_request( const fc::ecc::public_key& to, const fc::ecc::private_key& from )
   {
