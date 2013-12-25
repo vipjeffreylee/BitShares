@@ -80,7 +80,7 @@ namespace bts { namespace bitchat {
         cipher_message.timestamp = fc::time_point::now();
       //  fc::thread work_thread;
       //  work_thread.async( [&]() {
-       //     cipher_message.do_proof_work(1);
+            cipher_message.do_proof_work(1);
       //  } ).wait();
 
         auto itr = my->_channels.find( chan );
