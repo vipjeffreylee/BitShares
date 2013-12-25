@@ -76,7 +76,7 @@ namespace bts {
     public:
       profile();
       ~profile();
-      void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password );
+      void  create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password, std::function<void(double)> progress = std::function<void(double)>() );
       void  open( const fc::path& profile_dir, const std::string& password );
 
       std::vector<addressbook::wallet_identity>   identities()const;

@@ -249,7 +249,7 @@ namespace bts {
   }
 
   profile_ptr   application::create_profile( const std::string& profile_name,
-                                             const profile_config& cfg, const std::string& password )
+                                             const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
   { try {
      auto pro_dir = my->_profile_dir / profile_name;
      fc::create_directories( pro_dir );
@@ -276,7 +276,7 @@ namespace bts {
      // note: stored in temp incase create throws.
      auto tmp_profile = std::make_shared<profile>();
      
-     tmp_profile->create( pro_dir, cfg, password );
+     tmp_profile->create( pro_dir, cfg, password, progress );
      tmp_profile->open( pro_dir, password );
      
      configure(app_config);

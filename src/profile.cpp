@@ -57,7 +57,7 @@ namespace bts {
   profile::~profile()
   {}
 
-  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password )
+  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
   { try {
        fc::sha512::encoder encoder;
        fc::raw::pack( encoder, password );
@@ -65,7 +65,7 @@ namespace bts {
        auto seed             = encoder.result();
 
        /// note: this could take a minute
-       auto stretched_seed   = keychain::stretch_seed( seed );
+       auto stretched_seed   = keychain::stretch_seed( seed, progress );
        
       // FC_ASSERT( !fc::exists( profile_dir ) );
        fc::create_directories( profile_dir );
