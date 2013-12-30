@@ -56,33 +56,40 @@ namespace bts { namespace bitchat {
         my->_digest_to_data.open(dbdir/"digest_to_data");
   } FC_RETHROW_EXCEPTIONS( warn, "", ("dir", dbdir)("key",key)("create",create)) }
 
-  message_header message_db::store( const decrypted_message& m )
+  message_header message_db::store_message(const decrypted_message& msg,
+                                           const message_header* previous_msg_header )
   { try {
-      FC_ASSERT( m.from_sig    );
-      FC_ASSERT( m.from_key    );
-      FC_ASSERT( m.decrypt_key );
+      if (previous_msg_header)
+        my->_index.remove(*previous_msg_header);
+  
+      FC_ASSERT( msg.from_sig    );
+      FC_ASSERT( msg.from_key    );
+      FC_ASSERT( msg.decrypt_key );
 
       message_header header;
-      header.type             = m.msg_type;
+      header.type             = msg.msg_type;
       header.received_time    = fc::time_point::now();
-      header.to_key           = m.decrypt_key->get_public_key();
-      header.from_key         = *m.from_key;
-      header.digest           = m.digest();
-      header.from_sig_time    = m.sig_time;
-      header.from_sig         = *m.from_sig;
+      header.to_key           = msg.decrypt_key->get_public_key();
+      header.from_key         = *msg.from_key;
+      header.digest           = msg.digest();
+      header.from_sig_time    = msg.sig_time;
+      header.from_sig         = *msg.from_sig;
       my->_index.store(header,0);
 
       // TODO: consider using city128 rather than 256 to reduce index size
-      my->_digest_to_data.store( header.digest, m.data );
+      my->_digest_to_data.store( header.digest, msg.data );
       return header;
-  } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",m) ) }
+  } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
  
-  void message_db::remove(const message_header& msg_header)
+  //remove entire message (msg_header and message contents)
+  void message_db::remove_message(const message_header& msg_header)
   {
       my->_index.remove(msg_header);    
       my->_digest_to_data.remove(msg_header.digest);
   }
 
+  //update field in header only. If you modify a field in the msg_header that's
+  //used for equivalence, you need to first remove the unmodified form of the msg_header.
   void message_db::store_message_header(const message_header& msg_header)
   {
       my->_index.store(msg_header,0);
