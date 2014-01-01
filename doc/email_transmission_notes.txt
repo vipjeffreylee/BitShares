@@ -1,0 +1,60 @@
+== Overview of Mail Caching ==
+Note: This caching is for broadcast emails, not for emails sent by direct connection. Direct connection is not yet supported in the code.
+
+Each node keeps a local cache of mail it has received. When the cache gets full, older mails get discarded.
+
+Each node requests an inventory of cached mail since last it checked emails when it contacts a new peer. These get replied as digests rather than as full mails.
+
+A similar method is used when a node wants to tell a peer about a new mail message. It broadcasts a digest of new mail to peers, and they will then request more info about it from the node if they don't already have it.
+
+== Psuedocode for pending mail transmission at original sender ==
+
+gui SendMail
+  try 
+    {
+    application->send_mail()
+    }
+  catch (exception)
+    MessageBox(Mail cannot be sent, no connection!)
+  
+Note: Gui's pending mailBox model would use pending mail message database for it's internal datastructure.
+  
+ 
+ == backend code ==
+ 
+//this function just adds message to pending queue and returns immediately
+send_mail 
+  if not connected
+    throw "not connected exception"
+  else //connected
+    add mail message to pending mail queue
+	if pending_queue was empty before this mail message
+	  backend_thread.async(consume_mail)
+    return
+
+class MailBroadcaster	
+  next_mail //this wrapper contains mail plus extra field: successful_broadcast_count
+  pending_queue
+
+consume_mail
+  while (!pending_queue.empty())
+    next_mail = pending_queue.peekHead()
+	next_mail.do_proof_of_work()
+	foreach peer
+	  broadcast_message(next_mail.id) //this just notifies peer of mail availability, it doesn't send it.
+	  if (next_mail.successful_broadcast_count > 4)
+	    break
+    pending_queue.popHead()
+	sent_mail.store(next_mail)
+
+//this is called whenever a peer requests mail message in response to broadcast_message
+fetch_email_message(requesting_peer, mail_id)
+  mail = lookup(mail_id)
+  send_mail_to(requesting_peer, mail) throws some exception if communication fails
+  if (mail_id == next_mail.id)
+    next_mail.successfully_broadcast_cast++
+	
+Note: comsume_mail and fetch_email_message run as async tasks in a common thread
+	  Need a mutex to around call to add to mail queue and pop from queue, as consume/fetch are running
+	  in a separate thread.
+	
