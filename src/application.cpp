@@ -194,10 +194,7 @@ namespace bts {
   {
   }
 
-  application::~application()
-  {
-    ilog("App destruction");
-  }
+  application::~application() {}
 
   void application::set_profile_directory( const fc::path& profile_dir )
   {
