@@ -74,8 +74,7 @@ namespace fc
    void from_variant( const variant& var,  bts::blockchain::trx_output& vo );
 }
 
-FC_REFLECT( bts::blockchain::block_header,  
-            (version)(prev)(block_num)(timestamp)(total_shares)(total_coindays_destroyed)(trx_mroot) )
+FC_REFLECT( bts::blockchain::block_header,  (version)(prev)(block_num)(timestamp)(total_shares)(total_coindays_destroyed)(trx_mroot) )
 FC_REFLECT_DERIVED( bts::blockchain::full_block,  (bts::blockchain::block_header),        (trx_ids) )
 FC_REFLECT_DERIVED( bts::blockchain::trx_block,   (bts::blockchain::block_header),        (trxs) )
 

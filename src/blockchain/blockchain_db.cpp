@@ -499,14 +499,16 @@ namespace bts { namespace blockchain {
     {
        try {
            FC_ASSERT( trx.inputs.size() || trx.outputs.size() );
-           if( trx.valid_after != 0 )
+           /** TODO: validate time range on transaction using the previous block time
+           if( trx.valid_after != fc::time_point::now() )
            {
              FC_ASSERT( head_block_num() > trx.valid_after.value );
-             if( trx.valid_blocks != 0 )
+             if( trx.valid_blocks != fc::time_point::now() )
              {
                 FC_ASSERT( head_block_num() < trx.valid_after.value + trx.valid_blocks.value );
              }
            }
+           */
 
            trx_validation_state vstate( trx, this ); 
            vstate.validate();

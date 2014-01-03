@@ -44,8 +44,8 @@ class server
           total_coins = 0;
           signed_transaction coinbase;
           coinbase.version = 0;
-          coinbase.valid_after = 0;
-          coinbase.valid_blocks = 0;
+        //  coinbase.valid_after = 0;
+        //  coinbase.valid_blocks = 0;
 
           std::ifstream in(csv.generic_string().c_str(), std::ios::binary);
           std::string line;
