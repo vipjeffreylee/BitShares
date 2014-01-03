@@ -9,6 +9,7 @@
 #include <fc/io/json.hpp>
 #include <fc/log/logger.hpp>
 #include <fc/io/raw.hpp>
+#include <iostream>
 #include <bts/config.hpp>
 
 #include <fstream>
@@ -32,8 +33,8 @@ bts::blockchain::trx_block create_test_genesis_block()
 
    signed_transaction coinbase;
    coinbase.version = 0;
-   coinbase.valid_after = 0;
-   coinbase.valid_blocks = 0;
+   //coinbase.valid_after = 0;
+   //coinbase.valid_blocks = 0;
 
    // TODO: init from PTS here...
    coinbase.outputs.push_back( 
@@ -148,6 +149,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      html << bts::blockchain::pretty_print( genesis, chain );
      html << bts::blockchain::pretty_print( block1, chain );
      html << bts::blockchain::pretty_print( block2, chain );
+     std::cerr<< fc::json::to_pretty_string( block1 );
      for( uint32_t i = 0; i < blcks.size(); ++i )
      {
         html << bts::blockchain::pretty_print( blcks[i], chain );

@@ -20,6 +20,7 @@ namespace bts {
       bool                          enable_upnp;
       rpc::server::config           rpc_config;
       std::vector<fc::ip::endpoint> default_nodes;
+      std::vector<std::string>      default_mail_nodes;
   };
 
   class application_delegate
@@ -96,4 +97,4 @@ namespace bts {
 
 } // namespace bts
 
-FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_config)(enable_upnp)(default_nodes) )
+FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_config)(enable_upnp)(default_nodes)(default_mail_nodes) )

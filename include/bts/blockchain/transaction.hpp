@@ -128,8 +128,8 @@ struct transaction
    fc::unsigned_int             version;        ///< trx version number
    uint32_t                     stake;          ///< used for proof of stake, last 8 bytes of block.id()
    fc::time_point_sec           timestamp;      ///< used to future proof, proof-of-stake
-   fc::unsigned_int             valid_after;    ///< trx is only valid after block num, 0 means always valid
-   fc::unsigned_int             valid_blocks;   ///< number of blocks after valid after that this trx is valid, 0 means always valid
+   fc::time_point_sec           valid_after;    ///< trx is only valid after a given time
+   fc::time_point_sec           valid_until;    ///< trx is only valid until a given time
    std::vector<trx_input>       inputs;
    std::vector<trx_output>      outputs;
 };
@@ -169,6 +169,6 @@ namespace std {
 FC_REFLECT( bts::blockchain::output_reference, (trx_hash)(output_idx) )
 FC_REFLECT( bts::blockchain::trx_input, (output_ref)(input_data) )
 FC_REFLECT( bts::blockchain::trx_output, (amount)(unit)(claim_func)(claim_data) )
-FC_REFLECT( bts::blockchain::transaction, (version)(stake)(timestamp)(valid_after)(valid_blocks)(inputs)(outputs) )
+FC_REFLECT( bts::blockchain::transaction, (version)(stake)(timestamp)(valid_after)(valid_until)(inputs)(outputs) )
 FC_REFLECT_DERIVED( bts::blockchain::signed_transaction, (bts::blockchain::transaction), (sigs) );
 
