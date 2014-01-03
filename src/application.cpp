@@ -1,6 +1,7 @@
 #include <bts/application.hpp>
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
+#include <bts/bitchat/bitchat_messages.hpp>
 #include <bts/network/upnp.hpp>
 #include <bts/network/ipecho.hpp>
 #include <bts/rpc/rpc_server.hpp>
@@ -69,6 +70,10 @@ namespace bts {
                      try {
                         ilog( "${e}", ("e",*itr) );
                         _mail_con.connect(*itr);
+                        bts::bitchat::client_info_message cli_info;
+                        cli_info.version   = 0;
+                        cli_info.sync_time = _profile->get_last_sync_time();
+                        _mail_con.send( mail::message( cli_info ) );
                         return;
                      } 
                      catch ( const fc::exception& e )

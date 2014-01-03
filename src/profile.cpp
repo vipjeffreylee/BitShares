@@ -6,6 +6,7 @@
 #include <bts/db/level_pod_map.hpp>
 #include <fc/io/raw.hpp>
 #include <fc/io/raw_variant.hpp>
+#include <fc/interprocess/mmap_struct.hpp>
 
 #include <fc/crypto/aes.hpp>
 #include <fc/reflect/variant.hpp>
@@ -30,6 +31,7 @@ namespace bts {
             db::level_map<std::string, addressbook::wallet_identity>            _idents;
             std::string                                     _profile_name;
             
+            fc::mmap_struct<fc::time_point>                 _last_sync_time;
 /*
             void import_draft( const std::vector<char> crypt, const fc::uint512& key )
             {
@@ -56,6 +58,15 @@ namespace bts {
 
   profile::~profile()
   {}
+
+  fc::time_point       profile::get_last_sync_time()const
+  {
+      return *my->_last_sync_time;
+  }
+  void     profile::set_last_sync_time( const fc::time_point& n )
+  {
+      *my->_last_sync_time = n;
+  }
 
   void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
   { try {
@@ -104,6 +115,11 @@ namespace bts {
       my->_pending_db->open( profile_dir / "mail" / "pending", profile_cfg_key );
       my->_sent_db->open( profile_dir / "mail" / "sent", profile_cfg_key );
       my->_chat_db->open( profile_dir / "chat", profile_cfg_key );
+      my->_last_sync_time.open( profile_dir / "mail" / "last_recv", true );
+      if( *my->_last_sync_time == fc::time_point() )
+      {
+          *my->_last_sync_time = fc::time_point::now() - fc::seconds(60*5);
+      }
 
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir) ) }
 
