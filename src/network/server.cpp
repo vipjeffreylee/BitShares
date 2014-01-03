@@ -20,7 +20,8 @@ namespace bts { namespace network {
      {
         public:
           server_impl()
-          :ser_del(nullptr)
+          :ser_del(nullptr),
+          cancel_loop(new fc::promise<void>)
           {}
 
           ~server_impl()
@@ -32,16 +33,16 @@ namespace bts { namespace network {
               ilog( "closing connections..." );
               try 
               {
-                  for( auto i = pending_connections.begin(); i != pending_connections.end(); ++i )
+                cancel_loop->set_value();
+
+                for( auto i = pending_connections.begin(); i != pending_connections.end(); ++i )
                   {
                     (*i)->close();
                   }
                   tcp_serv.close();
+
                   if( accept_loop_complete.valid() )
-                  {
-                      accept_loop_complete.cancel();
-                      accept_loop_complete.wait();
-                  }
+                    accept_loop_complete.wait();
               } 
               catch ( const fc::canceled_exception& e )
               {
@@ -66,7 +67,7 @@ namespace bts { namespace network {
           fc::tcp_server                                              tcp_serv;
                                                                      
           fc::future<void>                                            accept_loop_complete;
-                                                                     
+          fc::promise<void>::ptr                                      cancel_loop;
           std::unordered_map<uint32_t, channel_ptr>                   channels;
 
           virtual void on_connection_message( connection& c, const message& m )
@@ -138,7 +139,7 @@ namespace bts { namespace network {
           {
              try
              {
-                while( !accept_loop_complete.canceled() )
+                while( !cancel_loop->ready() )
                 {
                    stcp_socket_ptr sock = std::make_shared<stcp_socket>();
                    tcp_serv.accept( sock->get_socket() );
