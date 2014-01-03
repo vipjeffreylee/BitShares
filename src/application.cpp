@@ -202,16 +202,22 @@ namespace bts {
 
      my->_server = std::make_shared<bts::network::server>();    
 
-     auto ext_ip = bts::network::get_external_ip();
-     ilog( "external IP ${ip}", ("ip",ext_ip) );
-     if( cfg.enable_upnp )
-     {
-        my->_upnp.map_port( cfg.network_port );
-        my->_server->set_external_ip( my->_upnp.external_ip() );
+     try {
+       auto ext_ip = bts::network::get_external_ip();
+       ilog( "external IP ${ip}", ("ip",ext_ip) );
+       if( cfg.enable_upnp )
+       {
+          my->_upnp.map_port( cfg.network_port );
+          my->_server->set_external_ip( my->_upnp.external_ip() );
+       }
+       else
+       {
+          my->_server->set_external_ip( ext_ip );
+       }
      }
-     else
+     catch (fc::exception e)
      {
-        my->_server->set_external_ip( ext_ip );
+        elog("Failed to connect to external IP address: ${e}", ("e",e.to_detail_string()));
      }
 
      bts::network::server::config server_cfg;
