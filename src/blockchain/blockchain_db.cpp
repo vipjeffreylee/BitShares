@@ -54,7 +54,6 @@ namespace bts { namespace blockchain {
             /** cache this information because it is required in many calculations  */
             trx_block                                           head_block;
             block_id_type                                       head_block_id;
-            // Dividend Table needs to be memory mapped
 
             void mark_spent( const output_reference& o, const trx_num& intrx, uint16_t in )
             {

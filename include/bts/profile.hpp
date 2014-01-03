@@ -101,6 +101,9 @@ namespace bts {
       addressbook::addressbook_ptr  get_addressbook()const;
       keychain                      get_keychain()const;
       std::string                   get_name()const;
+
+      fc::time_point                get_last_sync_time()const;
+      void                          set_last_sync_time( const fc::time_point& n );
     private:
       std::unique_ptr<detail::profile_impl> my;
   };

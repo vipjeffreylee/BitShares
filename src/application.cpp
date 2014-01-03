@@ -1,6 +1,7 @@
 #include <bts/application.hpp>
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
+#include <bts/bitchat/bitchat_messages.hpp>
 #include <bts/network/upnp.hpp>
 #include <bts/network/ipecho.hpp>
 #include <bts/rpc/rpc_server.hpp>
@@ -28,14 +29,12 @@ namespace bts {
           application_impl()
           :_delegate(nullptr),
            _quit_promise( new fc::promise<void>() ),
-           _mail_con(this)
+           _mail_con(this),_mail_connected(false)
            {
            }
           std::vector<fc::ecc::private_key> _keys;
 
-          virtual ~application_impl()
-            {
-            }
+          virtual ~application_impl(){}
 
           application_delegate*             _delegate;
           fc::optional<application_config>  _config;
@@ -59,16 +58,25 @@ namespace bts {
           int  get_mining_intensity()              { return _bitname_client->get_mining_intensity(); }
 
           mail::connection                  _mail_con;
+          bool                              _mail_connected;
           void mail_connect_loop()
           {
              assert(!!_config );
+             _mail_connected = false;
              while( !_quit_promise->ready() )
              {
                 for( auto itr = _config->default_mail_nodes.begin(); itr != _config->default_mail_nodes.end(); ++itr )
                 {
                      try {
-                        ilog( "${e}", ("e",*itr) );
+                        ilog( "mail connect ${e}", ("e",*itr) );
                         _mail_con.connect(*itr);
+                        _mail_con.set_last_sync_time( _profile->get_last_sync_time() );
+
+                        bts::bitchat::client_info_message cli_info;
+                        cli_info.version   = 0;
+                        cli_info.sync_time = _profile->get_last_sync_time();
+                        _mail_con.send( mail::message( cli_info ) );
+                        _mail_connected = true;
                         return;
                      } 
                      catch ( const fc::exception& e )
@@ -122,6 +130,7 @@ namespace bts {
           }
           virtual void on_connection_disconnected( mail::connection& c )
           {
+              _mail_connected = false;
               start_mail_connect_loop();
           }
           void start_mail_connect_loop()
@@ -185,10 +194,7 @@ namespace bts {
   {
   }
 
-  application::~application()
-  {
-    ilog("App destruction");
-  }
+  application::~application() {}
 
   void application::set_profile_directory( const fc::path& profile_dir )
   {
@@ -248,6 +254,11 @@ namespace bts {
   void application::connect_to_network()
   {
      my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
+  }
+
+  bool application::is_mail_connected()const
+  {
+     return my->_mail_connected;
   }
 
   bts::network::server_ptr application::get_network()const
@@ -341,6 +352,7 @@ namespace bts {
        default_cfg.network_port = 0;
        default_cfg.rpc_config.port = 0;
        default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
+       default_cfg.default_mail_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 7896 ) );
        
        fc::ofstream out(config_file);
        out << fc::json::to_pretty_string(default_cfg);
