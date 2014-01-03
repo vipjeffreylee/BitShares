@@ -30,7 +30,7 @@ namespace bts { namespace db {
            auto ntrxstat = ldb::DB::Open( opts, dir.generic_string().c_str(), &ndb );
            if( !ntrxstat.ok() )
            {
-               FC_THROW_EXCEPTION( exception, "Unable to open database ${db}\n\t${msg}", 
+               FC_THROW_EXCEPTION( db_in_use_exception, "Unable to open database ${db}\n\t${msg}", 
                     ("db",dir)
                     ("msg",ntrxstat.ToString()) 
                     );

@@ -28,6 +28,10 @@ namespace bts {
            {
            }
 
+          virtual ~application_impl()
+            {
+            }
+
           application_delegate*             _delegate;
           fc::optional<application_config>  _config;
           profile_ptr                       _profile;
@@ -53,7 +57,8 @@ namespace bts {
              assert(!!_config );
              while( !_quit_promise->ready() )
              {
-                for( auto itr = _config->default_nodes.begin(); itr != _config->default_nodes.end(); ++itr )
+                for( auto itr = _config->default_nodes.begin();
+                    _quit_promise->ready() == false && itr != _config->default_nodes.end(); ++itr )
                 {
                      try {
                         ilog( "${e}", ("e",*itr) );
@@ -64,6 +69,10 @@ namespace bts {
                         wlog( "${e}", ("e",e.to_detail_string()));
                      }
                 }
+
+                if(_quit_promise->ready())
+                  break;
+
                 fc::usleep( fc::seconds(3) );
              }
           }
@@ -121,7 +130,10 @@ namespace bts {
   {
   }
 
-  application::~application(){}
+  application::~application()
+  {
+    ilog("App destruction");
+  }
 
   void application::set_profile_directory( const fc::path& profile_dir )
   {
@@ -347,6 +359,12 @@ namespace bts {
   void application::quit()
   { try {
        my->_quit_promise->set_value();
+       if(my->_connect_loop_complete.valid())
+         my->_connect_loop_complete.wait();
+
+       if(my->_server)
+         my->_server->close();
+
        my.reset();
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
  
