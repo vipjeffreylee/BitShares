@@ -1,7 +1,8 @@
+#include <fc/io/raw_fwd.hpp>
+#include <bts/bitchat/bitchat_messages.hpp>
 #include <bts/application.hpp>
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
-#include <bts/bitchat/bitchat_messages.hpp>
 #include <bts/network/upnp.hpp>
 #include <bts/network/ipecho.hpp>
 #include <bts/rpc/rpc_server.hpp>
@@ -10,6 +11,7 @@
 #include <fc/thread/thread.hpp>
 #include <fc/io/fstream.hpp>
 #include <fc/io/json.hpp>
+#include <fc/io/raw.hpp>
 
 #include <mail/mail_connection.hpp>
 
@@ -127,7 +129,13 @@ namespace bts {
                    }
                 }
              }
+             if( m.type == bts::bitchat::server_info_message::type )
+             {
+                 server_time_offset = fc::time_point::now() - m.as<bts::bitchat::server_info_message>().server_time;
+             }
           }
+          fc::microseconds server_time_offset;
+
           virtual void on_connection_disconnected( mail::connection& c )
           {
               _mail_connected = false;
@@ -409,6 +417,7 @@ namespace bts {
      bitchat::decrypted_message msg( email_no_bcc_list );
      msg.sign(from);
      auto cipher_message = msg.encrypt( to );
+     cipher_message.timestamp = fc::time_point::now() + my->server_time_offset;
      my->_mail_con.send( mail::message( cipher_message) );
      //my->_bitchat_client->send_message( msg, to, 0/* chan 0 */ );
 
