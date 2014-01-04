@@ -128,6 +128,7 @@ namespace bts {
                       bitchat_message_received( dm );
                    }
                 }
+                _profile->set_last_sync_time( pm.timestamp );
              }
              if( m.type == bts::bitchat::server_info_message::type )
              {
