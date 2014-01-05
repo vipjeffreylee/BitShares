@@ -20,6 +20,7 @@ namespace bts {
       bool                          enable_upnp;
       rpc::server::config           rpc_config;
       std::vector<fc::ip::endpoint> default_nodes;
+      std::vector<std::string>      default_mail_nodes;
   };
 
   class application_delegate
@@ -76,6 +77,7 @@ namespace bts {
                                                       const fc::ecc::public_key& key, 
                                                       float effort = 0.1 );
 
+      bool  is_mail_connected()const;
       void  send_contact_request( const fc::ecc::public_key& to, const fc::ecc::private_key& from );
       void  send_email( const bitchat::private_email_message& email, 
                         const fc::ecc::public_key& to, const fc::ecc::private_key& from );
@@ -96,4 +98,4 @@ namespace bts {
 
 } // namespace bts
 
-FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_config)(enable_upnp)(default_nodes) )
+FC_REFLECT( bts::application_config, (data_dir)(network_port)(rpc_config)(enable_upnp)(default_nodes)(default_mail_nodes) )

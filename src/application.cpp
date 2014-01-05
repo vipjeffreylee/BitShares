@@ -1,3 +1,5 @@
+#include <fc/io/raw_fwd.hpp>
+#include <bts/bitchat/bitchat_messages.hpp>
 #include <bts/application.hpp>
 #include <bts/bitname/bitname_client.hpp>
 #include <bts/bitchat/bitchat_client.hpp>
@@ -9,6 +11,9 @@
 #include <fc/thread/thread.hpp>
 #include <fc/io/fstream.hpp>
 #include <fc/io/json.hpp>
+#include <fc/io/raw.hpp>
+
+#include <mail/mail_connection.hpp>
 
 #include <fc/log/logger.hpp>
 
@@ -19,14 +24,19 @@ namespace bts {
   namespace detail
   {
     class application_impl : public bts::bitname::client_delegate,
-                             public bts::bitchat::client_delegate
+                             public bts::bitchat::client_delegate,
+                             public mail::connection_delegate
     {
        public:
           application_impl()
           :_delegate(nullptr),
-           _quit_promise( new fc::promise<void>() )
+           _quit_promise( new fc::promise<void>() ),
+           _mail_con(this),_mail_connected(false)
            {
            }
+          std::vector<fc::ecc::private_key> _keys;
+
+          virtual ~application_impl(){}
 
           application_delegate*             _delegate;
           fc::optional<application_config>  _config;
@@ -42,18 +52,50 @@ namespace bts {
           bts::rpc::server                  _rpc_server;
 
           fc::future<void>                  _connect_loop_complete;
+          fc::future<void>                  _mail_connect_loop_complete;
 
           fc::promise<void>::ptr            _quit_promise;
 
           void set_mining_intensity(int intensity) { _bitname_client->set_mining_intensity(intensity); }
-          int  get_mining_intensity() { return _bitname_client->get_mining_intensity(); }
+          int  get_mining_intensity()              { return _bitname_client->get_mining_intensity(); }
 
+          mail::connection                  _mail_con;
+          bool                              _mail_connected;
+          void mail_connect_loop()
+          {
+             assert(!!_config );
+             _mail_connected = false;
+             while( !_quit_promise->ready() )
+             {
+                for( auto itr = _config->default_mail_nodes.begin(); itr != _config->default_mail_nodes.end(); ++itr )
+                {
+                     try {
+                        ilog( "mail connect ${e}", ("e",*itr) );
+                        _mail_con.connect(*itr);
+                        _mail_con.set_last_sync_time( _profile->get_last_sync_time() );
+
+                        bts::bitchat::client_info_message cli_info;
+                        cli_info.version   = 0;
+                        cli_info.sync_time = _profile->get_last_sync_time();
+                        _mail_con.send( mail::message( cli_info ) );
+                        _mail_connected = true;
+                        return;
+                     } 
+                     catch ( const fc::exception& e )
+                     {
+                        wlog( "${e}", ("e",e.to_detail_string()));
+                     }
+                }
+                fc::usleep( fc::seconds(3) );
+             }
+          }
           void connect_loop()
           {
              assert(!!_config );
              while( !_quit_promise->ready() )
              {
-                for( auto itr = _config->default_nodes.begin(); itr != _config->default_nodes.end(); ++itr )
+                for( auto itr = _config->default_nodes.begin();
+                    _quit_promise->ready() == false && itr != _config->default_nodes.end(); ++itr )
                 {
                      try {
                         ilog( "${e}", ("e",*itr) );
@@ -64,8 +106,48 @@ namespace bts {
                         wlog( "${e}", ("e",e.to_detail_string()));
                      }
                 }
+
+                if(_quit_promise->ready())
+                  break;
+
                 fc::usleep( fc::seconds(3) );
              }
+          }
+
+          // mail::connection...
+          virtual void on_connection_message( mail::connection& c, const mail::message& m )
+          {
+             if( m.type == bts::bitchat::encrypted_message::type )
+             {
+                auto pm = m.as<bts::bitchat::encrypted_message>();
+                for( auto key = _keys.begin(); key != _keys.end(); ++key )
+                {
+                   bts::bitchat::decrypted_message dm;
+                   if( pm.decrypt( *key, dm ) )
+                   {
+                      bitchat_message_received( dm );
+                   }
+                }
+                _profile->set_last_sync_time( pm.timestamp );
+             }
+             if( m.type == bts::bitchat::server_info_message::type )
+             {
+                 server_time_offset = fc::time_point::now() - m.as<bts::bitchat::server_info_message>().server_time;
+             }
+          }
+          fc::microseconds server_time_offset;
+
+          virtual void on_connection_disconnected( mail::connection& c )
+          {
+              _mail_connected = false;
+              start_mail_connect_loop();
+          }
+          void start_mail_connect_loop()
+          {
+              _mail_connect_loop_complete = fc::async( [=](){
+                  fc::usleep(fc::seconds(5));
+                  mail_connect_loop(); 
+                 } );
           }
 
 
@@ -121,7 +203,7 @@ namespace bts {
   {
   }
 
-  application::~application(){}
+  application::~application() {}
 
   void application::set_profile_directory( const fc::path& profile_dir )
   {
@@ -135,16 +217,22 @@ namespace bts {
 
      my->_server = std::make_shared<bts::network::server>();    
 
-     auto ext_ip = bts::network::get_external_ip();
-     ilog( "external IP ${ip}", ("ip",ext_ip) );
-     if( cfg.enable_upnp )
-     {
-        my->_upnp.map_port( cfg.network_port );
-        my->_server->set_external_ip( my->_upnp.external_ip() );
+     try {
+       auto ext_ip = bts::network::get_external_ip();
+       ilog( "external IP ${ip}", ("ip",ext_ip) );
+       if( cfg.enable_upnp )
+       {
+          my->_upnp.map_port( cfg.network_port );
+          my->_server->set_external_ip( my->_upnp.external_ip() );
+       }
+       else
+       {
+          my->_server->set_external_ip( ext_ip );
+       }
      }
-     else
+     catch (fc::exception e)
      {
-        my->_server->set_external_ip( ext_ip );
+        elog("Failed to connect to external IP address: ${e}", ("e",e.to_detail_string()));
      }
 
      bts::network::server::config server_cfg;
@@ -167,11 +255,19 @@ namespace bts {
      my->_rpc_server.configure( cfg.rpc_config );
      my->_rpc_server.set_bitname_client( my->_bitname_client );
 
+     // START CONNECT LOOP
+     my->start_mail_connect_loop();
+
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
 
   void application::connect_to_network()
   {
      my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
+  }
+
+  bool application::is_mail_connected()const
+  {
+     return my->_mail_connected;
   }
 
   bts::network::server_ptr application::get_network()const
@@ -238,6 +334,7 @@ namespace bts {
     {
        recv_keys.push_back( keychain.get_identity_key( itr->dac_id_string ) );
     }
+    my->_keys = recv_keys;
     my->_bitchat_client->set_receive_keys( recv_keys );
 
     return my->_profile = tmp_profile;
@@ -245,11 +342,13 @@ namespace bts {
 
   void  application::add_receive_key( const fc::ecc::private_key& k )
   {
+     my->_keys.push_back(k);
      my->_bitchat_client->add_receive_key( k );
   }
 
   profile_ptr   application::create_profile( const std::string& profile_name,
-                                             const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
+                                             const profile_config& cfg, const std::string& password, 
+                                             std::function<void(double)> progress )
   { try {
      auto pro_dir = my->_profile_dir / profile_name;
      fc::create_directories( pro_dir );
@@ -262,7 +361,10 @@ namespace bts {
        default_cfg.data_dir = pro_dir / "data";
        default_cfg.network_port = 0;
        default_cfg.rpc_config.port = 0;
-       default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
+       //DLNFIX Quiet error messages as there's no server listening to this port currently.
+       //       Let's setup a peer server soon somewhere that does handle connection attempts.
+       // default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
+       default_cfg.default_mail_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 7896 ) );
        
        fc::ofstream out(config_file);
        out << fc::json::to_pretty_string(default_cfg);
@@ -318,7 +420,10 @@ namespace bts {
      email_no_bcc_list.bcc_list.clear();
      bitchat::decrypted_message msg( email_no_bcc_list );
      msg.sign(from);
-     my->_bitchat_client->send_message( msg, to, 0/* chan 0 */ );
+     auto cipher_message = msg.encrypt( to );
+     cipher_message.timestamp = fc::time_point::now() + my->server_time_offset;
+     my->_mail_con.send( mail::message( cipher_message) );
+     //my->_bitchat_client->send_message( msg, to, 0/* chan 0 */ );
 
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
@@ -347,6 +452,12 @@ namespace bts {
   void application::quit()
   { try {
        my->_quit_promise->set_value();
+       if(my->_connect_loop_complete.valid())
+         my->_connect_loop_complete.wait();
+
+       if(my->_server)
+         my->_server->close();
+
        my.reset();
   } FC_RETHROW_EXCEPTIONS( warn, "" ) }
  

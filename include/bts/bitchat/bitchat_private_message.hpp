@@ -19,7 +19,9 @@ namespace bts { namespace bitchat {
        get_cache_inv_msg   = 4, ///< requests historic inventory
        get_priv_msg        = 5, ///< sent to request an private message in the active inventory
        get_cache_priv_msg  = 6, ///< sent to request an private message in the historic inventory
-       encrypted_msg       = 7  ///< a message encrypted to unknown receip (sent in reponse to get_priv_msg)
+       encrypted_msg       = 7, ///< a message encrypted to unknown receip (sent in reponse to get_priv_msg)
+       server_info_msg     = 8, ///< a message that gives clients server stats
+       client_info_msg     = 9  ///< a message that gives clients server stats
     };
 
     enum compression_type
@@ -155,6 +157,7 @@ namespace bts { namespace bitchat {
     struct private_email_message
     {
        static const private_message_type  type;
+       std::string                        from_keyhotee_id;
        std::vector<fc::ecc::public_key>   to_list;
        std::vector<fc::ecc::public_key>   cc_list;
        std::string                        subject;
@@ -221,5 +224,5 @@ FC_REFLECT( bts::bitchat::attachment, (filename)(body) )
 FC_REFLECT( bts::bitchat::encrypted_message, (noncea)(nonceb)(nonce)(timestamp)(dh_key)(check)(data) );
 FC_REFLECT( bts::bitchat::decrypted_message, (msg_type)(data)(sig_time)(from_sig) )
 FC_REFLECT( bts::bitchat::private_text_message, (msg) )
-FC_REFLECT( bts::bitchat::private_email_message, (to_list)(cc_list)(subject)(body)(attachments)(bcc_list) )
+FC_REFLECT( bts::bitchat::private_email_message, (from_keyhotee_id)(to_list)(cc_list)(subject)(body)(attachments)(bcc_list) )
 FC_REFLECT( bts::bitchat::private_status_message, (status)(status_message) )

@@ -1,5 +1,5 @@
 project( bitshares )
-cmake_minimum_required( VERSION 2.8.11 )
+cmake_minimum_required( VERSION 2.8.10 )
 
 #set( CMAKE_AUTOMOC ON )
 
@@ -118,6 +118,10 @@ set( sources
      src/bitchat/bitchat_message_cache.cpp
      src/bitchat/bitchat_message_db.cpp
 
+     src/mail/mail_connection.cpp
+     src/mail/mail_server.cpp
+     src/mail/stcp_socket.cpp
+
      src/addressbook/addressbook.cpp 
 
      src/blockchain/asset.cpp
@@ -174,4 +178,5 @@ add_subdirectory( server )
 #add_subdirectory( cli_client )
 add_subdirectory( tests )
 add_subdirectory( founder_reg_server )
+add_subdirectory( mail_server )
 

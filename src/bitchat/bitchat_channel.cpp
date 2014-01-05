@@ -117,11 +117,13 @@ namespace bts { namespace bitchat {
 
           void handle_cache_inv( const connection_ptr& c, chan_data& cdat, cache_inv_message msg )
           { try {
+               ilog( "${msg}", ("msg",msg) );
                c->send( network::message( get_cache_priv_message( msg.items ) ) );
           } FC_RETHROW_EXCEPTIONS( warn, "", ("msg",msg) ) }
 
           void handle_get_cache_priv_msg(const connection_ptr& c, chan_data& cdat, get_cache_priv_message msg )
           { try {
+              ilog( "${msg}", ("msg",msg) );
               for( auto itr = msg.items.begin(); itr != msg.items.end(); ++itr )
               {
                  auto msg = _message_cache.fetch( *itr );
@@ -131,6 +133,7 @@ namespace bts { namespace bitchat {
 
           void handle_get_cache_inv( const connection_ptr& c, chan_data& cdat, get_cache_inv_message msg)
           { try { 
+              ilog( "${msg}", ("msg",msg) );
               // TODO: rate limit this message from c
               cache_inv_message reply;
               reply.items = _message_cache.get_inventory( msg.start_time, msg.end_time );
@@ -242,6 +245,7 @@ namespace bts { namespace bitchat {
            */
           void handle_get_inv( const connection_ptr& c, chan_data& cd, const get_inv_message& msg )
           {
+             ilog( "${msg}", ("msg",msg) );
              inv_message reply;
              for( auto itr = msg_time_index.lower_bound( fc::time_point(msg.after) ); itr != msg_time_index.end(); ++itr )
              {
@@ -257,6 +261,7 @@ namespace bts { namespace bitchat {
 
           void handle_get_priv( const connection_ptr& c, chan_data& cd, const get_priv_message& msg )
           {
+             ilog( "${msg}", ("msg",msg) );
              // TODO: throttle the rate at which get_priv may be called for a given connection
              for( auto itr = msg.items.begin(); itr != msg.items.end(); ++itr )
              {
@@ -271,6 +276,7 @@ namespace bts { namespace bitchat {
 
           void handle_priv_msg( const connection_ptr& c, chan_data& cd, encrypted_message&& msg )
           {
+             ilog( "${msg}", ("msg",msg) );
               auto mid = msg.id();
               // TODO: verify that we requested this message
               

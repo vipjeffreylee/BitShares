@@ -21,6 +21,13 @@ namespace bts { namespace blockchain {
        std::vector<fc::ecc::private_key>                    extra_keys;
        std::vector<bts::blockchain::signed_transaction>     out_trx;
        std::vector<bts::blockchain::signed_transaction>     in_trx;
+       std::vector<bts::blockchain::signed_transaction>     all_transactions;
+       std::unordered_map<output_reference,trx_output>      open_bids;
+       std::unordered_map<output_reference,trx_output>      open_shorts;
+       std::unordered_map<output_reference,trx_output>      open_short_sells;
+       std::unordered_map<output_reference,trx_output>      closed_bids;
+       std::unordered_map<output_reference,trx_output>      covered_shorts;
+       std::unordered_map<output_reference,trx_output>      closed_short_sells;
    };
 } } // bts::blockchain
 
@@ -32,7 +39,15 @@ FC_REFLECT( bts::blockchain::wallet_data,
             (send_addresses)
             (extra_keys)
             (out_trx)
-            (in_trx) )
+            (in_trx) 
+            (all_transactions)
+            (open_bids)
+            (open_shorts)
+            (open_short_sells)
+            (closed_bids)
+            (covered_shorts)
+            (closed_short_sells)
+            )
 
 namespace bts { namespace blockchain {
   
@@ -139,14 +154,14 @@ namespace bts { namespace blockchain {
    }
 
    signed_transaction    wallet::transfer( const asset& amnt, const bts::address& to )
-   {
+   { try {
        auto   change_address = get_new_address();
 
        std::unordered_set<bts::address> req_sigs; 
        asset  total_in;
 
        signed_transaction trx; 
-       trx.inputs = my->collect_inputs( amnt, total_in, req_sigs );
+       trx.inputs    = my->collect_inputs( amnt, total_in, req_sigs );
 
        asset change = total_in - amnt;
 
@@ -169,7 +184,7 @@ namespace bts { namespace blockchain {
           }
           else
           {
-             elog( "NOT ENOUGH TO COVER AMOUNT + FEE... GRAB MORE.." );
+              elog( "NOT ENOUGH TO COVER AMOUNT + FEE... GRAB MORE.." );
               // TODO: this function should be recursive here, but having 2x the fee should be good enough
               fee = fee + fee; // double the fee in this case to cover the growth
               req_sigs.clear();
@@ -189,29 +204,23 @@ namespace bts { namespace blockchain {
            fee = fee + fee; // double the fee in this case to cover the growth
            asset total_fee_in;
            auto extra_in = my->collect_inputs( fee, total_fee_in, req_sigs );
-     //      trx.inputs.insert( trx.inputs.end(), extra_in.begin(), extra_in.end() );
-     //      trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), total_fee_in - fee ) );
+           trx.inputs.insert( trx.inputs.end(), extra_in.begin(), extra_in.end() );
+           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), total_fee_in - fee ) );
        }
 
        trx.sigs.clear();
-       trx.stake = my->_stake;
        my->sign_transaction(trx, req_sigs);
-
-
-       for( auto itr = trx.inputs.begin(); itr != trx.inputs.end(); ++itr )
-       {
-           mark_as_spent( itr->output_ref );
-       }
        
        return trx;
-   }
+   } FC_RETHROW_EXCEPTIONS( warn, "${amnt} to ${to}", ("amnt",amnt)("to",to) ) }
+
    void wallet::mark_as_spent( const output_reference& r )
    {
-      wlog( "MARK SPENT ${s}", ("s",r) );
+     // wlog( "MARK SPENT ${s}", ("s",r) );
       auto itr = my->_unspent_outputs.find(r);
       if( itr == my->_unspent_outputs.end() )
       {
-          wlog( "... unknown output.." );
+     //     wlog( "... unknown output.." );
           return;
       }
       my->_spent_outputs[r] = itr->second;
@@ -223,37 +232,67 @@ namespace bts { namespace blockchain {
       ilog( "Sign ${trx}  ${addr}", ("trx",trx.id())("addr",addr));
       auto priv_key_idx = my->_my_addresses.find(addr);
       FC_ASSERT( priv_key_idx != my->_my_addresses.end() );
+      trx.stake = my->_stake;
+      trx.timestamp = fc::time_point::now();
       trx.sign( my->_data.extra_keys[priv_key_idx->second] );
+
+      for( auto itr = trx.inputs.begin(); itr != trx.inputs.end(); ++itr )
+      {
+          mark_as_spent( itr->output_ref );
+      }
    }
 
-   signed_transaction    wallet::bid( const asset& amnt, const price& ratio )
-   {
-       signed_transaction trx; 
-       return trx;
-   }
-
-   signed_transaction    wallet::cancel_bid( const transaction_id_type& bid )
-   {
-       signed_transaction trx; 
-       return trx;
-   }
-  
-   /**
-    *  Creates a transaction with two outputs:
-    *      1) claim_by_signature of amnt spendable by this wallet
-    *      2) claim_by_cover of collateral coverable by this wallet 
-    *
-    *  Whether or not this transaction is valid depends upon the current market price
-    *  of amnt.unit relative to PTS.  This method does not concern itself with the details
-    *  of whether or not the resulting transaction is valid, because that depends upon 
-    *  changing context.  
-    *
-    *  To be valid at the time it is included in a block, collateral must be worth 2x the
-    *  value of amnt.
-    *
-    *  @param collateral.unit must be PTS
+   /** When bidding on an asset you specify the asset you have and the price you would like
+    * to sell it at.
     */
-   signed_transaction    wallet::borrow( const asset& amnt, const asset& collateral )
+   signed_transaction    wallet::bid( const asset& amnt, const price& ratio )
+   { try {
+       auto   change_address = get_new_address();
+
+       signed_transaction trx; 
+       std::unordered_set<bts::address> req_sigs; 
+       asset  total_in;
+
+       asset amnt_with_fee = amnt; // TODO: add fee of .1% 
+
+       trx.inputs    = my->collect_inputs( amnt_with_fee, total_in, req_sigs );
+       asset change  = total_in - amnt;
+
+       trx.outputs.push_back( trx_output( claim_by_bid_output( change_address, ratio ), amnt) );
+       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
+
+       trx.sigs.clear();
+       my->sign_transaction( trx, req_sigs );
+
+       return trx;
+   } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",amnt)("price",ratio) ) }
+
+   signed_transaction    wallet::short_sell( const asset& amnt, const price& ratio )
+   { try {
+       FC_ASSERT( amnt.unit != asset::bts, "You cannot short sell BTS" );
+       auto   change_address = get_new_address();
+
+       auto bts_in = amnt * ratio;
+
+       signed_transaction trx; 
+       std::unordered_set<bts::address> req_sigs; 
+       asset  total_in;
+
+       asset in_with_fee = bts_in; // TODO: add fee proportional to trx size...
+
+       trx.inputs    = my->collect_inputs( in_with_fee, total_in, req_sigs );
+       asset change  = total_in - bts_in;
+
+       trx.outputs.push_back( trx_output( claim_by_long_output( change_address, ratio ), amnt) );
+       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
+
+       trx.sigs.clear();
+       my->sign_transaction( trx, req_sigs );
+
+       return trx;
+   } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",amnt)("price",ratio) ) }
+
+   signed_transaction    wallet::cancel_bid( const output_reference& bid )
    {
        signed_transaction trx; 
 
@@ -264,6 +303,48 @@ namespace bts { namespace blockchain {
    {
        signed_transaction trx; 
        return trx;
+   }
+
+   // all outputs are claim_by_bid
+   std::unordered_map<output_reference,trx_output> wallet::get_open_bids()
+   {
+      return my->_data.open_bids;
+   }
+
+   // all outputs are claim_by_long
+   std::unordered_map<output_reference,trx_output> wallet::get_open_short_sell()
+   {
+      return my->_data.open_short_sells;
+   }
+
+   // all outputs are claim_by_cover,
+   std::unordered_map<output_reference,trx_output> wallet::get_open_shorts()
+   {
+      return my->_data.open_shorts;
+   }
+
+
+   std::unordered_map<output_reference,trx_output> wallet::get_closed_bids()
+   {
+      return my->_data.closed_bids;
+   }
+
+   std::unordered_map<output_reference,trx_output> wallet::get_closed_short_sell()
+   {
+      return my->_data.closed_short_sells;
+   }
+
+   std::unordered_map<output_reference,trx_output> wallet::get_covered_shorts()
+   {
+      return my->_data.covered_shorts;
+   }
+
+
+
+   /** returns all transactions issued */
+   std::vector<signed_transaction> wallet::get_transaction_history()
+   {
+      return my->_data.all_transactions;
    }
 
    /**
@@ -340,5 +421,6 @@ namespace bts { namespace blockchain {
        }
        std::cerr<<"===========================================================\n";
    }
+
     
 } } // namespace bts::blockchain

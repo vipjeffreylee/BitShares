@@ -21,8 +21,8 @@ namespace bts { namespace blockchain  {
 
       signed_transaction coinbase;
       coinbase.version = 0;
-      coinbase.valid_after = 0;
-      coinbase.valid_blocks = 0;
+    //  coinbase.valid_after = 0;
+    //  coinbase.valid_blocks = 0;
 
       // TODO: init from PTS here...
       coinbase.outputs.push_back( 

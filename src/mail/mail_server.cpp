@@ -1,5 +1,11 @@
-#include <bts/network/server.hpp>
-#include <bts/network/connection.hpp>
+#include <mail/mail_server.hpp>
+#include <mail/mail_connection.hpp>
+#include <mail/message.hpp>
+#include <mail/stcp_socket.hpp>
+#include <bts/db/level_map.hpp>
+#include <bts/bitchat/bitchat_private_message.hpp>
+#include <bts/bitchat/bitchat_messages.hpp>
+#include <fc/time.hpp>
 #include <fc/network/tcp_socket.hpp>
 #include <fc/reflect/variant.hpp>
 #include <fc/thread/thread.hpp>
@@ -12,7 +18,7 @@
 #include <unordered_map>
 #include <map>
 
-namespace bts { namespace network {
+namespace mail {
 
   namespace detail
   {
@@ -20,8 +26,7 @@ namespace bts { namespace network {
      {
         public:
           server_impl()
-          :ser_del(nullptr),
-          cancel_loop(new fc::promise<void>)
+          :ser_del(nullptr)
           {}
 
           ~server_impl()
@@ -33,16 +38,16 @@ namespace bts { namespace network {
               ilog( "closing connections..." );
               try 
               {
-                cancel_loop->set_value();
-
-                for( auto i = pending_connections.begin(); i != pending_connections.end(); ++i )
+                  for( auto i = pending_connections.begin(); i != pending_connections.end(); ++i )
                   {
                     (*i)->close();
                   }
                   tcp_serv.close();
-
                   if( accept_loop_complete.valid() )
-                    accept_loop_complete.wait();
+                  {
+                      accept_loop_complete.cancel();
+                      accept_loop_complete.wait();
+                  }
               } 
               catch ( const fc::canceled_exception& e )
               {
@@ -60,6 +65,8 @@ namespace bts { namespace network {
           server_delegate*                                            ser_del;
           fc::ip::address                                             _external_ip;
 
+          bts::db::level_map<fc::time_point,bts::bitchat::encrypted_message>    _message_db;
+
           std::unordered_map<fc::ip::endpoint,connection_ptr>         connections;
 
           std::set<connection_ptr>                                    pending_connections;
@@ -67,31 +74,51 @@ namespace bts { namespace network {
           fc::tcp_server                                              tcp_serv;
                                                                      
           fc::future<void>                                            accept_loop_complete;
-          fc::promise<void>::ptr                                      cancel_loop;
-          std::unordered_map<uint32_t, channel_ptr>                   channels;
-
+                                                                     
+          /**
+           *  This is called every time a message is received from c, there are only two
+           *  messages supported:  seek to time and broadcast.  When a message is 
+           *  received it goes into the database which all of the connections are 
+           *  reading from and sending to their clients.
+           *
+           *  The difficulty required adjusts every 5 minutes with the goal of maintaining
+           *  an average data rate of 1.5 kb/sec from all connections.
+           */
           virtual void on_connection_message( connection& c, const message& m )
           {
-             auto itr = channels.find( m.channel().id() );
-             if( itr != channels.end() )
-             {
-                // TODO: perhaps do this ASYNC?
-                itr->second->handle_message( c.shared_from_this(), m );
-             }
-             else
-             {
-                wlog( "received message from unknown channel ${c} ", ("c", m.channel()) ); 
-             }
+               // TODO: perhaps do this ASYNC?
+               // itr->second->handle_message( c.shared_from_this(), m );
+               if( m.type == bts::bitchat::encrypted_message::type )
+               {
+                   auto pm = m.as<bts::bitchat::encrypted_message>();
+                   if( pm.validate_proof() )
+                   {
+                      _message_db.store( fc::time_point::now(), pm );
+                   }
+               }
+               else if( m.type == bts::bitchat::client_info_message::type )
+               {
+                   auto ci = m.as<bts::bitchat::client_info_message>();
+                   if( c.get_last_sync_time() == fc::time_point() )
+                   {
+                      c.exec_sync_loop();
+                   }
+                   c.set_last_sync_time( ci.sync_time );
+               }
+               else
+               {
+                   c.close();
+               }
           }
+
 
           virtual void on_connection_disconnected( connection& c )
           {
             try {
               ilog( "cleaning up connection after disconnect ${e}", ("e", c.remote_endpoint()) );
               auto cptr = c.shared_from_this();
-              FC_ASSERT( ser_del != nullptr );
               FC_ASSERT( cptr );
-              ser_del->on_disconnected( cptr );
+              if( ser_del ) ser_del->on_disconnected( cptr );
               auto itr = connections.find(c.remote_endpoint());
               connections.erase( itr ); //c.remote_endpoint() );
             } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
@@ -116,7 +143,7 @@ namespace bts { namespace network {
                 
                 auto con = std::make_shared<connection>(s,this);
                 connections[con->remote_endpoint()] = con;
-                ser_del->on_connected( con );
+                if( ser_del ) ser_del->on_connected( con );
              } 
              catch ( const fc::canceled_exception& e )
              {
@@ -139,7 +166,7 @@ namespace bts { namespace network {
           {
              try
              {
-                while( !cancel_loop->ready() )
+                while( !accept_loop_complete.canceled() )
                 {
                    stcp_socket_ptr sock = std::make_shared<stcp_socket>();
                    tcp_serv.accept( sock->get_socket() );
@@ -183,16 +210,6 @@ namespace bts { namespace network {
   server::~server()
   { }
 
-  void server::subscribe_to_channel( const channel_id& chan, const channel_ptr& c )
-  {
-     FC_ASSERT( my->channels.find(chan.id()) == my->channels.end() );
-     my->channels[chan.id()] = c;
-  }
-
-  void server::unsubscribe_from_channel( const channel_id&  chan )
-  {
-     my->channels.erase(chan.id());
-  }
 
   void server::set_delegate( server_delegate* sd )
   {
@@ -207,10 +224,10 @@ namespace bts { namespace network {
       ilog( "listening for stcp connections on port ${p}", ("p",c.port) );
       my->tcp_serv.listen( c.port );
       my->accept_loop_complete = fc::async( [=](){ my->accept_loop(); } ); 
+      my->_message_db.open( "message_db" );
+
     } FC_RETHROW_EXCEPTIONS( warn, "error configuring server", ("config", c) );
   }
-
-
 
   std::vector<connection_ptr> server::get_connections()const
   { 
@@ -222,6 +239,8 @@ namespace bts { namespace network {
       }
       return cons;
   }
+
+  /*
   void server::broadcast( const message& m )
   {
       for( auto itr = my->connections.begin(); itr != my->connections.end(); ++itr )
@@ -236,59 +255,13 @@ namespace bts { namespace network {
         }
       }
   }
+  */
 
-  connection_ptr server::connect_to( const fc::ip::endpoint& ep )
+  void server::close()
   {
-     try
-     {
-       ilog( "connect to ${ep}", ("ep",ep) );
-       auto current = my->connections.find(ep);
-       if( current != my->connections.end() )
-       {
-          wlog( "already connected to ${ep}", ("ep",ep) );
-          return current->second;
-       }
-       FC_ASSERT( my->ser_del != nullptr );
-       connection_ptr con = std::make_shared<connection>( my.get() );
-       con->connect(ep);
-       my->connections[con->remote_endpoint()] = con;
-       my->ser_del->on_connected( con );
-       return con;
-     } FC_RETHROW_EXCEPTIONS( warn, "unable to connect to ${ep}", ("ep",ep) );
+    try {
+      my->close();
+    } FC_RETHROW_EXCEPTIONS( warn, "error closing server socket" );
   }
 
-
-   void server::close()
-   {
-     try {
-       my->close();
-     } FC_RETHROW_EXCEPTIONS( warn, "error closing server socket" );
-   }
-
-   channel_ptr server::get_channel( const channel_id& chan )const
-   {
-      auto itr = my->channels.find(chan.id());
-      if( itr == my->channels.end() )
-      {
-         return nullptr;
-      }
-      return itr->second;
-   }
-
-   void server::set_external_ip( const fc::ip::address& ext_ip )
-   {
-        my->_external_ip = ext_ip;
-   }
-
-   fc::ip::address server::get_external_ip()const
-   {
-        return my->_external_ip;
-   }
-   fc::ip::endpoint server::get_external_endpoint()const
-   {
-        return fc::ip::endpoint(my->_external_ip, my->cfg.port);
-   }
-
-
-
-} } // namespace bts::network
+} // namespace mail
