@@ -29,6 +29,7 @@ namespace bts { namespace blockchain {
 
            signed_transaction    transfer( const asset& amnt, const bts::address& to );
            signed_transaction    bid( const asset& amnt, const price& ratio );
+           signed_transaction    short_bid( const asset& amnt, const price& ratio );
            signed_transaction    cancel_bid( const transaction_id_type& bid );
 
            /**
