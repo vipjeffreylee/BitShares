@@ -23,8 +23,8 @@ namespace bts { namespace blockchain {
        std::vector<bts::blockchain::signed_transaction>     in_trx;
        std::vector<bts::blockchain::signed_transaction>     all_transactions;
        std::unordered_map<output_reference,trx_output>      open_bids;
-       std::unordered_map<output_reference,trx_output>      open_shorts;
-       std::unordered_map<output_reference,trx_output>      open_short_sells;
+       std::unordered_map<output_reference,trx_output>      open_shorts; // short positions already open (need to be covered)
+       std::unordered_map<output_reference,trx_output>      open_short_sells; // short positions not yet executed
        std::unordered_map<output_reference,trx_output>      closed_bids;
        std::unordered_map<output_reference,trx_output>      covered_shorts;
        std::unordered_map<output_reference,trx_output>      closed_short_sells;
@@ -459,6 +459,7 @@ namespace bts { namespace blockchain {
               for( uint32_t out_idx = 0; out_idx < trx.outputs.size(); ++out_idx )
               {
                   const trx_output& out = trx.outputs[out_idx];
+                  auto out_ref          = output_reference( trx.id(),out_idx );
                   switch( out.claim_func )
                   {
                      case claim_by_signature:
@@ -479,6 +480,72 @@ namespace bts { namespace blockchain {
                         else
                         {
                             std::cerr<<"skip block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"] => "<<std::string(owner)<<"\n";
+                        }
+                        break;
+                     }
+                     case claim_by_bid:
+                     {
+                        auto bid = out.as<claim_by_bid_output>();
+                        auto aitr = my->_my_addresses.find(bid.pay_address);
+                        if( aitr != my->_my_addresses.end() )
+                        {
+                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            {
+                               my->_data.open_bids[out_ref] = trx.outputs[out_idx];
+                            }
+                            else
+                            {
+                               my->_data.open_bids.erase(out_ref);
+                               my->_data.closed_bids[out_ref] = trx.outputs[out_idx];
+                            }
+                        }
+                        else
+                        {
+                           // skip, it doesn't belong to me
+                        }
+                        break;
+                     }
+                     case claim_by_long:
+                     {
+                        auto short_sell = out.as<claim_by_long_output>();
+                        auto aitr = my->_my_addresses.find(short_sell.pay_address);
+                        if( aitr != my->_my_addresses.end() )
+                        {
+                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            {
+                               my->_data.open_short_sells[out_ref] = trx.outputs[out_idx];
+                            }
+                            else
+                            {
+                               my->_data.open_short_sells.erase(out_ref);
+                               my->_data.closed_short_sells[out_ref] = trx.outputs[out_idx];
+                            }
+                        }
+                        else
+                        {
+                           // skip, it doesn't belong to me
+                        }
+                        break;
+                     }
+                     case claim_by_cover:
+                     {
+                        auto cover = out.as<claim_by_cover_output>();
+                        auto aitr = my->_my_addresses.find(cover.owner);
+                        if( aitr != my->_my_addresses.end() )
+                        {
+                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            {
+                               my->_data.open_shorts[out_ref] = trx.outputs[out_idx];
+                            }
+                            else
+                            {
+                               my->_data.open_shorts.erase(out_ref);
+                               my->_data.covered_shorts[out_ref] = trx.outputs[out_idx];
+                            }
+                        }
+                        else
+                        {
+                           // skip, it doesn't belong to me
                         }
                         break;
                      }
@@ -503,6 +570,75 @@ namespace bts { namespace blockchain {
               case claim_by_signature:
                  std::cerr<< std::string(itr->second.as<claim_by_signature_output>().owner);
                  break;
+              default:
+                 std::cerr<<"??";
+           }
+           std::cerr<<"\n";
+       }
+       std::cerr<<"\n";
+       std::cerr<<"Open Bids: \n";
+       for( auto itr = my->_data.open_bids.begin(); itr != my->_data.open_bids.end(); ++itr )
+       {
+           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+           std::cerr<<std::string(itr->second.get_amount())<<" ";
+           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
+
+
+           switch( itr->second.claim_func )
+           {
+              case claim_by_bid:
+                 std::cerr<< std::string(itr->second.as<claim_by_bid_output>().ask_price);
+                 std::cerr<< " owner: ";
+                 std::cerr<< std::string(itr->second.as<claim_by_bid_output>().pay_address);
+                 std::cerr<< " min trade: "<< itr->second.as<claim_by_bid_output>().min_trade;
+                 break;
+              default:
+                 std::cerr<<"??";
+           }
+           std::cerr<<"\n";
+       }
+       std::cerr<<"\nOpen Short Sells: \n";
+       for( auto itr = my->_data.open_short_sells.begin(); itr != my->_data.open_short_sells.end(); ++itr )
+       {
+           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+           std::cerr<<std::string(itr->second.get_amount())<<" ";
+           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
+
+           switch( itr->second.claim_func )
+           {
+              case claim_by_long:
+                 std::cerr<< std::string(itr->second.as<claim_by_long_output>().ask_price);
+                 std::cerr<< " owner: ";
+                 std::cerr<< std::string(itr->second.as<claim_by_long_output>().pay_address);
+                 std::cerr<< " min trade: "<< itr->second.as<claim_by_long_output>().min_trade;
+                 break;
+              default:
+                 std::cerr<<"??";
+           }
+           std::cerr<<"\n";
+       }
+
+       std::cerr<<"\nOpen Margin Positions: \n";
+       for( auto itr = my->_data.open_shorts.begin(); itr != my->_data.open_shorts.end(); ++itr )
+       {
+           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+           std::cerr<<std::string(itr->second.get_amount())<<" ";
+           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
+
+           switch( itr->second.claim_func )
+           {
+              case claim_by_cover:
+              {
+                 auto cover = itr->second.as<claim_by_cover_output>();
+                 auto payoff = asset(cover.payoff_amount,cover.payoff_unit);
+                 auto payoff_threshold = asset(cover.payoff_amount*1.5,cover.payoff_unit);
+                 std::cerr<< std::string(payoff);
+                 std::cerr<< " owner: ";
+                 std::cerr<< std::string(itr->second.as<claim_by_cover_output>().owner);
+                 // this is the break even price... we actually need to cover at half the price?
+                 std::cerr<< " price: " << std::string(payoff_threshold / itr->second.get_amount());
+                 break;
+              }
               default:
                  std::cerr<<"??";
            }
