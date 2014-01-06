@@ -93,12 +93,24 @@ namespace bts { namespace blockchain {
                    }
                    FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
               }
+
+
+              /** completes a transaction signing it and logging it, this is different than wallet::sign_transaction which
+               *  merely signs the transaction without checking anything else or storing the transaction.
+               **/
               void sign_transaction( signed_transaction& trx, const std::unordered_set<address>& addresses )
               {
+                   trx.stake = _stake;
+                   trx.timestamp = fc::time_point::now();
                    for( auto itr = addresses.begin(); itr != addresses.end(); ++itr )
                    {
                       self->sign_transaction( trx, *itr );
                    }
+                   for( auto itr = trx.inputs.begin(); itr != trx.inputs.end(); ++itr )
+                   {
+                       self->mark_as_spent( itr->output_ref );
+                   }
+                   _data.all_transactions.push_back(trx);
               }
               wallet* self;
       };
@@ -144,7 +156,7 @@ namespace bts { namespace blockchain {
       my->_data.last_used_key++;
       auto new_key = my->_data.base_key.child( my->_data.last_used_key );
       import_key(new_key);
-      bts::address addr = new_key.get_public_key();
+      //bts::address addr = new_key.get_public_key();
       return  new_key.get_public_key();
    }
 
@@ -232,14 +244,7 @@ namespace bts { namespace blockchain {
       ilog( "Sign ${trx}  ${addr}", ("trx",trx.id())("addr",addr));
       auto priv_key_idx = my->_my_addresses.find(addr);
       FC_ASSERT( priv_key_idx != my->_my_addresses.end() );
-      trx.stake = my->_stake;
-      trx.timestamp = fc::time_point::now();
       trx.sign( my->_data.extra_keys[priv_key_idx->second] );
-
-      for( auto itr = trx.inputs.begin(); itr != trx.inputs.end(); ++itr )
-      {
-          mark_as_spent( itr->output_ref );
-      }
    }
 
    /** When bidding on an asset you specify the asset you have and the price you would like
@@ -264,15 +269,57 @@ namespace bts { namespace blockchain {
        trx.sigs.clear();
        my->sign_transaction( trx, req_sigs );
 
+       uint32_t trx_bytes = fc::raw::pack( trx ).size();
+       asset    fee( my->_current_fee_rate * trx_bytes );
+
+       if( amnt.unit == asset::bts )
+       {
+            if( total_in >= amnt + fee )
+            {
+                change = change - fee;
+                trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
+                if( change == asset() ) trx.outputs.pop_back(); // no change required
+            }
+            else
+            {
+              elog( "NOT ENOUGH TO COVER AMOUNT + FEE... GRAB MORE.." );
+              fee = fee + fee; // double the fee in this case to cover the growth
+              req_sigs.clear();
+              total_in = asset();
+              trx.inputs = my->collect_inputs( amnt+fee, total_in, req_sigs );
+              change =  total_in - amnt - fee;
+              trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
+              if( change == asset() ) trx.outputs.pop_back(); // no change required
+            }
+       }
+       else
+       {
+           if( change.amount == fc::uint128_t(0) ) trx.outputs.pop_back(); // no change required
+
+           // TODO: this function should be recursive here, but having 2x the fee should be good enough, some
+           // transactions may overpay in this case, but this can be optimized later to reduce fees.. for now
+           fee = fee + fee; // double the fee in this case to cover the growth
+           asset total_fee_in;
+           auto extra_in = my->collect_inputs( fee, total_fee_in, req_sigs );
+           trx.inputs.insert( trx.inputs.end(), extra_in.begin(), extra_in.end() );
+           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), total_fee_in - fee ) );
+       }
+
+       trx.sigs.clear();
+       my->sign_transaction( trx, req_sigs );
+
+       my->_data.open_bids[ output_reference( trx.id(), 0 ) ] = trx.outputs[0];
+
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",amnt)("price",ratio) ) }
 
-   signed_transaction    wallet::short_sell( const asset& amnt, const price& ratio )
+   signed_transaction    wallet::short_sell( const asset& borrow_amnt, const price& ratio )
    { try {
-       FC_ASSERT( amnt.unit != asset::bts, "You cannot short sell BTS" );
+       auto   amnt = borrow_amnt * ratio;
+       FC_ASSERT( borrow_amnt.unit != asset::bts, "You cannot short sell BTS" );
        auto   change_address = get_new_address();
 
-       auto bts_in = amnt * ratio;
+       auto bts_in = amnt;
 
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
@@ -289,15 +336,57 @@ namespace bts { namespace blockchain {
        trx.sigs.clear();
        my->sign_transaction( trx, req_sigs );
 
+       uint32_t trx_bytes = fc::raw::pack( trx ).size();
+       asset    fee( my->_current_fee_rate * trx_bytes );
+
+       if( total_in >= amnt + fee )
+       {
+           change = change - fee;
+           trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
+           if( change == asset() ) trx.outputs.pop_back(); // no change required
+       }
+       else
+       {
+           elog( "NOT ENOUGH TO COVER AMOUNT + FEE... GRAB MORE.." );
+           // TODO: this function should be recursive here, but having 2x the fee should be good enough
+           fee = fee + fee; // double the fee in this case to cover the growth
+           req_sigs.clear();
+           total_in = asset();
+           trx.inputs = my->collect_inputs( amnt+fee, total_in, req_sigs );
+           change =  total_in - amnt - fee;
+           trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
+           if( change == asset() ) trx.outputs.pop_back(); // no change required
+       }
+
+       trx.sigs.clear();
+       my->sign_transaction(trx, req_sigs);
+
+
+       my->_data.open_short_sells[ output_reference( trx.id(), 0 ) ] = trx.outputs[0];
+
        return trx;
-   } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",amnt)("price",ratio) ) }
+   } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",borrow_amnt)("price",ratio) ) }
 
    signed_transaction    wallet::cancel_bid( const output_reference& bid )
-   {
+   { try {
        signed_transaction trx; 
+       std::unordered_set<bts::address> req_sigs; 
+       auto bid_out_itr = my->_data.open_bids.find(bid);
+       FC_ASSERT( bid_out_itr != my->_data.open_bids.end() );
+
+       auto bid_out = bid_out_itr->second.as<claim_by_bid_output>();
+
+       // TODO: collect fee for this transaction
+       
+       trx.inputs.push_back( trx_input( bid ) );
+       trx.outputs.push_back( trx_output( claim_by_signature_output( bid_out.pay_address ), 
+                                          bid_out_itr->second.amount, bid_out_itr->second.unit ) );
+
+       req_sigs.insert( bid_out.pay_address);
+       my->sign_transaction( trx, req_sigs );
 
        return trx;
-   }
+   } FC_RETHROW_EXCEPTIONS( warn, "unable to find bid", ("bid",bid) ) }
 
    signed_transaction    wallet::cover( const asset& amnt )
    {

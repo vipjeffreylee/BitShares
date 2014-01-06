@@ -146,6 +146,26 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
         wallet.dump();
      }
 
+     auto bid1 = wallet.bid( asset(2*COIN,asset::bts),  asset(3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     trxs.resize(1);
+     trxs[0] = bid1;
+     auto block3 = chain.generate_next_block( trxs );
+     chain.push_block( block3 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block2.block_num );
+     wallet.dump();
+
+
+     auto short1 = wallet.short_sell( asset(2*COIN,asset::usd),  asset(3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     trxs.resize(1);
+     trxs[0] = short1;
+     auto block4 = chain.generate_next_block( trxs );
+     chain.push_block( block4 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block2.block_num );
+     wallet.dump();
+
+
      html << bts::blockchain::pretty_print( genesis, chain );
      html << bts::blockchain::pretty_print( block1, chain );
      html << bts::blockchain::pretty_print( block2, chain );
@@ -154,9 +174,15 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      {
         html << bts::blockchain::pretty_print( blcks[i], chain );
      }
+     html << bts::blockchain::pretty_print( block3, chain );
+     html << bts::blockchain::pretty_print( block4, chain );
 
      wallet.scan_chain( chain, block2.block_num );
      wallet.dump();
+
+
+
+
 
    //  auto trx2    = wallet.transfer( 2000*COIN, asset::bts, a2 );
    //  auto trx3    = wallet.transfer( 3000*COIN, asset::bts, a3 );
