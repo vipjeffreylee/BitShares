@@ -35,6 +35,7 @@ struct output_reference
      return a.trx_hash == b.trx_hash ? a.output_idx < b.output_idx : a.trx_hash < b.trx_hash;
   }
 };
+//static_assert( sizeof(output_reference) == (sizeof(uint160)+1), "output_reference should pack tightly" );
 
 /**
  *  Defines the source of an input used 
@@ -160,7 +161,7 @@ namespace std {
   {
      size_t operator()( const bts::blockchain::output_reference& e )const
      {
-        return fc::city_hash64( (char*)&e, sizeof(e) );
+        return fc::city_hash64( (char*)&e.trx_hash, sizeof(e.trx_hash) )^e.output_idx;
      }
   };
 
