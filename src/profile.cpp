@@ -14,6 +14,8 @@
 #include <fc/io/fstream.hpp>
 #include <fc/filesystem.hpp>
 
+#define KEYHOTEE_MASTER_KEY_FILE ".keyhotee_master.key"
+
 namespace bts {
 
   namespace detail 
@@ -82,7 +84,7 @@ namespace bts {
        fc::create_directories( profile_dir );
        
        auto profile_cfg_key  = fc::sha512::hash( password.c_str(), password.size() );
-       fc::aes_save( profile_dir / ".stretched_seed", profile_cfg_key, fc::raw::pack(stretched_seed) );
+       fc::aes_save( profile_dir / KEYHOTEE_MASTER_KEY_FILE, profile_cfg_key, fc::raw::pack(stretched_seed) );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir)("config",cfg) ) }
 
   std::string profile::get_name()const
@@ -105,7 +107,15 @@ namespace bts {
       fc::create_directories( profile_dir / "chat" );
 
       auto profile_cfg_key         = fc::sha512::hash( password.c_str(), password.size() );
-      auto stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
+      std::vector<char> stretched_seed_data;
+      try {
+        stretched_seed_data     = fc::aes_load( profile_dir / KEYHOTEE_MASTER_KEY_FILE, profile_cfg_key );
+      }
+      catch (fc::exception& e)
+      { //try to open legacy name for key file
+        wlog("Could not open " KEYHOTEE_MASTER_KEY_FILE ", trying to open legacy key file (.strecthed_seed).");
+        stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
+      }
      
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
       my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );

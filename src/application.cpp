@@ -347,7 +347,8 @@ namespace bts {
   }
 
   profile_ptr   application::create_profile( const std::string& profile_name,
-                                             const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
+                                             const profile_config& cfg, const std::string& password, 
+                                             std::function<void(double)> progress )
   { try {
      auto pro_dir = my->_profile_dir / profile_name;
      fc::create_directories( pro_dir );
@@ -360,7 +361,9 @@ namespace bts {
        default_cfg.data_dir = pro_dir / "data";
        default_cfg.network_port = 0;
        default_cfg.rpc_config.port = 0;
-       default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
+       //DLNFIX Quiet error messages as there's no server listening to this port currently.
+       //       Let's setup a peer server soon somewhere that does handle connection attempts.
+       // default_cfg.default_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 9876 ) );
        default_cfg.default_mail_nodes.push_back( fc::ip::endpoint( std::string("162.243.67.4"), 7896 ) );
        
        fc::ofstream out(config_file);
