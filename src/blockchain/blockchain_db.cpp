@@ -155,12 +155,11 @@ namespace bts { namespace blockchain {
 
             void match_orders( std::vector<signed_transaction>& matched,  asset::type quote, asset::type base )
             { try {
-                     return;
-                ilog( "match orders.." );
+               ilog( "match orders.." );
                auto bids = _market_db.get_bids( quote, base );
                auto asks = _market_db.get_asks( quote, base );
-               ilog( "asks: ${asks}", ("asks",asks) );
-               ilog( "bids: ${bids}", ("bids",bids) );
+               wlog( "asks: ${asks}", ("asks",asks) );
+               wlog( "bids: ${bids}", ("bids",bids) );
 
                fc::optional<trx_output>  ask_change;
                fc::optional<trx_output>  bid_change;
@@ -174,6 +173,8 @@ namespace bts { namespace blockchain {
 
 
                signed_transaction market_trx;
+               market_trx.timestamp = fc::time_point::now();
+
 
                /** asks are sorted from low to high, so we start
                 * with the lowest ask, and check to see if there are
@@ -211,11 +212,11 @@ namespace bts { namespace blockchain {
                      }
                      asset bid_amount = working_bid.get_amount() * bid_claim.ask_price;
                      asset ask_amount = working_ask.get_amount() * long_claim.ask_price;
-                     auto  trade_amount = std::min(bid_amount,ask_amount);
-                     
                      FC_ASSERT( bid_amount.unit == ask_amount.unit );
 
-                     ilog( "bid: ${b}   ask: ${a}", ("b",bid_amount)("a",ask_amount) );
+                     auto  trade_amount = std::min(bid_amount,ask_amount);
+
+                     ilog( "bid amount: ${b} @ ${bp}  ask amount: ${a} @ ${ap}", ("b",bid_amount)("a",ask_amount)("bp",bid_claim.ask_price)("ap",long_claim.ask_price) );
 
                      asset bid_change_amount   = working_bid.get_amount();
                      bid_change_amount        -= trade_amount * bid_claim.ask_price;
@@ -224,18 +225,18 @@ namespace bts { namespace blockchain {
                      asset ask_change_amount   = working_ask.get_amount();
                      ask_change_amount        -= trade_amount * long_claim.ask_price;
                      ilog( "ask change.. ${c}", ("c",ask_change_amount) );
-                      /*
+                      
                      if( ask_change_amount != bid_change_amount  && ask_change_amount != asset(0,working_bid.unit) )
                      {
                        FC_ASSERT( !"At least one of the bid or ask should be completely filled", "", 
                                   ("ask_change_amount",ask_change_amount)("bid_change_amount",bid_change_amount) );
                      }
-                     */
-
+                     
                      bid_payout_address = bid_claim.pay_address;
+                     auto bid_payout_amount  = bid_amount - (bid_change_amount * bid_claim.ask_price);
 
-                     if( bid_payout ) { *bid_payout += bid_amount; }
-                     else             { bid_payout   = bid_amount; }
+                     if( bid_payout ) { *bid_payout += bid_payout_amount; }
+                     else             { bid_payout   = bid_payout_amount; }
 
                      if( cover_payout ) 
                      { 
@@ -256,9 +257,11 @@ namespace bts { namespace blockchain {
                         // TODO: accumulate fractional parts, round at the end?....
                         working_bid.amount = bid_change_amount.get_rounded_amount(); 
                         bid_change = working_bid;
+                        elog( "we DID NOT fill the bid..." );
                      }
                      else // we have filled the bid!  
                      {
+                        elog( "we filled the bid..." );
                         market_trx.inputs.push_back( bid_itr->location );
                         market_trx.outputs.push_back( 
                                 trx_output( claim_by_signature_output( bid_claim.pay_address ), bid_payout->get_rounded_asset() ) );
@@ -316,6 +319,10 @@ namespace bts { namespace blockchain {
                    ilog( "bid_payout ${payout}", ("payout",bid_payout) );
                    market_trx.outputs.push_back( 
                             trx_output( claim_by_signature_output( bid_payout_address ), *bid_payout ) );
+               }
+               else
+               {
+                    wlog ( "NO BID PAYOUT" );
                }
                if( cover_payout ) 
                {
@@ -519,7 +526,7 @@ namespace bts { namespace blockchain {
               if( vstate.balance_sheet[asset::bts].out >= vstate.balance_sheet[asset::bts].in )
               {
                  // TODO: verify minimum fee
-                 FC_ASSERT( vstate.balance_sheet[asset::bts].out < vstate.balance_sheet[asset::bts].in, 
+                 FC_ASSERT( vstate.balance_sheet[asset::bts].out <= vstate.balance_sheet[asset::bts].in, 
                             "All transactions must pay some fee",
                  ("out", vstate.balance_sheet[asset::bts].out)("in",vstate.balance_sheet[asset::bts].in )
                             );
@@ -643,12 +650,13 @@ namespace bts { namespace blockchain {
                 trx_stat s;
                 s.eval = evaluate_signed_transaction( trxs[i] );
 
-                if( s.eval.fees.amount == fc::uint128_t(0) )
-                {
-                  wlog( "ignoring transaction ${trx} because it doesn't pay fees\n\n state: ${s}", 
-                        ("trx",trxs[i])("s",s.eval) );
-                  continue;
-                }
+               // TODO: enforce fees
+               // if( s.eval.fees.amount == fc::uint128_t(0) )
+               // {
+               //   wlog( "ignoring transaction ${trx} because it doesn't pay fees\n\n state: ${s}", 
+               //         ("trx",trxs[i])("s",s.eval) );
+               //   continue;
+               // }
                 s.trx_idx = i;
                 stats.push_back( s );
             } 

@@ -144,6 +144,7 @@ namespace bts {
           }
           void start_mail_connect_loop()
           {
+          ilog("start_mail_connect_loop");
               _mail_connect_loop_complete = fc::async( [=](){
                   fc::usleep(fc::seconds(5));
                   mail_connect_loop(); 
@@ -213,20 +214,24 @@ namespace bts {
 
   void application::configure( const application_config& cfg )
   { try {
+     ilog("application::configure");
      my->_config = cfg;
 
      my->_server = std::make_shared<bts::network::server>();    
 
      try {
+       ilog("calling get_external_ip");
        auto ext_ip = bts::network::get_external_ip();
        ilog( "external IP ${ip}", ("ip",ext_ip) );
        if( cfg.enable_upnp )
        {
+          ilog("enable_upnp");
           my->_upnp.map_port( cfg.network_port );
           my->_server->set_external_ip( my->_upnp.external_ip() );
        }
        else
        {
+          ilog("set_external_ip");
           my->_server->set_external_ip( ext_ip );
        }
      }
@@ -234,12 +239,18 @@ namespace bts {
      {
         elog("Failed to connect to external IP address: ${e}", ("e",e.to_detail_string()));
      }
+     catch (...)
+     {
+        elog("unrecognized exception while setting external ip, but we're ignoring it");
+     }
 
+     ilog("configuring server");
      bts::network::server::config server_cfg;
      server_cfg.port = cfg.network_port;
 
      my->_server->configure( server_cfg );
 
+     ilog("configure bitname client");
      my->_peers            = std::make_shared<bts::peer::peer_channel>(my->_server);
      my->_bitname_client   = std::make_shared<bts::bitname::client>( my->_peers );
      my->_bitname_client->set_delegate( my.get() );
@@ -249,20 +260,23 @@ namespace bts {
 
      my->_bitname_client->configure( bitname_config );
 
+     ilog("configure bitchat client");
      my->_bitchat_client  = std::make_shared<bts::bitchat::client>( my->_peers, my.get() );
      my->_bitchat_client->configure( cfg.data_dir / "bitchat" );
 
+     ilog("configuring rpc_server");
      my->_rpc_server.configure( cfg.rpc_config );
      my->_rpc_server.set_bitname_client( my->_bitname_client );
+     ilog("done configuring rpc_server");
 
-     // START CONNECT LOOP
-     my->start_mail_connect_loop();
-
+     ilog("end application::configure");
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
 
   void application::connect_to_network()
   {
-     my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
+    // START CONNECT LOOP
+    my->start_mail_connect_loop();
+    my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
   }
 
   bool application::is_mail_connected()const
@@ -318,13 +332,13 @@ namespace bts {
   { try {
     if( my->_profile ) my->_profile.reset();
 
-    FC_ASSERT( fc::exists(my->_profile_dir/profile_name/"config.json") );
-    auto app_config = fc::json::from_file(my->_profile_dir/profile_name/"config.json").as<bts::application_config>();
-    configure(app_config);
-
     // note: stored in temp incase open throws.
     auto tmp_profile = std::make_shared<profile>();
     tmp_profile->open( my->_profile_dir / profile_name, password );
+
+    FC_ASSERT( fc::exists(my->_profile_dir/profile_name/"config.json") );
+    auto app_config = fc::json::from_file(my->_profile_dir/profile_name/"config.json").as<bts::application_config>();
+    configure(app_config);
 
     std::vector<fc::ecc::private_key> recv_keys;
     auto keychain =  tmp_profile->get_keychain();
@@ -451,9 +465,16 @@ namespace bts {
 
   void application::quit()
   { try {
+       /// Notify quit to break direct connection and mail connection loops
        my->_quit_promise->set_value();
+       
+       /// Wait until direct connection loop finishes.
        if(my->_connect_loop_complete.valid())
          my->_connect_loop_complete.wait();
+       
+       /// Wait until mail connection loop finishes.
+       if(my->_mail_connect_loop_complete.valid())
+         my->_mail_connect_loop_complete.wait();
 
        if(my->_server)
          my->_server->close();
