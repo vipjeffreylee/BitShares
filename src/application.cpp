@@ -255,14 +255,13 @@ namespace bts {
      my->_rpc_server.configure( cfg.rpc_config );
      my->_rpc_server.set_bitname_client( my->_bitname_client );
 
-     // START CONNECT LOOP
-     my->start_mail_connect_loop();
-
   } FC_RETHROW_EXCEPTIONS( warn, "", ("config",cfg) ) }
 
   void application::connect_to_network()
   {
-     my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
+    // START CONNECT LOOP
+    my->start_mail_connect_loop();
+    my->_connect_loop_complete = fc::async( [=]{ my->connect_loop(); } );
   }
 
   bool application::is_mail_connected()const
@@ -318,13 +317,13 @@ namespace bts {
   { try {
     if( my->_profile ) my->_profile.reset();
 
-    FC_ASSERT( fc::exists(my->_profile_dir/profile_name/"config.json") );
-    auto app_config = fc::json::from_file(my->_profile_dir/profile_name/"config.json").as<bts::application_config>();
-    configure(app_config);
-
     // note: stored in temp incase open throws.
     auto tmp_profile = std::make_shared<profile>();
     tmp_profile->open( my->_profile_dir / profile_name, password );
+
+    FC_ASSERT( fc::exists(my->_profile_dir/profile_name/"config.json") );
+    auto app_config = fc::json::from_file(my->_profile_dir/profile_name/"config.json").as<bts::application_config>();
+    configure(app_config);
 
     std::vector<fc::ecc::private_key> recv_keys;
     auto keychain =  tmp_profile->get_keychain();
@@ -451,9 +450,16 @@ namespace bts {
 
   void application::quit()
   { try {
+       /// Notify quit to break direct connection and mail connection loops
        my->_quit_promise->set_value();
+       
+       /// Wait until direct connection loop finishes.
        if(my->_connect_loop_complete.valid())
          my->_connect_loop_complete.wait();
+       
+       /// Wait until mail connection loop finishes.
+       if(my->_mail_connect_loop_complete.valid())
+         my->_mail_connect_loop_complete.wait();
 
        if(my->_server)
          my->_server->close();
