@@ -17,11 +17,11 @@ namespace bts { namespace blockchain {
       enum type
       {
           bts      = 0,  // 0.001 = 1 BitShare (smallest storable unit)
-          btc      = 1,
+          usd      = 1,  // $0.001 = 1 BitUSD 
+          count, // TODO: move this to the end, for now this will shorten print statements
+          btc      = 4,
           gld      = 2,
           slv      = 3,
-          usd      = 4,  // $0.001 = 1 BitUSD 
-          count, // TODO: move this to the end, for now this will shorten print statements
           cny      = 5,
           gbp      = 6,
           eur      = 7, 
@@ -33,6 +33,7 @@ namespace bts { namespace blockchain {
           hkd      = 13, // Hong Kong 
           wti      = 14, // Light Sweet Crude Oil
           iii      = 15, // value of 1 of 1 billion shares in Invictus Innovations, Inc
+          
       };
 
       static const fc::uint128& one();
