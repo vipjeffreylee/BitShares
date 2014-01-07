@@ -79,7 +79,7 @@ namespace bts {
 
        /// note: this could take a minute
        auto stretched_seed   = keychain::stretch_seed( seed, progress );
-       
+       ilog("finished stretch_seed");
       // FC_ASSERT( !fc::exists( profile_dir ) );
        fc::create_directories( profile_dir );
        
@@ -94,6 +94,7 @@ namespace bts {
 
   void profile::open( const fc::path& profile_dir, const std::string& password )
   { try {
+      ilog("opening profile: ${profile_dir}",("profile_dir",profile_dir));
       my->_profile_name = profile_dir.filename().generic_string();
 
       fc::create_directories( profile_dir );
@@ -106,6 +107,7 @@ namespace bts {
       fc::create_directories( profile_dir / "mail" / "sent" );
       fc::create_directories( profile_dir / "chat" );
 
+      ilog("loading master key file:" KEYHOTEE_MASTER_KEY_FILE);
       auto profile_cfg_key         = fc::sha512::hash( password.c_str(), password.size() );
       std::vector<char> stretched_seed_data;
       try {
@@ -116,7 +118,8 @@ namespace bts {
         wlog("Could not open " KEYHOTEE_MASTER_KEY_FILE ", trying to open legacy key file (.strecthed_seed).");
         stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
       }
-     
+
+      ilog("opening profile databases");     
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
       my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );
       my->_idents.open( profile_dir / "idents" );
@@ -130,7 +133,7 @@ namespace bts {
       {
           *my->_last_sync_time = fc::time_point::now() - fc::seconds(60*5);
       }
-
+    ilog("finished opening profile");
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir) ) }
 
   std::vector<addressbook::wallet_identity>   profile::identities()const
