@@ -20,6 +20,7 @@ trx_validation_state::trx_validation_state( const signed_transaction& t, blockch
   for( auto i = 0; i < asset::count; ++i )
   {
     balance_sheet[i].in.unit  = (asset::type)i;
+    balance_sheet[i].neg_in.unit  = (asset::type)i;
     balance_sheet[i].out.unit = (asset::type)i;
     balance_sheet[i].neg_out.unit = (asset::type)i;
   }
@@ -356,7 +357,9 @@ void trx_validation_state::validate_long( const meta_trx_input& in )
 void trx_validation_state::validate_cover( const meta_trx_input& in )
 {
    auto cover_in = in.output.as<claim_by_cover_output>();
-   
+    
+   balance_sheet[(asset::type)in.output.unit].in += in.output.get_amount(); //asset(o.amount,o.unit);
+   balance_sheet[(asset::type)cover_in.payoff_unit].neg_in += cover_in.get_payoff_amount();
 }
 
 void trx_validation_state::validate_opt( const meta_trx_input& in )
