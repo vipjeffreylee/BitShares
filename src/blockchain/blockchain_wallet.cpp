@@ -3,6 +3,7 @@
 #include <bts/blockchain/block.hpp>
 #include <bts/extended_address.hpp>
 #include <unordered_map>
+#include <map>
 #include <fc/reflect/variant.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/io/raw.hpp>
@@ -19,15 +20,7 @@ namespace bts { namespace blockchain {
        std::unordered_map<bts::address,std::string>         recv_addresses;
        std::unordered_map<bts::address,std::string>         send_addresses;
        std::vector<fc::ecc::private_key>                    extra_keys;
-       std::vector<bts::blockchain::signed_transaction>     out_trx;
-       std::vector<bts::blockchain::signed_transaction>     in_trx;
-       std::vector<bts::blockchain::signed_transaction>     all_transactions;
-       std::unordered_map<output_reference,trx_output>      open_bids;
-       std::unordered_map<output_reference,trx_output>      open_shorts; // short positions already open (need to be covered)
-       std::unordered_map<output_reference,trx_output>      open_short_sells; // short positions not yet executed
-       std::unordered_map<output_reference,trx_output>      closed_bids;
-       std::unordered_map<output_reference,trx_output>      covered_shorts;
-       std::unordered_map<output_reference,trx_output>      closed_short_sells;
+       std::vector<bts::blockchain::signed_transaction>     transactions;
    };
 } } // bts::blockchain
 
@@ -38,15 +31,7 @@ FC_REFLECT( bts::blockchain::wallet_data,
             (recv_addresses)
             (send_addresses)
             (extra_keys)
-            (out_trx)
-            (in_trx) 
-            (all_transactions)
-            (open_bids)
-            (open_shorts)
-            (open_short_sells)
-            (closed_bids)
-            (covered_shorts)
-            (closed_short_sells)
+            (transactions)
             )
 
 namespace bts { namespace blockchain {
@@ -93,6 +78,53 @@ namespace bts { namespace blockchain {
                    }
                    FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
               }
+              /**
+               *  Collect claim_by_cover inputs that total to at least min_amnt.
+               */
+              std::vector<trx_input> collect_cover_inputs( const asset& min_amnt, 
+                                                           asset& total_in, 
+                                                           std::unordered_set<bts::address>& req_sigs )
+              {
+                   std::multimap<price,trx_input> inputs;
+                   for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
+                   {
+                       if( itr->second.claim_func == claim_by_cover )
+                       {
+                           auto cbc = itr->second.as<claim_by_cover_output>();
+                           if( cbc.payoff_unit == min_amnt.unit )
+                           {
+                              asset payoff( cbc.payoff_amount, min_amnt.unit );
+                              inputs.insert( std::pair<price,trx_input>( payoff / itr->second.get_amount(), trx_input( itr->first )  ) );
+                           }
+                       }
+                   }
+
+                   std::vector<trx_input> results;
+                   for( auto ritr = inputs.rbegin(); ritr != inputs.rend(); ++ritr )
+                   {
+                       auto out = get_cover_output( ritr->second.output_ref ); 
+                       auto cover_out = out.as<claim_by_cover_output>();
+                       asset payoff( cover_out.payoff_amount, cover_out.payoff_unit );
+
+                       total_in += payoff;
+                       req_sigs.insert( cover_out.owner );
+                       results.push_back( ritr->second );
+
+                       if( total_in >= min_amnt )
+                       {
+                          return results;
+                       }
+                   }
+                   FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
+              }
+
+              trx_output get_cover_output( const output_reference& r )
+              { try {
+                  auto itr = _unspent_outputs.find(r);
+                  FC_ASSERT( itr != _unspent_outputs.end() );
+                  FC_ASSERT( itr->second.claim_func = claim_by_cover );
+                  return itr->second;
+              } FC_RETHROW_EXCEPTIONS( warn, "unable to find ${r}", ("r",r) ) }
 
 
               /** completes a transaction signing it and logging it, this is different than wallet::sign_transaction which
@@ -110,7 +142,7 @@ namespace bts { namespace blockchain {
                    {
                        self->mark_as_spent( itr->output_ref );
                    }
-                   _data.all_transactions.push_back(trx);
+                   _data.transactions.push_back(trx);
               }
               wallet* self;
       };
@@ -308,8 +340,6 @@ namespace bts { namespace blockchain {
        trx.sigs.clear();
        my->sign_transaction( trx, req_sigs );
 
-       my->_data.open_bids[ output_reference( trx.id(), 0 ) ] = trx.outputs[0];
-
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",amnt)("price",ratio) ) }
 
@@ -361,9 +391,6 @@ namespace bts { namespace blockchain {
        trx.sigs.clear();
        my->sign_transaction(trx, req_sigs);
 
-
-       my->_data.open_short_sells[ output_reference( trx.id(), 0 ) ] = trx.outputs[0];
-
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "${amnt} @ ${price}", ("amnt",borrow_amnt)("price",ratio) ) }
 
@@ -371,8 +398,8 @@ namespace bts { namespace blockchain {
    { try {
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       auto bid_out_itr = my->_data.open_bids.find(bid);
-       FC_ASSERT( bid_out_itr != my->_data.open_bids.end() );
+       auto bid_out_itr = my->_unspent_outputs.find(bid);
+       FC_ASSERT( bid_out_itr != my->_unspent_outputs.end() );
 
        auto bid_out = bid_out_itr->second.as<claim_by_bid_output>();
 
@@ -388,44 +415,112 @@ namespace bts { namespace blockchain {
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "unable to find bid", ("bid",bid) ) }
 
+
+   /**
+    *  Builds a transaction to cover amnt of short positions starting with the highest price
+    *  first and working down.
+    */
    signed_transaction    wallet::cover( const asset& amnt )
-   {
+   { try {
+       wlog( "Cover ${amnt}", ("amnt",amnt) );
+       auto   change_address = get_new_address();
        signed_transaction trx; 
+       std::unordered_set<bts::address> req_sigs; 
+       asset  total_in(0,amnt.unit);
+       asset  cover_in(0,amnt.unit);
+
+       trx.inputs         = my->collect_inputs( amnt, total_in, req_sigs );
+       asset change = total_in - amnt;
+
+       asset freed_collateral;
+       // return a vector of inputs sorted from highest price to lowest price, user should
+       // always cover the highest price positions first.
+       auto cover_inputs  = my->collect_cover_inputs( amnt, cover_in, req_sigs );
+       auto remaining = amnt;
+       for( auto itr = cover_inputs.begin(); itr != cover_inputs.end(); ++itr )
+       {
+          trx.inputs.push_back( *itr );
+
+          auto txout = my->get_cover_output( itr->output_ref );
+          auto cover_out = txout.as<claim_by_cover_output>();
+
+          asset payoff( cover_out.payoff_amount, cover_out.payoff_unit );
+
+          wlog( "Payoff ${amnt}  Collateral ${c}", ("amnt",amnt)("c",txout.get_amount()) );
+
+          // if remaining > itr->owed then free 100% of the collateral and remaining -= itr->owed
+          if( remaining >= payoff )
+          {
+             freed_collateral += txout.get_amount();
+             remaining -= payoff;
+          }
+
+          // if remaining is < itr->owed then free remaining and create a new cover output with the balance
+          //  proportional to the amount paid off.
+          else if( remaining < payoff )
+          {
+              auto price               = txout.get_amount() / payoff;
+              wlog( "Price ${price}", ("price",price) );
+
+              auto leftover_collateral   = (payoff - remaining) * price;
+              auto leftover_debt         = leftover_collateral  * price;
+              wlog( "Leftover Collateral ${price}", ("price",price) );
+              wlog( "Leftover Debt  ${price}", ("price",price) );
+
+              trx.outputs.push_back( trx_output( claim_by_cover_output( leftover_debt, cover_out.owner ), leftover_collateral ) );
+              freed_collateral += txout.get_amount() - leftover_collateral; //remaining * price;
+              break;
+          }
+       }
+       // if remaining > 0 then change += remaining.
+
+       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
+       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
+
+       // calculate fees... apply them... 
+
+       my->sign_transaction( trx, req_sigs );
        return trx;
-   }
+   } FC_RETHROW_EXCEPTIONS( warn, "${asset}", ("asset",amnt) ) }
 
    // all outputs are claim_by_bid
    std::unordered_map<output_reference,trx_output> wallet::get_open_bids()
    {
-      return my->_data.open_bids;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
    // all outputs are claim_by_long
    std::unordered_map<output_reference,trx_output> wallet::get_open_short_sell()
    {
-      return my->_data.open_short_sells;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
    // all outputs are claim_by_cover,
    std::unordered_map<output_reference,trx_output> wallet::get_open_shorts()
    {
-      return my->_data.open_shorts;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
 
    std::unordered_map<output_reference,trx_output> wallet::get_closed_bids()
    {
-      return my->_data.closed_bids;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
    std::unordered_map<output_reference,trx_output> wallet::get_closed_short_sell()
    {
-      return my->_data.closed_short_sells;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
    std::unordered_map<output_reference,trx_output> wallet::get_covered_shorts()
    {
-      return my->_data.covered_shorts;
+      std::unordered_map<output_reference,trx_output> bids;
+      return bids;
    }
 
 
@@ -433,7 +528,7 @@ namespace bts { namespace blockchain {
    /** returns all transactions issued */
    std::vector<signed_transaction> wallet::get_transaction_history()
    {
-      return my->_data.all_transactions;
+      return my->_data.transactions;
    }
 
    /**
@@ -491,12 +586,12 @@ namespace bts { namespace blockchain {
                         {
                             if( !trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_data.open_bids[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_data.open_bids.erase(out_ref);
-                               my->_data.closed_bids[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs.erase(out_ref);
+                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else
@@ -513,12 +608,12 @@ namespace bts { namespace blockchain {
                         {
                             if( !trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_data.open_short_sells[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_data.open_short_sells.erase(out_ref);
-                               my->_data.closed_short_sells[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs.erase(out_ref);
+                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else
@@ -535,12 +630,12 @@ namespace bts { namespace blockchain {
                         {
                             if( !trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_data.open_shorts[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_data.open_shorts.erase(out_ref);
-                               my->_data.covered_shorts[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs.erase(out_ref);
+                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else
@@ -561,74 +656,79 @@ namespace bts { namespace blockchain {
        std::cerr<<"Unspent Outputs: \n";
        for( auto itr = my->_unspent_outputs.begin(); itr != my->_unspent_outputs.end(); ++itr )
        {
-           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
-           std::cerr<<std::string(itr->second.get_amount())<<" ";
-           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
-
            switch( itr->second.claim_func )
            {
               case claim_by_signature:
+                 std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+                 std::cerr<<std::string(itr->second.get_amount())<<" ";
+                 std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
                  std::cerr<< std::string(itr->second.as<claim_by_signature_output>().owner);
+                 std::cerr<<"\n";
                  break;
-              default:
-                 std::cerr<<"??";
            }
-           std::cerr<<"\n";
        }
        std::cerr<<"\n";
        std::cerr<<"Open Bids: \n";
-       for( auto itr = my->_data.open_bids.begin(); itr != my->_data.open_bids.end(); ++itr )
+     //  auto open_bids = get_open_bids();
+     //  for( auto itr = open_bids.begin(); itr != open_bids.end(); ++itr )
+       for( auto itr = my->_unspent_outputs.begin(); itr != my->_unspent_outputs.end(); ++itr )
        {
-           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
-           std::cerr<<std::string(itr->second.get_amount())<<" ";
-           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
-
 
            switch( itr->second.claim_func )
            {
               case claim_by_bid:
+                 std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+                 std::cerr<<std::string(itr->second.get_amount())<<" ";
+                 std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
+
                  std::cerr<< std::string(itr->second.as<claim_by_bid_output>().ask_price);
                  std::cerr<< " owner: ";
                  std::cerr<< std::string(itr->second.as<claim_by_bid_output>().pay_address);
                  std::cerr<< " min trade: "<< itr->second.as<claim_by_bid_output>().min_trade;
+                 std::cerr<<"\n";
                  break;
               default:
-                 std::cerr<<"??";
+                 break;
            }
-           std::cerr<<"\n";
        }
        std::cerr<<"\nOpen Short Sells: \n";
-       for( auto itr = my->_data.open_short_sells.begin(); itr != my->_data.open_short_sells.end(); ++itr )
+       //auto open_short_sells = get_open_short_sell();
+       for( auto itr = my->_unspent_outputs.begin(); itr != my->_unspent_outputs.end(); ++itr )
+      // for( auto itr = open_short_sells.begin(); itr != open_short_sells.end(); ++itr )
        {
-           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
-           std::cerr<<std::string(itr->second.get_amount())<<" ";
-           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
 
            switch( itr->second.claim_func )
            {
               case claim_by_long:
+                 std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+                 std::cerr<<std::string(itr->second.get_amount())<<" ";
+                 std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
                  std::cerr<< std::string(itr->second.as<claim_by_long_output>().ask_price);
                  std::cerr<< " owner: ";
                  std::cerr<< std::string(itr->second.as<claim_by_long_output>().pay_address);
                  std::cerr<< " min trade: "<< itr->second.as<claim_by_long_output>().min_trade;
+                 std::cerr<<"\n";
                  break;
               default:
-                 std::cerr<<"??";
+                 break;
+        //         std::cerr<<"??";
            }
-           std::cerr<<"\n";
        }
 
        std::cerr<<"\nOpen Margin Positions: \n";
-       for( auto itr = my->_data.open_shorts.begin(); itr != my->_data.open_shorts.end(); ++itr )
+       //auto open_shorts = get_open_shorts();
+       //for( auto itr = open_shorts.begin(); itr != open_shorts.end(); ++itr )
+       for( auto itr = my->_unspent_outputs.begin(); itr != my->_unspent_outputs.end(); ++itr )
        {
-           std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
-           std::cerr<<std::string(itr->second.get_amount())<<" ";
-           std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
 
            switch( itr->second.claim_func )
            {
               case claim_by_cover:
               {
+                 std::cerr<<std::string(itr->first.trx_hash)<<":"<<int(itr->first.output_idx)<<"]  ";
+                 std::cerr<<std::string(itr->second.get_amount())<<" ";
+                 std::cerr<<fc::variant(itr->second.claim_func).as_string()<<" ";
+
                  auto cover = itr->second.as<claim_by_cover_output>();
                  auto payoff = asset(cover.payoff_amount,cover.payoff_unit);
                  auto payoff_threshold = asset(cover.payoff_amount*1.5,cover.payoff_unit);
@@ -637,12 +737,12 @@ namespace bts { namespace blockchain {
                  std::cerr<< std::string(itr->second.as<claim_by_cover_output>().owner);
                  // this is the break even price... we actually need to cover at half the price?
                  std::cerr<< " price: " << std::string(payoff_threshold / itr->second.get_amount());
+                 std::cerr<<"\n";
                  break;
               }
               default:
-                 std::cerr<<"??";
+                  break;
            }
-           std::cerr<<"\n";
        }
        std::cerr<<"===========================================================\n";
    }
