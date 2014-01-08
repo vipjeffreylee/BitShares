@@ -19,10 +19,13 @@ trx_validation_state::trx_validation_state( const signed_transaction& t, blockch
 
   for( auto i = 0; i < asset::count; ++i )
   {
-    balance_sheet[i].in.unit  = (asset::type)i;
-    balance_sheet[i].neg_in.unit  = (asset::type)i;
-    balance_sheet[i].out.unit = (asset::type)i;
-    balance_sheet[i].neg_out.unit = (asset::type)i;
+    balance_sheet[i].in.unit          = (asset::type)i;
+    balance_sheet[i].neg_in.unit      = (asset::type)i;
+    balance_sheet[i].collat_in.unit   = (asset::bts);
+
+    balance_sheet[i].out.unit         = (asset::type)i;
+    balance_sheet[i].collat_out.unit  = (asset::bts);
+    balance_sheet[i].neg_out.unit     = (asset::type)i;
   }
 }
 
@@ -201,8 +204,14 @@ void trx_validation_state::validate_cover( const trx_output& o )
 { 
    auto cover_claim = o.as<claim_by_cover_output>();
    try {
+   auto payoff_unit = (asset::type)cover_claim.payoff_unit;
    balance_sheet[(asset::type)o.unit].out += o.get_amount(); //asset(o.amount,o.unit);
-   balance_sheet[(asset::type)cover_claim.payoff_unit].neg_out += cover_claim.get_payoff_amount();
+   balance_sheet[payoff_unit].neg_out += cover_claim.get_payoff_amount();
+   if( balance_sheet[(asset::type)cover_claim.payoff_unit].collat_in != asset() )
+   {
+      auto req_price =  balance_sheet[payoff_unit].collat_in / balance_sheet[payoff_unit].neg_in;
+      FC_ASSERT( req_price == o.get_amount() / cover_claim.get_payoff_amount() );
+   }
 } FC_RETHROW_EXCEPTIONS( warn, "${cover}", ("cover",cover_claim) ) }
 
 void trx_validation_state::validate_opt( const trx_output& o )
@@ -360,6 +369,8 @@ void trx_validation_state::validate_cover( const meta_trx_input& in )
     
    balance_sheet[(asset::type)in.output.unit].in += in.output.get_amount(); //asset(o.amount,o.unit);
    balance_sheet[(asset::type)cover_in.payoff_unit].neg_in += cover_in.get_payoff_amount();
+   // track collateral for payoff unit
+   balance_sheet[(asset::type)cover_in.payoff_unit].collat_in += in.output.get_amount();
 }
 
 void trx_validation_state::validate_opt( const meta_trx_input& in )
