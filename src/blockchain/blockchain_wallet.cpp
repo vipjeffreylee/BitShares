@@ -82,7 +82,8 @@ namespace bts { namespace blockchain {
                *  Collect claim_by_cover inputs that total to at least min_amnt.
                */
               std::vector<trx_input> collect_cover_inputs( const asset& min_amnt, 
-                                                           asset& total_in, 
+                                                           asset& total_collat, 
+                                                           asset& total_payoff, 
                                                            std::unordered_set<bts::address>& req_sigs )
               {
                    std::multimap<price,trx_input> inputs;
@@ -95,6 +96,7 @@ namespace bts { namespace blockchain {
                            {
                               asset payoff( cbc.payoff_amount, min_amnt.unit );
                               inputs.insert( std::pair<price,trx_input>( payoff / itr->second.get_amount(), trx_input( itr->first )  ) );
+
                            }
                        }
                    }
@@ -106,11 +108,12 @@ namespace bts { namespace blockchain {
                        auto cover_out = out.as<claim_by_cover_output>();
                        asset payoff( cover_out.payoff_amount, cover_out.payoff_unit );
 
-                       total_in += payoff;
+                       total_payoff += payoff;
+                       total_collat += out.get_amount();
                        req_sigs.insert( cover_out.owner );
                        results.push_back( ritr->second );
 
-                       if( total_in >= min_amnt )
+                       if( total_payoff >= min_amnt )
                        {
                           return results;
                        }
@@ -428,6 +431,7 @@ namespace bts { namespace blockchain {
        std::unordered_set<bts::address> req_sigs; 
        asset  total_in(0,amnt.unit);
        asset  cover_in(0,amnt.unit);
+       asset  collat_in(0,asset::bts);
 
        trx.inputs         = my->collect_inputs( amnt, total_in, req_sigs );
        asset change = total_in - amnt;
@@ -435,7 +439,7 @@ namespace bts { namespace blockchain {
        asset freed_collateral;
        // return a vector of inputs sorted from highest price to lowest price, user should
        // always cover the highest price positions first.
-       auto cover_inputs  = my->collect_cover_inputs( amnt, cover_in, req_sigs );
+       auto cover_inputs  = my->collect_cover_inputs( amnt, collat_in, cover_in, req_sigs );
        auto remaining = amnt;
        for( auto itr = cover_inputs.begin(); itr != cover_inputs.end(); ++itr )
        {
@@ -459,7 +463,7 @@ namespace bts { namespace blockchain {
           //  proportional to the amount paid off.
           else if( remaining < payoff )
           {
-              auto price               = txout.get_amount() / payoff;
+              auto price               = collat_in / cover_in; //txout.get_amount() / payoff;
               wlog( "Price ${price}", ("price",price) );
 
               auto leftover_collateral   = (payoff - remaining) * price;
