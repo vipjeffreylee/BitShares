@@ -113,15 +113,14 @@ namespace bts { namespace blockchain {
                        req_sigs.insert( cover_out.owner );
                        results.push_back( ritr->second );
 
-                       if( total_payoff >= min_amnt )
+                       if( (asset() != min_amnt) && total_payoff >= min_amnt )
                        {
                           return results;
                        }
                    }
                    FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
               }
-
-              trx_output get_cover_output( const output_reference& r )
+trx_output get_cover_output( const output_reference& r )
               { try {
                   auto itr = _unspent_outputs.find(r);
                   FC_ASSERT( itr != _unspent_outputs.end() );
@@ -143,6 +142,7 @@ namespace bts { namespace blockchain {
                    }
                    for( auto itr = trx.inputs.begin(); itr != trx.inputs.end(); ++itr )
                    {
+                       elog( "MARK AS SPENT ${B}", ("B",itr->output_ref) );
                        self->mark_as_spent( itr->output_ref );
                    }
                    _data.transactions.push_back(trx);
@@ -267,11 +267,10 @@ namespace bts { namespace blockchain {
       auto itr = my->_unspent_outputs.find(r);
       if( itr == my->_unspent_outputs.end() )
       {
-     //     wlog( "... unknown output.." );
           return;
       }
-      my->_spent_outputs[r] = itr->second;
       my->_unspent_outputs.erase(r);
+      my->_spent_outputs[r] = itr->second;
    }
 
    void wallet::sign_transaction( signed_transaction& trx, const bts::address& addr )
@@ -291,7 +290,7 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in;
+       asset  total_in(0,amnt.unit);
 
        asset amnt_with_fee = amnt; // TODO: add fee of .1% 
 
@@ -481,11 +480,39 @@ namespace bts { namespace blockchain {
        trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
        trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
 
-       // calculate fees... apply them... 
+       // TODO: calculate fees... apply them... 
 
        my->sign_transaction( trx, req_sigs );
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "${asset}", ("asset",amnt) ) }
+
+   signed_transaction wallet::add_margin( const asset& collateral_amount, asset::type u )
+   { try {
+       FC_ASSERT( collateral_amount.unit == asset::bts );
+       FC_ASSERT( u != asset::bts );
+
+       auto   change_address = get_new_address();
+
+       signed_transaction trx;
+       std::unordered_set<bts::address> req_sigs; 
+       asset  total_in(0,u);
+       asset  cover_in(0,u);
+       asset  collat_in(0,asset::bts);
+
+       trx.inputs         = my->collect_inputs( collateral_amount, total_in, req_sigs );
+       asset change = total_in - collateral_amount;
+
+       auto cover_inputs  = my->collect_cover_inputs( asset(), collat_in, cover_in, req_sigs );
+       trx.inputs.insert( trx.inputs.end(), cover_inputs.begin(), cover_inputs.end() );
+
+       trx.outputs.push_back( trx_output( claim_by_cover_output( cover_in, change_address ), collat_in + collateral_amount ) );
+       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change ) );
+
+       // TODO: apply fees 
+
+       my->sign_transaction( trx, req_sigs );
+       return trx;
+   } FC_RETHROW_EXCEPTIONS( warn, "additional collateral: ${c} for ${u}", ("c",collateral_amount)("u",u) ) }
 
    // all outputs are claim_by_bid
    std::unordered_map<output_reference,trx_output> wallet::get_open_bids()
@@ -554,6 +581,11 @@ namespace bts { namespace blockchain {
               auto trx = chain.fetch_trx( trx_num( i, trx_idx ) ); //blk.trx_ids[trx_idx] );
               ilog( "${id} \n\n  ${trx}\n\n", ("id",trx.id())("trx",trx) );
 
+              for( uint32_t in_idx = 0; in_idx < trx.inputs.size(); ++in_idx )
+              {
+                  mark_as_spent( trx.inputs[in_idx].output_ref );
+              }
+
               // for each output
               for( uint32_t out_idx = 0; out_idx < trx.outputs.size(); ++out_idx )
               {
@@ -571,8 +603,8 @@ namespace bts { namespace blockchain {
                                my->_unspent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
                             else
                             {
-                               mark_as_spent( output_reference(trx.id(), out_idx ) );
-                               my->_spent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
+                               mark_as_spent( out_ref ); //output_reference(trx.id(), out_idx ) );
+                               //my->_spent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
                             }
                             std::cerr<<"found block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"]  " << std::string(trx.id()) <<" => "<<std::string(owner)<<"\n";
                         }
@@ -588,14 +620,15 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(bid.pay_address);
                         if( aitr != my->_my_addresses.end() )
                         {
-                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            if( trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
+                               mark_as_spent( out_ref );
+                               //my->_unspent_outputs.erase(out_ref);
+                              // my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_unspent_outputs.erase(out_ref);
-                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else
@@ -610,14 +643,15 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(short_sell.pay_address);
                         if( aitr != my->_my_addresses.end() )
                         {
-                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            if( trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
+                               mark_as_spent( out_ref );
+                             //  my->_unspent_outputs.erase(out_ref);
+                             //  my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_unspent_outputs.erase(out_ref);
-                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else
@@ -632,14 +666,16 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(cover.owner);
                         if( aitr != my->_my_addresses.end() )
                         {
-                            if( !trx.meta_outputs[out_idx].is_spent() )
+                            if( trx.meta_outputs[out_idx].is_spent() )
                             {
-                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
+                               mark_as_spent( out_ref );
+                               //my->_unspent_outputs.erase(out_ref);
+                               //my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               my->_unspent_outputs.erase(out_ref);
-                               my->_spent_outputs[out_ref] = trx.outputs[out_idx];
+                               elog( "UNSPENT COVER DISCOVERED ${B}", ("B",out_ref) );
+                               my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }
                         else

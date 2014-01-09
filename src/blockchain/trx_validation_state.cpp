@@ -200,6 +200,14 @@ void trx_validation_state::validate_long( const trx_output& o )
 
    balance_sheet[(asset::type)o.unit].out += asset(o.amount,o.unit);
 }
+
+/**
+ *  If there are any inputs that are existing cover positions, then all cover outputs must
+ *  be at the same margin level or higher.   If a user would like to reduce their margin
+ *  they must completely cover and go short again.  Otherwise we would require the global
+ *  price of the asset to determine whehter or not a margin reduction is allowed.
+ *
+ */
 void trx_validation_state::validate_cover( const trx_output& o )
 { 
    auto cover_claim = o.as<claim_by_cover_output>();
@@ -210,7 +218,8 @@ void trx_validation_state::validate_cover( const trx_output& o )
    if( balance_sheet[(asset::type)cover_claim.payoff_unit].collat_in != asset() )
    {
       auto req_price =  balance_sheet[payoff_unit].collat_in / balance_sheet[payoff_unit].neg_in;
-      FC_ASSERT( req_price == o.get_amount() / cover_claim.get_payoff_amount() );
+      // TODO: verify this should be <= instead of >=
+      FC_ASSERT( req_price <= o.get_amount() / cover_claim.get_payoff_amount() );
    }
 } FC_RETHROW_EXCEPTIONS( warn, "${cover}", ("cover",cover_claim) ) }
 

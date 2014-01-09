@@ -39,6 +39,14 @@ namespace bts { namespace blockchain {
            // automatically covers position with lowest margin which is the position entered 
            // at the lowest price...
            signed_transaction    cover( const asset& amnt );
+           /**
+            * Combines all margin positions into a new position with additional collateral. In the
+            * future smarter wallets may want to only apply this to a subset of the positions.
+            *
+            * @param u - the asset class to increase margin for (anything but BTS)
+            * @param amnt - the amount of additional collateral (must be BTS)
+            */
+           signed_transaction    add_margin( const asset& collateral_amount /*bts*/, asset::type u );
 
            // all outputs are claim_by_bid
            std::unordered_map<output_reference,trx_output> get_open_bids();
@@ -57,8 +65,6 @@ namespace bts { namespace blockchain {
 
            // all outputs are claim_by_cover, these short positions have been covered
            std::unordered_map<output_reference,trx_output> get_covered_shorts();
-
-
 
            void sign_transaction( signed_transaction& trx, const bts::address& addr );
            void scan_chain( blockchain_db& chain, uint32_t from_block_num = 0 );
