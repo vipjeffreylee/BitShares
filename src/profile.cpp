@@ -31,7 +31,7 @@ namespace bts {
             bitchat::message_db_ptr                         _sent_db;
             bitchat::message_db_ptr                         _chat_db;
             db::level_map<std::string, addressbook::wallet_identity>            _idents;
-            std::string                                     _profile_name;
+            std::wstring                                    _profile_name;
             
             fc::mmap_struct<fc::time_point>                 _last_sync_time;
 /*
@@ -87,15 +87,15 @@ namespace bts {
        fc::aes_save( profile_dir / KEYHOTEE_MASTER_KEY_FILE, profile_cfg_key, fc::raw::pack(stretched_seed) );
   } FC_RETHROW_EXCEPTIONS( warn, "", ("profile_dir",profile_dir)("config",cfg) ) }
 
-  std::string profile::get_name()const
+  std::wstring profile::get_name()const
   {
-      return my->_profile_name;
+    return my->_profile_name;
   }
 
   void profile::open( const fc::path& profile_dir, const std::string& password )
   { try {
       ilog("opening profile: ${profile_dir}",("profile_dir",profile_dir));
-      my->_profile_name = profile_dir.filename().generic_string();
+      my->_profile_name = profile_dir.filename().generic_wstring();
 
       fc::create_directories( profile_dir );
       fc::create_directories( profile_dir / "addressbook" );
