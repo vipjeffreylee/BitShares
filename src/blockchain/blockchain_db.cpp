@@ -329,7 +329,7 @@ namespace bts { namespace blockchain {
                      else             { ask_payout   = pay_asker; }
 
 
-                     if( cbid_change.amount != 0 )
+                     if( cbid_change.amount != fc::uint128(0) )
                      {
                         // we have filled the bid, pay them fully                         
                         market_trx.inputs.push_back( bid_itr->location );
@@ -344,7 +344,7 @@ namespace bts { namespace blockchain {
                      else
                      {
                         // we have filled the ask, pay them fully
-                        FC_ASSERT( cask_change.amount != 0 );
+                        FC_ASSERT( cask_change.amount != fc::uint128(0) );
                         market_trx.inputs.push_back( bid_itr->location );
                         market_trx.inputs.push_back( ask_itr->location );
                         market_trx.outputs.push_back(  trx_output( claim_by_signature_output( ask_claim.pay_address ), *ask_payout ) );
