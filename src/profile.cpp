@@ -13,6 +13,9 @@
 #include <fc/exception/exception.hpp>
 #include <fc/io/fstream.hpp>
 #include <fc/filesystem.hpp>
+#include <fc/utf8.hpp>
+
+#include <boost/filesystem/path.hpp>
 
 #define KEYHOTEE_MASTER_KEY_FILE ".keyhotee_master.key"
 
@@ -70,7 +73,8 @@ namespace bts {
       *my->_last_sync_time = n;
   }
 
-  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password, std::function<void(double)> progress )
+  void profile::create( const fc::path& profile_dir, const profile_config& cfg, const std::string& password,
+    std::function<void(double)> progress )
   { try {
        fc::sha512::encoder encoder;
        fc::raw::pack( encoder, password );
@@ -94,6 +98,10 @@ namespace bts {
 
   void profile::open( const fc::path& profile_dir, const std::string& password )
   { try {
+    const boost::filesystem::path& bfp = profile_dir;
+
+      std::wstring wprofDir = bfp.native();
+
       ilog("opening profile: ${profile_dir}",("profile_dir",profile_dir));
       my->_profile_name = profile_dir.filename().generic_wstring();
 
@@ -119,7 +127,7 @@ namespace bts {
         stretched_seed_data     = fc::aes_load( profile_dir / ".stretched_seed", profile_cfg_key );
       }
 
-      ilog("opening profile databases");     
+      ilog("opening profile databases");
       my->_keychain.set_seed( fc::raw::unpack<fc::sha512>(stretched_seed_data) );
       my->_addressbook->open( profile_dir / "addressbook", profile_cfg_key );
       my->_idents.open( profile_dir / "idents" );

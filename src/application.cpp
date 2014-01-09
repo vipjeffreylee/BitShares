@@ -414,6 +414,7 @@ namespace bts {
      {
        bts::application_config default_cfg;
        default_cfg.data_dir = pro_dir / "data";
+       fc::create_directories(default_cfg.data_dir);
        default_cfg.network_port = 0;
        default_cfg.rpc_config.port = 0;
        //DLNFIX Quiet error messages as there's no server listening to this port currently.
