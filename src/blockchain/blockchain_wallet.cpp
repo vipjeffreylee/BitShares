@@ -264,13 +264,12 @@ trx_output get_cover_output( const output_reference& r )
    void wallet::mark_as_spent( const output_reference& r )
    {
      // wlog( "MARK SPENT ${s}", ("s",r) );
-      my->_unspent_outputs.erase(r);
       auto itr = my->_unspent_outputs.find(r);
       if( itr == my->_unspent_outputs.end() )
       {
-     //     wlog( "... unknown output.." );
           return;
       }
+      my->_unspent_outputs.erase(r);
       my->_spent_outputs[r] = itr->second;
    }
 
@@ -618,27 +617,22 @@ trx_output get_cover_output( const output_reference& r )
                      case claim_by_bid:
                      {
                         auto bid = out.as<claim_by_bid_output>();
-                        elog( "CLAIM BY BID output ${b}", ("b", out ) );
                         auto aitr = my->_my_addresses.find(bid.pay_address);
                         if( aitr != my->_my_addresses.end() )
                         {
                             if( trx.meta_outputs[out_idx].is_spent() )
                             {
-                               wlog( "MARK AS SPENT!" );
                                mark_as_spent( out_ref );
                                //my->_unspent_outputs.erase(out_ref);
                               // my->_spent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                             else
                             {
-                               elog( "UNSPENT BID DISCOVERED ${B}", ("B",out_ref) );
                                my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
-
                             }
                         }
                         else
                         {
-                           wlog( "NOT MINE!!!" );
                            // skip, it doesn't belong to me
                         }
                         break;
@@ -657,7 +651,6 @@ trx_output get_cover_output( const output_reference& r )
                             }
                             else
                             {
-                               elog( "UNSPENT SHORT SELL DISCOVERED ${B}", ("B",out_ref) );
                                my->_unspent_outputs[out_ref] = trx.outputs[out_idx];
                             }
                         }

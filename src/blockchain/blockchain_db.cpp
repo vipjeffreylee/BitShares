@@ -152,7 +152,9 @@ namespace bts { namespace blockchain {
                 block_trxs.store( b.block_num, trxs_ids );
             }
 
-
+            /**
+             *  Pushes a new transaction into matched that pairs all bids/asks for a single quote/base pair
+             */
             void match_orders( std::vector<signed_transaction>& matched,  asset::type quote, asset::type base )
             { try {
                ilog( "match orders.." );
@@ -161,20 +163,22 @@ namespace bts { namespace blockchain {
                wlog( "asks: ${asks}", ("asks",asks) );
                wlog( "bids: ${bids}", ("bids",bids) );
 
-               fc::optional<trx_output>  ask_change;
-               fc::optional<trx_output>  bid_change;
-               fc::optional<trx_output>  cover_change;
+               fc::optional<trx_output>             ask_change;    // stores a claim_by_bid or claim_by_long
+               fc::optional<trx_output>             bid_change;    // stores a claim_by_bid
 
-               address                   bid_payout_address;
-               fc::optional<asset>       bid_payout;
+               fc::optional<trx_output>             cover_change;  // ??? 
+                                                    
+               address                              bid_payout_address; // current bid owner
+               fc::optional<asset>                  bid_payout;         // current amount due bid owner
+                                                    
+               address                              ask_payout_address;
+               fc::optional<asset>                  ask_payout;
 
                asset                                cover_collat;       
                fc::optional<claim_by_cover_output>  cover_payout;
 
-
                signed_transaction market_trx;
                market_trx.timestamp = fc::time_point::now();
-
 
                /** asks are sorted from low to high, so we start
                 * with the lowest ask, and check to see if there are
@@ -189,7 +193,7 @@ namespace bts { namespace blockchain {
                 */
                auto ask_itr = asks.begin();
                auto bid_itr = bids.rbegin();
-               while( ask_itr != asks.end() &&
+               while( ask_itr != asks.end() && 
                       bid_itr != bids.rend() )
                { 
                   trx_output working_ask;
@@ -216,7 +220,8 @@ namespace bts { namespace blockchain {
 
                      auto  trade_amount = std::min(bid_amount,ask_amount);
 
-                     ilog( "bid amount: ${b} @ ${bp}  ask amount: ${a} @ ${ap}", ("b",bid_amount)("a",ask_amount)("bp",bid_claim.ask_price)("ap",long_claim.ask_price) );
+                     ilog( "bid amount: ${b} @ ${bp}  ask amount: ${a} @ ${ap}", 
+                           ("b",bid_amount)("a",ask_amount)("bp",bid_claim.ask_price)("ap",long_claim.ask_price) );
 
                      asset bid_change_amount   = working_bid.get_amount();
                      bid_change_amount        -= trade_amount * bid_claim.ask_price;
@@ -257,6 +262,7 @@ namespace bts { namespace blockchain {
                         // TODO: accumulate fractional parts, round at the end?....
                         working_bid.amount = bid_change_amount.get_rounded_amount(); 
                         bid_change = working_bid;
+                        ilog( "working_bid = bid_change = ${a}", ("a",bid_change) );
                         elog( "we DID NOT fill the bid..." );
                      }
                      else // we have filled the bid!  
@@ -274,6 +280,7 @@ namespace bts { namespace blockchain {
                      {
                         working_ask.amount = ask_change_amount.get_rounded_amount();
                         ask_change = working_ask;
+                        ilog( "working_ask = ask_change = ${a}", ("a",ask_change) );
                      }
                      else // we have filled the ask!
                      {
@@ -286,12 +293,72 @@ namespace bts { namespace blockchain {
                   }
                   else if( working_ask.claim_func == claim_by_bid )
                   {
-                     FC_ASSERT( !"Not Implemented" );
                      claim_by_bid_output ask_claim = working_ask.as<claim_by_bid_output>();
                      if( ask_claim.ask_price > bid_claim.ask_price )
                      {
-                        break;
+                        break; // exit the while loop, no more trades can occur
                      }
+                     ask_payout_address = ask_claim.pay_address;
+                     bid_payout_address = bid_claim.pay_address;
+
+                     ilog( "current bid: ${b}", ("b",working_bid) );
+                     ilog( "current ask: ${b}", ("b",working_ask) );
+
+                     asset bid_amount_base  = working_bid.get_amount() * bid_claim.ask_price;
+                     asset ask_amount_quote = working_ask.get_amount() * ask_claim.ask_price;
+                     asset bid_amount_quote = bid_amount_base * bid_claim.ask_price;
+
+                     ilog( "bid base: ${bid} == bid quote: ${bq}, ask quote: ${ask} ", 
+                           ("bid",bid_amount_base)("ask",ask_amount_quote)("bq",bid_amount_quote) );
+
+                     FC_ASSERT( bid_amount_base.unit != ask_amount_quote.unit );
+
+                     auto  trade_amount = std::min(bid_amount_quote,ask_amount_quote);
+                     ilog( "trade amount: ${a}", ("a",trade_amount) );
+
+                     auto pay_bidder  = trade_amount * bid_claim.ask_price;
+                     auto pay_asker   = pay_bidder * ask_claim.ask_price;
+
+                     auto cbid_change = working_bid.get_amount() - pay_asker;
+                     auto cask_change = working_ask.get_amount() - pay_bidder;
+
+                     if( bid_payout ) { *bid_payout += pay_bidder; }
+                     else             { bid_payout   = pay_bidder; }
+
+                     if( ask_payout ) { *ask_payout += pay_asker; }
+                     else             { ask_payout   = pay_asker; }
+
+
+                     if( cbid_change.amount != 0 )
+                     {
+                        // we have filled the bid, pay them fully                         
+                        market_trx.inputs.push_back( bid_itr->location );
+                        market_trx.inputs.push_back( ask_itr->location );
+                        market_trx.outputs.push_back(  trx_output( claim_by_signature_output( bid_claim.pay_address ), *bid_payout) );
+                        bid_payout.reset();
+
+                        working_bid.amount = cbid_change.get_rounded_amount();
+                        bid_change = working_bid;
+                        ++bid_itr;
+                     }
+                     else
+                     {
+                        // we have filled the ask, pay them fully
+                        FC_ASSERT( cask_change.amount != 0 );
+                        market_trx.inputs.push_back( bid_itr->location );
+                        market_trx.inputs.push_back( ask_itr->location );
+                        market_trx.outputs.push_back(  trx_output( claim_by_signature_output( ask_claim.pay_address ), *ask_payout ) );
+                        ask_payout.reset();
+
+                        working_ask.amount = cask_change.get_rounded_amount();
+                        ask_change = working_ask;
+                        ++ask_itr;
+                     }
+
+
+                     ilog( "cbid_change ${c}", ("c",cbid_change) );
+                     ilog( "cask_change ${c}", ("c",cask_change) );
+                     ilog( "outputs ${out}", ("out",market_trx.outputs) );
                      // TODO: implement straight trades..
                   }
                   else
@@ -324,6 +391,18 @@ namespace bts { namespace blockchain {
                {
                     wlog ( "NO BID PAYOUT" );
                }
+               if( ask_payout ) 
+               {
+                   ilog( "ask_payout ${payout}", ("payout",ask_payout) );
+                   market_trx.outputs.push_back( 
+                            trx_output( claim_by_signature_output( ask_payout_address ), *ask_payout ) );
+               }
+               else
+               {
+                    wlog ( "NO BID PAYOUT" );
+               }
+
+
                if( cover_payout ) 
                {
                    ilog( "cover_payout ${payout}", ("payout",cover_payout) );

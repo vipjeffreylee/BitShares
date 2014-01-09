@@ -191,17 +191,13 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.scan_chain( chain, block7.block_num );
      wallet.dump();
 
-    /* 
-     elog( "\n\n=================================================\n\n\n" );
-     trxs.clear();
+     trxs   = chain.match_orders(); 
      auto block8 = chain.generate_next_block( trxs );
      wallet.dump();
-     elog( "\n\n=================================================\n\n\n" );
      chain.push_block( block8 );
      wallet.set_stake(chain.get_stake());
      wallet.scan_chain( chain, block8.block_num );
      wallet.dump();
-     */
 
 
      html << bts::blockchain::pretty_print( genesis, chain );
@@ -217,9 +213,9 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      html << bts::blockchain::pretty_print( block5, chain );
      html << bts::blockchain::pretty_print( block6, chain );
      html << bts::blockchain::pretty_print( block7, chain );
-    // html << bts::blockchain::pretty_print( block8, chain );
+     html << bts::blockchain::pretty_print( block8, chain );
 
-     wallet.scan_chain( chain, block2.block_num );
+   //  wallet.scan_chain( chain, block2.block_num );
      wallet.dump();
 
 
