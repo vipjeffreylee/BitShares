@@ -38,9 +38,12 @@ namespace bts { namespace blockchain {
            struct asset_balance
            {
               asset in;
+              asset collat_in;
+              asset neg_in; 
               asset out;
-              asset neg_out;
-              bool is_balanced()const { return (in - (out - neg_out)).amount == fc::uint128(0); }
+              asset collat_out;
+              asset neg_out; // collateral
+              bool is_balanced()const { return ((in - neg_in) - (out - neg_out)).amount == fc::uint128(0); }
            };
 
            /** this is cost because validation shouldn't modify the trx and
@@ -114,7 +117,7 @@ namespace bts { namespace blockchain {
     };
 
 } } // bts::blockchain
-FC_REFLECT( bts::blockchain::trx_validation_state::asset_balance, (in)(out) )
+FC_REFLECT( bts::blockchain::trx_validation_state::asset_balance, (in)(neg_in)(collat_in)(out)(neg_out)(collat_out) )
 FC_REFLECT( bts::blockchain::trx_validation_state, 
     (trx)
     (inputs)

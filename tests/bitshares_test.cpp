@@ -152,7 +152,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      auto block3 = chain.generate_next_block( trxs );
      chain.push_block( block3 );
      wallet.set_stake(chain.get_stake());
-     wallet.scan_chain( chain, block2.block_num );
+     wallet.scan_chain( chain, block3.block_num );
      wallet.dump();
 
 
@@ -162,15 +162,43 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      auto block4 = chain.generate_next_block( trxs );
      chain.push_block( block4 );
      wallet.set_stake(chain.get_stake());
-     wallet.scan_chain( chain, block2.block_num );
+     wallet.scan_chain( chain, block4.block_num );
      wallet.dump();
 
      trxs   = chain.match_orders(); //wallet.transfer( asset(2*COIN,asset::bts), wallet.get_new_address() );
      auto block5 = chain.generate_next_block( trxs );
      chain.push_block( block5 );
      wallet.set_stake(chain.get_stake());
-     wallet.scan_chain( chain, block2.block_num );
+     wallet.scan_chain( chain, block5.block_num );
      wallet.dump();
+
+
+     trxs.resize(1);
+     trxs[0] = wallet.cover( asset( COIN/4, asset::usd ) );
+
+     auto block6 = chain.generate_next_block( trxs );
+     chain.push_block( block6 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block6.block_num );
+     wallet.dump();
+
+     auto bid2 = wallet.bid( asset(COIN/8,asset::usd),  asset(2*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     trxs.resize(1);
+     trxs[0] = bid2;
+     auto block7 = chain.generate_next_block( trxs );
+     chain.push_block( block7 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block7.block_num );
+     wallet.dump();
+
+     trxs   = chain.match_orders(); 
+     auto block8 = chain.generate_next_block( trxs );
+     wallet.dump();
+     chain.push_block( block8 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block8.block_num );
+     wallet.dump();
+
 
      html << bts::blockchain::pretty_print( genesis, chain );
      html << bts::blockchain::pretty_print( block1, chain );
@@ -183,8 +211,11 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      html << bts::blockchain::pretty_print( block3, chain );
      html << bts::blockchain::pretty_print( block4, chain );
      html << bts::blockchain::pretty_print( block5, chain );
+     html << bts::blockchain::pretty_print( block6, chain );
+     html << bts::blockchain::pretty_print( block7, chain );
+     html << bts::blockchain::pretty_print( block8, chain );
 
-     wallet.scan_chain( chain, block2.block_num );
+   //  wallet.scan_chain( chain, block2.block_num );
      wallet.dump();
 
 
