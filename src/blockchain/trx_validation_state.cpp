@@ -416,7 +416,8 @@ uint16_t trx_validation_state::find_unused_sig_output( const address& owner, con
         if( trx.outputs[i].claim_func == claim_by_signature )
         {
            ilog( "amount: ${i} ==? ${r} ", ("i",trx.outputs[i].get_amount())("r",rounded_amount) );
-           if( trx.outputs[i].get_amount() == rounded_amount )
+           ilog( "round down amount: ${i} ==? ${r} ", ("i",trx.outputs[i].amount/5)("r",rounded_amount.amount.high_bits()/5) );
+           if( trx.outputs[i].amount/5 == rounded_amount.amount.high_bits()/5 && trx.outputs[i].unit == bal.unit )
            {
               if( trx.outputs[i].as<claim_by_signature_output>().owner == owner )
               {
