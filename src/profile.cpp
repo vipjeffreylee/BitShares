@@ -13,9 +13,6 @@
 #include <fc/exception/exception.hpp>
 #include <fc/io/fstream.hpp>
 #include <fc/filesystem.hpp>
-#include <fc/utf8.hpp>
-
-#include <boost/filesystem/path.hpp>
 
 #define KEYHOTEE_MASTER_KEY_FILE ".keyhotee_master.key"
 
@@ -98,10 +95,6 @@ namespace bts {
 
   void profile::open( const fc::path& profile_dir, const std::string& password )
   { try {
-    const boost::filesystem::path& bfp = profile_dir;
-
-      std::wstring wprofDir = bfp.native();
-
       ilog("opening profile: ${profile_dir}",("profile_dir",profile_dir));
       my->_profile_name = profile_dir.filename().generic_wstring();
 
