@@ -43,7 +43,7 @@ namespace bts { namespace blockchain {
               asset out;
               asset collat_out;
               asset neg_out; // collateral
-              bool is_balanced()const { return ((in - neg_in) - (out - neg_out)).amount == fc::uint128(0); }
+              bool is_balanced()const { return ((in - neg_in) - (out - neg_out)).amount >= fc::uint128(0); }
            };
 
            /** this is cost because validation shouldn't modify the trx and
