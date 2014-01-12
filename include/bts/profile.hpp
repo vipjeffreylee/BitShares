@@ -100,7 +100,7 @@ namespace bts {
       bitchat::message_db_ptr       get_chat_db()const;
       addressbook::addressbook_ptr  get_addressbook()const;
       keychain                      get_keychain()const;
-      std::string                   get_name()const;
+      std::wstring                  get_name()const;
 
       fc::time_point                get_last_sync_time()const;
       void                          set_last_sync_time( const fc::time_point& n );

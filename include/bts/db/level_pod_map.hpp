@@ -27,7 +27,13 @@ namespace bts { namespace db {
            opts.comparator = & _comparer;
            
            ldb::DB* ndb = nullptr;
-           auto ntrxstat = ldb::DB::Open( opts, dir.generic_string().c_str(), &ndb );
+
+           /// \waring Given path must exist to succeed toNativeAnsiPath
+           fc::create_directories(dir);
+
+           std::string ldbPath = dir.toNativeAnsiPath();
+
+           auto ntrxstat = ldb::DB::Open( opts, ldbPath.c_str(), &ndb );
            if( !ntrxstat.ok() )
            {
                FC_THROW_EXCEPTION( db_in_use_exception, "Unable to open database ${db}\n\t${msg}", 
