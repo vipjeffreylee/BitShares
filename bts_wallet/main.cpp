@@ -5,6 +5,8 @@
 #include <bts/blockchain/blockchain_wallet.hpp>
 #include <fc/thread/thread.hpp>
 #include <fc/reflect/variant.hpp>
+#include <fc/log/file_appender.hpp>
+#include <fc/log/logger_config.hpp>
 #include <bts/config.hpp>
 #include <fc/io/raw.hpp>
 #include <fc/io/json.hpp>
@@ -342,6 +344,22 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
 int main( int argc, char** argv )
 { 
    auto main_thread = &fc::thread::current();
+
+   fc::file_appender::config ac;
+   ac.filename = "log.txt";
+   ac.truncate = false;
+   ac.flush    = true;
+   fc::logging_config cfg;
+
+   cfg.appenders.push_back(fc::appender_config( "default", "file", fc::variant(ac)));
+
+   fc::logger_config dlc;
+   dlc.level = fc::log_level::debug;
+   dlc.name = "default";
+   dlc.appenders.push_back("default");
+   cfg.loggers.push_back(dlc);
+   fc::configure_logging( cfg );
+
    try {
      auto  bts_client = std::make_shared<client>();
      bts_client->open( "datadir" );
