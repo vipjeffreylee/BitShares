@@ -31,7 +31,7 @@ namespace bts { namespace db {
            /// \waring Given path must exist to succeed toNativeAnsiPath
            fc::create_directories(dir);
 
-           std::string ldbPath = dir.toNativeAnsiPath();
+           std::string ldbPath = dir.to_native_ansi_path();
 
            ldb::DB* ndb = nullptr;
            auto ntrxstat = ldb::DB::Open( opts, ldbPath.c_str(), &ndb );

@@ -219,7 +219,9 @@ void trx_validation_state::validate_cover( const trx_output& o )
    {
       auto req_price =  balance_sheet[payoff_unit].collat_in / balance_sheet[payoff_unit].neg_in;
       // TODO: verify this should be <= instead of >=
-      FC_ASSERT( req_price <= o.get_amount() / cover_claim.get_payoff_amount() );
+      FC_ASSERT( req_price <= o.get_amount() / cover_claim.get_payoff_amount(), "",
+                 ("req_price",req_price)( "amnt", o.get_amount() )( "payoff", cover_claim.get_payoff_amount())("new_price", 
+                                                                                                               o.get_amount() / cover_claim.get_payoff_amount() ));
    }
 } FC_RETHROW_EXCEPTIONS( warn, "${cover}", ("cover",cover_claim) ) }
 
@@ -416,8 +418,8 @@ uint16_t trx_validation_state::find_unused_sig_output( const address& owner, con
         if( trx.outputs[i].claim_func == claim_by_signature )
         {
            ilog( "amount: ${i} ==? ${r} ", ("i",trx.outputs[i].get_amount())("r",rounded_amount) );
-           ilog( "round down amount: ${i} ==? ${r} ", ("i",trx.outputs[i].amount/5)("r",rounded_amount.amount.high_bits()/5) );
-           if( trx.outputs[i].amount/5 == rounded_amount.amount.high_bits()/5 && trx.outputs[i].unit == bal.unit )
+           ilog( "round down amount: ${i} ==? ${r} ", ("i",trx.outputs[i].amount/10)("r",rounded_amount.amount.high_bits()/10) );
+           if( trx.outputs[i].amount/10 == rounded_amount.amount.high_bits()/10 && trx.outputs[i].unit == bal.unit )
            {
               if( trx.outputs[i].as<claim_by_signature_output>().owner == owner )
               {

@@ -4,10 +4,11 @@
 #include <bts/extended_address.hpp>
 #include <unordered_map>
 #include <map>
-#include <fc/reflect/variant.hpp>
 #include <fc/filesystem.hpp>
 #include <fc/io/raw.hpp>
+#include <fc/io/json.hpp>
 #include <fc/log/logger.hpp>
+#include <fc/reflect/variant.hpp>
 
 #include <iostream>
 
@@ -31,7 +32,7 @@ FC_REFLECT( bts::blockchain::wallet_data,
             (recv_addresses)
             (send_addresses)
             (extra_keys)
-            (transactions)
+//            (transactions) // rescan every time we load for now
             )
 
 namespace bts { namespace blockchain {
@@ -55,6 +56,21 @@ namespace bts { namespace blockchain {
               std::unordered_map<bts::address,uint32_t>                  _my_addresses;
               std::unordered_map<transaction_id_type,signed_transaction> _id_to_signed_transaction;
 
+              asset get_balance( asset::type balance_type )
+              {
+                   asset total_bal( 0, balance_type);
+                   std::vector<trx_input> inputs;
+                   for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
+                   {
+                      //ilog( "unspent outputs ${o}", ("o",*itr) );
+                       if( itr->second.claim_func == claim_by_signature && itr->second.unit == balance_type )
+                       {
+                           total_bal += itr->second.get_amount(); // TODO: apply interest earned 
+                       }
+                   }
+                   return total_bal;
+              }
+
 
               /**
                *  Collect inputs that total to at least min_amnt.
@@ -64,12 +80,13 @@ namespace bts { namespace blockchain {
                    std::vector<trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
+                      ilog( "unspent outputs ${o}", ("o",*itr) );
                        if( itr->second.claim_func == claim_by_signature && itr->second.unit == min_amnt.unit )
                        {
                            inputs.push_back( trx_input( itr->first ) );
                            total_in += itr->second.get_amount();
                            req_sigs.insert( itr->second.as<claim_by_signature_output>().owner );
-
+                           ilog( "total in ${in}  min ${min}", ( "in",total_in)("min",min_amnt) );
                            if( total_in >= min_amnt )
                            {
                               return inputs;
@@ -78,6 +95,27 @@ namespace bts { namespace blockchain {
                    }
                    FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
               }
+
+              asset get_margin_balance( asset::type unit, asset& total_collat )
+              {
+                   asset total_due( 0, unit );
+                   std::multimap<price,trx_input> inputs;
+                   for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
+                   {
+                       if( itr->second.claim_func == claim_by_cover )
+                       {
+                           auto cbc = itr->second.as<claim_by_cover_output>();
+                           if( cbc.payoff_unit == unit )
+                           {
+                              asset payoff( cbc.payoff_amount, unit );
+                              total_due += payoff;
+                              total_collat += itr->second.get_amount();
+                           }
+                       }
+                   }
+                   return total_due;
+              }
+
               /**
                *  Collect claim_by_cover inputs that total to at least min_amnt.
                */
@@ -120,7 +158,8 @@ namespace bts { namespace blockchain {
                    }
                    FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
               }
-trx_output get_cover_output( const output_reference& r )
+
+              trx_output get_cover_output( const output_reference& r )
               { try {
                   auto itr = _unspent_outputs.find(r);
                   FC_ASSERT( itr != _unspent_outputs.end() );
@@ -157,21 +196,38 @@ trx_output get_cover_output( const output_reference& r )
       my->self = this;
    }
 
-   wallet::~wallet(){}
+   wallet::~wallet()
+   {
+      save();
+   }
 
    void wallet::open( const fc::path& wallet_dat )
-   {
+   { try {
+      
+      if( fc::exists( wallet_dat ) )
+      {
+         my->_data = fc::json::from_file<bts::blockchain::wallet_data>( wallet_dat );
+      }
+      for( uint32_t i = 0; i < my->_data.extra_keys.size(); ++i )
+      {
+         my->_my_addresses[bts::address(my->_data.extra_keys[i].get_public_key())] = i;
+      }
       my->_wallet_dat = wallet_dat;
-   }
+   } FC_RETHROW_EXCEPTIONS( warn, "unable to load ${wal}", ("wal",wallet_dat) ) }
 
    void wallet::save()
    {
-
+      ilog( "saving wallet\n" );
+      fc::json::save_to_file( my->_data, my->_wallet_dat );
    }
 
    asset wallet::get_balance( asset::type t )
    {
-      return asset();
+      return my->get_balance(t);
+   }
+   asset wallet::get_margin( asset::type t, asset& collat )
+   {
+      return my->get_margin_balance( t, collat );
    }
 
    void           wallet::set_stake( uint64_t stake )
@@ -403,19 +459,29 @@ trx_output get_cover_output( const output_reference& r )
        auto bid_out_itr = my->_unspent_outputs.find(bid);
        FC_ASSERT( bid_out_itr != my->_unspent_outputs.end() );
 
-       auto bid_out = bid_out_itr->second.as<claim_by_bid_output>();
-
+       trx.inputs.push_back( trx_input( bid ) );
+       if( bid_out_itr->second.claim_func == claim_by_bid )
+       {
+          auto bid_out = bid_out_itr->second.as<claim_by_bid_output>();
+          trx.outputs.push_back( trx_output( claim_by_signature_output( bid_out.pay_address ), 
+                                             bid_out_itr->second.amount, bid_out_itr->second.unit ) );
+          req_sigs.insert( bid_out.pay_address);
+       }
+       else if( bid_out_itr->second.claim_func == claim_by_long )
+       {
+          auto bid_out = bid_out_itr->second.as<claim_by_long_output>();
+          trx.outputs.push_back( trx_output( claim_by_signature_output( bid_out.pay_address ), 
+                                             bid_out_itr->second.amount, bid_out_itr->second.unit ) );
+          req_sigs.insert( bid_out.pay_address);
+       }
        // TODO: collect fee for this transaction
        
-       trx.inputs.push_back( trx_input( bid ) );
-       trx.outputs.push_back( trx_output( claim_by_signature_output( bid_out.pay_address ), 
-                                          bid_out_itr->second.amount, bid_out_itr->second.unit ) );
 
-       req_sigs.insert( bid_out.pay_address);
        my->sign_transaction( trx, req_sigs );
 
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "unable to find bid", ("bid",bid) ) }
+
 
 
    /**

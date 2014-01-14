@@ -31,9 +31,9 @@ namespace bts { namespace db {
            /// \waring Given path must exist to succeed toNativeAnsiPath
            fc::create_directories(dir);
 
-           std::string ldbPath = dir.toNativeAnsiPath();
+           std::string ldb_path = dir.to_native_ansi_path();
 
-           auto ntrxstat = ldb::DB::Open( opts, ldbPath.c_str(), &ndb );
+           auto ntrxstat = ldb::DB::Open( opts, ldb_path.c_str(), &ndb );
            if( !ntrxstat.ok() )
            {
                FC_THROW_EXCEPTION( db_in_use_exception, "Unable to open database ${db}\n\t${msg}", 
