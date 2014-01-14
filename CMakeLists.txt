@@ -5,6 +5,10 @@ cmake_minimum_required( VERSION 2.8.10 )
 
 set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/fc/CMakeModules" ${CMAKE_MODULE_PATH} )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/GitVersionGen/")
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA2)
+
 FIND_PACKAGE( OpenSSL )
 SET( ALL_OPENSSL_LIBRARIES
        ${OPENSSL_LIBRARIES}
@@ -86,8 +90,6 @@ add_subdirectory( vendor/miniupnp/miniupnpc )
 set( BOOST_LIBRARIES ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY} ${Boost_FILESYSTEM_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_CHRONO_LIBRARY} ${ALL_OPENSSL_LIBRARIES} ${Boost_COROUTINE_LIBRARY} ${Boost_CONTEXT_LIBRARY} ${pthread})
 set( BOOST_LIBRARIES ${BOOST_LIBRARIES} PARENT_SCOPE )
 
-
-
 set( sources 
      src/momentum.cpp
 
@@ -155,9 +157,13 @@ set( sources
      vendor/SFMT-src-1.4/SFMT.c
      src/proof_of_work.cpp )
 
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/GitSHA2.cpp.in" "${CMAKE_CURRENT_BINARY_DIR}/GitSHA2.cpp" @ONLY)
+list(APPEND sources "${CMAKE_CURRENT_BINARY_DIR}/GitSHA2.cpp" GitSHA2.h)
+
 add_library( bshare ${sources} )
 add_subdirectory( sancho )
 add_subdirectory( server )
+
 
 #add_executable( wallet_test tests/wallet_test.cpp )
 #target_link_libraries( wallet_test bshare fc ${BOOST_LIBRARIES})
@@ -180,4 +186,3 @@ add_subdirectory( tests )
 add_subdirectory( founder_reg_server )
 add_subdirectory( mail_server )
 add_subdirectory( bts_wallet )
-
