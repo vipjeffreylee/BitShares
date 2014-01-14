@@ -219,6 +219,31 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.dump();
 
 
+     auto bid4 = wallet.bid( asset(COIN/16,asset::usd),  asset(3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid7 = wallet.bid( asset(COIN/7,asset::usd),  asset(3.3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     ilog( "bid4: ${bid4}", ("bid4",bid4) );
+     auto bid5 = wallet.bid( asset(COIN/5,asset::bts),  asset(2.5*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid6 = wallet.bid( asset(COIN/3,asset::bts),  asset(4*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     trxs.resize(4);
+     trxs[0] = bid4;
+     trxs[1] = bid5;
+     trxs[2] = bid6;
+     trxs[3] = bid7;
+     auto block11 = chain.generate_next_block( trxs );
+     chain.push_block( block11 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block11.block_num );
+     wallet.dump();
+
+     trxs   = chain.match_orders(); 
+     auto block12 = chain.generate_next_block( trxs );
+     wallet.dump();
+     chain.push_block( block12 );
+     wallet.set_stake(chain.get_stake());
+     wallet.scan_chain( chain, block12.block_num );
+     wallet.dump();
+
+
      html << bts::blockchain::pretty_print( genesis, chain );
      html << bts::blockchain::pretty_print( block1, chain );
      html << bts::blockchain::pretty_print( block2, chain );
@@ -233,8 +258,10 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      html << bts::blockchain::pretty_print( block6, chain );
      html << bts::blockchain::pretty_print( block7, chain );
      html << bts::blockchain::pretty_print( block8, chain );
-    // html << bts::blockchain::pretty_print( block9, chain );
+     html << bts::blockchain::pretty_print( block9, chain );
      html << bts::blockchain::pretty_print( block10, chain );
+     html << bts::blockchain::pretty_print( block11, chain );
+     html << bts::blockchain::pretty_print( block12, chain );
 
    //  wallet.scan_chain( chain, block2.block_num );
      wallet.dump();

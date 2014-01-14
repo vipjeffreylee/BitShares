@@ -77,6 +77,7 @@ namespace bts { namespace blockchain {
       :ratio(r),base_unit(base),quote_unit(quote){}
 
       price( const std::string& s );
+      price( double a, asset::type base, asset::type quote );
       operator std::string()const;
 
       fc::uint128_t ratio; // 64.64

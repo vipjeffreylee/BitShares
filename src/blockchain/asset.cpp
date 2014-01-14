@@ -110,7 +110,21 @@ namespace bts { namespace blockchain {
   }
   price::price( const std::string& s )
   {
-    // TODO:  price to asset
+     /*
+     std::stringstream ss(s);
+     std::string a,b,q;
+     char d;
+     ss >> a >> b >> q >> d;
+     */
+  }
+  price::price( double a, asset::type b, asset::type q )
+  {
+     uint64_t high_bits = uint64_t(a);
+     double fract_part = a - high_bits;
+     uint64_t low_bits = uint64_t(-1)*fract_part;
+     ratio = fc::uint128( high_bits, low_bits );
+     base_unit = b;
+     quote_unit = q;
   }
 
   price::operator std::string()const

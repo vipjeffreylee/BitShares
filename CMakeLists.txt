@@ -179,4 +179,5 @@ add_subdirectory( server )
 add_subdirectory( tests )
 add_subdirectory( founder_reg_server )
 add_subdirectory( mail_server )
+add_subdirectory( bts_wallet )
 

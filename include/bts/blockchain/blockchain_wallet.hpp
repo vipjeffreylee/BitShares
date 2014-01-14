@@ -22,6 +22,7 @@ namespace bts { namespace blockchain {
 
            bts::address          get_new_address();
            asset                 get_balance( asset::type t );
+           asset                 get_margin( asset::type t, asset& collat );
            void                  set_stake( uint64_t stake );
            void                  import_key( const fc::ecc::private_key& key );
            void                  set_fee_rate( const asset& pts_per_byte );
