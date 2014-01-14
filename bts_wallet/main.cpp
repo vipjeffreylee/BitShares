@@ -118,7 +118,7 @@ class client
          {
               uint64_t amount = wallet.get_balance( asset::type(a) ).amount.high_bits();
               uint64_t fraction = amount % COIN;
-              auto fract_str = fc::to_string(fraction+COIN).substr(1);
+              auto fract_str = fc::to_string(static_cast<uint64_t>(fraction+COIN)).substr(1);
               std::cout << (amount/COIN) <<"."<< fract_str << " " << fc::variant(asset::type(a)).as_string() << "\n";
          }
          std::cout<<"\n Margin Positions\n";
@@ -128,7 +128,7 @@ class client
               asset due  = wallet.get_margin( asset::type(a), collat );
               uint64_t amount = due.amount.high_bits();
               uint64_t fraction = amount % COIN;
-              auto fract_str = fc::to_string(fraction+COIN).substr(1);
+              auto fract_str = fc::to_string(static_cast<uint64_t>(fraction+COIN)).substr(1);
               collat.amount *= 3;
               collat.amount /= 4;
               std::cout << (amount/COIN) <<"."<< fract_str << " " << fc::variant(asset::type(a)).as_string() << "  Avg Call Price: ";
