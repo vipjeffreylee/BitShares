@@ -92,6 +92,50 @@ namespace bts { namespace blockchain {
        std::vector<meta_trx_output> meta_outputs; // tracks where the output was spent
     };
 
+    struct bid_data
+    {
+       bid_data():amount(0){}
+       bid_data( price p, uint64_t a )
+       :bid_price(p),amount(a){}
+
+       price    bid_price;
+       uint64_t amount;
+    };
+
+    struct ask_data
+    {
+       ask_data():amount(0){}
+       ask_data( price p, uint64_t a )
+       :ask_price(p),amount(a){}
+       price ask_price;
+       uint64_t amount;
+    };
+
+    struct short_data
+    {
+       short_data():amount(0){}
+       short_data( price p, uint64_t a )
+       :short_price(p),amount(a){}
+
+       price short_price;
+       uint64_t amount;
+    };
+
+    struct margin_data
+    {
+       price    call_price;
+       uint64_t amount;
+       uint64_t collateral;
+    };
+
+    struct market_data
+    {
+        std::vector<bid_data>     bids;
+        std::vector<ask_data>     asks;
+        std::vector<short_data>   shorts;
+        std::vector<margin_data>  margins;
+    };
+
 
     /**
      *  This database only stores valid blocks and applied transactions,
@@ -151,6 +195,8 @@ namespace bts { namespace blockchain {
          void pop_block( full_block& b, std::vector<signed_transaction>& trxs );
 
          std::string dump_market( asset::type quote, asset::type base );
+
+         market_data get_market( asset::type quote, asset::type base );
 
        private:
          void   store_trx( const signed_transaction& trx, const trx_num& t );

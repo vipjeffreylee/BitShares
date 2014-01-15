@@ -91,7 +91,7 @@ class client
         try {
            while( true )
            {
-              fc::usleep( fc::seconds(15) );
+              fc::usleep( fc::seconds(5) );
 
               auto order_trxs   = chain.match_orders(); 
               trx_queue.insert( trx_queue.end(), order_trxs.begin(), order_trxs.end() );
@@ -99,9 +99,11 @@ class client
               {
                  auto new_block = chain.generate_next_block( trx_queue );
                  trx_queue.clear();
-                 chain.push_block( new_block );
-                 
-                 handle_block( new_block.block_num );
+                 if( new_block.trxs.size() )
+                 {
+                   chain.push_block( new_block );
+                   handle_block( new_block.block_num );
+                 }
               }
            }
         } 
@@ -110,6 +112,12 @@ class client
            std::cerr<< e.to_detail_string() << "\n";
            exit(-1);
         }
+      }
+      std::string to_balance( uint64_t a )
+      {
+          uint64_t fraction = a % COIN;
+          auto fract_str = fc::to_string(static_cast<uint64_t>(fraction+COIN)).substr(1);
+          return fc::to_string( a/COIN ) + "." + fract_str;
       }
 
       void print_balances()
@@ -137,6 +145,61 @@ class client
          }
          wallet.dump();
       }
+      void print_market( const std::string& quote, const std::string& base, uint32_t lines = 20 )
+      {
+         asset::type bunit = fc::variant(base).as<asset::type>();
+         asset::type qunit = fc::variant(quote).as<asset::type>();
+         if( bunit > qunit ) std::swap( bunit, qunit );
+
+         auto mark = chain.get_market( qunit, bunit );
+
+         std::cout << std::setw( 36 ) << ("      BIDS  ("+quote+")        ");
+         std::cout << std::setw( 36 ) << ("      ASKS  ("+base+")         ");
+         std::cout << std::setw( 36 ) << ("     SHORTS ("+quote+")        ");
+         std::cout << std::setw( 36 ) << "     MARGIN     ";
+         std::cout << "\n--------------------------------------------------------------------------------\n";
+         for( uint32_t i = 0; i < lines; ++i )
+         {
+            bool end = true;
+            if( mark.bids.size() > i ) 
+            {
+                std::cout << std::setw(12) << to_balance(mark.bids[i].amount) << " " << std::setw(12) << std::string(mark.bids[i].bid_price) <<" |  ";
+                end = false;
+            }
+            else
+            {
+                std::cout<< std::setw( 37 ) << " " << "|";
+            }
+            if( mark.asks.size() > i )
+            {
+                std::cout << std::setw(12) << to_balance( mark.asks[i].amount ) << " " << std::setw(12) << std::string(mark.asks[i].ask_price) <<" |  ";
+                end = false;
+            }
+            else
+            {
+                std::cout<< std::setw( 37 ) << " " << "|";
+            }
+            if( mark.shorts.size() > i )
+            {
+                end = false;
+            }
+            else
+            {
+                std::cout<< std::setw( 37 ) << " " << "|";
+            }
+            if( mark.margins.size() > i )
+            {
+                end = false;
+            }
+            else
+            {
+                std::cout<< std::setw( 37 ) << " " << "|";
+            }
+            std::cout <<"\n";
+
+            if( end ) break;
+         }
+      }
 
       void print_new_address()
       {
@@ -160,15 +223,30 @@ class client
          trx_queue.push_back(trx);
       }
 
-      void bid( double amnt, std::string u, double buyprice, std::string base )
+      void buy( double amnt, std::string u, double buyprice, std::string base )
       {
          uint64_t amount = amnt * COIN;
          asset::type unit = fc::variant(u).as<asset::type>();
          asset::type base_unit = fc::variant(base).as<asset::type>();
-         auto trx = wallet.bid( asset(amount,unit), bts::blockchain::price( buyprice, unit, base_unit ) );
+         auto p = bts::blockchain::price( buyprice, base_unit, unit );
+         auto a = asset(amount,unit) * p;
+         auto trx = wallet.bid( a, p );
          ilog( "${trx}", ("trx",trx) );
          trx_queue.push_back(trx);
       }
+      void sell( double amnt, std::string u, double buyprice, std::string base )
+      {
+         uint64_t amount = amnt * COIN;
+         asset::type unit = fc::variant(u).as<asset::type>();
+         asset::type base_unit = fc::variant(base).as<asset::type>();
+         auto p = bts::blockchain::price( buyprice, base_unit, unit );
+         auto a = asset(amount,unit);
+         auto trx = wallet.bid( a, p );
+         ilog( "${trx}", ("trx",trx) );
+         trx_queue.push_back(trx);
+      }
+
+
       void dump_chain_html( std::string name )
       {
         std::ofstream html( name.c_str() );
@@ -203,7 +281,7 @@ class client
       }
 
       void cancel_open_bid( std::string h, uint32_t idx )
-      {
+      { 
          auto trx = wallet.cancel_bid( output_reference(fc::uint160(h), idx) );
          trx_queue.push_back(trx);
       }
@@ -223,6 +301,7 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
       std::getline( std::cin, line );
       while( std::cin.good() )
       {
+         try {
          std::stringstream ss(line);
          std::string command;
          ss >> command;
@@ -294,7 +373,7 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
             std::string addr;
             double buyprice;
             ss >> amount >> unit >> at >> buyprice >> base_unit;
-            main_thread->async( [=](){ c->bid(amount,base_unit,buyprice,unit); } ).wait();
+            main_thread->async( [=](){ c->buy(amount,unit,buyprice,base_unit); } ).wait();
          }
          else if( command == "sell" )
          {
@@ -305,7 +384,7 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
             std::string addr;
             double buyprice;
             ss >> amount >> unit >> at >> buyprice >> base_unit;
-            main_thread->async( [=](){ c->bid(amount,unit,buyprice,base_unit); } ).wait();
+            main_thread->async( [=](){ c->sell(amount,unit,buyprice,base_unit); } ).wait();
          }
          else if( command == "short" )
          {
@@ -323,6 +402,13 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
             ss >> amount >> unit;
             main_thread->async( [=](){ c->cover(amount,unit); } ).wait();
          }
+         else if( command == "market" )
+         {
+            std::string quote_unit;
+            std::string base_unit;
+            ss >> quote_unit >> base_unit;
+            main_thread->async( [=](){ c->print_market(quote_unit,base_unit); } ).wait();
+         }
          else if( command == "add" )
          {
          }
@@ -330,6 +416,11 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          {
          }
          std::cout<<">>> ";
+         } 
+         catch( const fc::exception& e) 
+         {
+             std::cerr<<e.to_detail_string()<<"\n";
+         }
          std::getline( std::cin, line );
       }
    } 

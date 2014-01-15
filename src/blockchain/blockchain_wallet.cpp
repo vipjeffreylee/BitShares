@@ -2,6 +2,7 @@
 #include <bts/blockchain/asset.hpp>
 #include <bts/blockchain/block.hpp>
 #include <bts/extended_address.hpp>
+#include <bts/config.hpp>
 #include <unordered_map>
 #include <map>
 #include <fc/filesystem.hpp>
@@ -529,25 +530,31 @@ namespace bts { namespace blockchain {
           else if( remaining < payoff )
           {
               auto price               = collat_in / cover_in; //txout.get_amount() / payoff;
-              wlog( "Price ${price}", ("price",price) );
+              wlog( "In Price ${price}", ("price",price) );
 
               auto leftover_collateral   = (payoff - remaining) * price;
               auto leftover_debt         = leftover_collateral  * price;
               wlog( "Leftover Collateral ${price}", ("price",price) );
               wlog( "Leftover Debt  ${price}", ("price",price) );
 
-              trx.outputs.push_back( trx_output( claim_by_cover_output( leftover_debt, cover_out.owner ), leftover_collateral ) );
               freed_collateral += txout.get_amount() - leftover_collateral; //remaining * price;
+             // freed_collateral.amount *= 9; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
+              freed_collateral.amount /= 2; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
+
+              trx.outputs.push_back( trx_output( claim_by_cover_output( leftover_debt, cover_out.owner ), collat_in - freed_collateral ) );
               break;
           }
        }
        // if remaining > 0 then change += remaining.
 
-       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
-       trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
+       if( freed_collateral.amount != 0 )
+          trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
+       if( change.amount != 0 )
+          trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
 
        // TODO: calculate fees... apply them... 
 
+       ilog( "req sigs ${sigs}", ("sigs",req_sigs) );
        my->sign_transaction( trx, req_sigs );
        return trx;
    } FC_RETHROW_EXCEPTIONS( warn, "${asset}", ("asset",amnt) ) }
