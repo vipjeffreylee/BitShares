@@ -27,6 +27,7 @@ trx_validation_state::trx_validation_state( const signed_transaction& t, blockch
     balance_sheet[i].collat_out.unit  = (asset::bts);
     balance_sheet[i].neg_out.unit     = (asset::type)i;
   }
+  signed_addresses = t.get_signed_addresses();
 }
 
 void trx_validation_state::validate()
@@ -138,6 +139,7 @@ void trx_validation_state::validate_output( const trx_output& out )
 {
      FC_ASSERT( out.unit < asset::count );
      FC_ASSERT( out.amount < MAX_BITSHARE_SUPPLY ); // some sanity checks here
+     FC_ASSERT( out.amount > 0 );
      switch( out.claim_func )
      {
         case claim_by_signature:
@@ -219,7 +221,7 @@ void trx_validation_state::validate_cover( const trx_output& o )
    {
       auto req_price =  balance_sheet[payoff_unit].collat_in / balance_sheet[payoff_unit].neg_in;
       // TODO: verify this should be <= instead of >=
-      FC_ASSERT( req_price <= o.get_amount() / cover_claim.get_payoff_amount(), "",
+      FC_ASSERT( req_price >= o.get_amount() / cover_claim.get_payoff_amount(), "",
                  ("req_price",req_price)( "amnt", o.get_amount() )( "payoff", cover_claim.get_payoff_amount())("new_price", 
                                                                                                                o.get_amount() / cover_claim.get_payoff_amount() ));
    }
@@ -287,14 +289,18 @@ void trx_validation_state::validate_bid( const meta_trx_input& in )
     asset output_bal( in.output.amount, in.output.unit );
     balance_sheet[(asset::type)in.output.unit].in += output_bal;
 
+    wlog( "      *** SIGNED BY ***     \n ${signed} \n ", ("signed", signed_addresses) );
 
     // if the pay address has signed the trx, then that means this is a cancel request
     if( signed_addresses.find( cbb.pay_address ) != signed_addresses.end() )
     {
-       balance_sheet[asset::bts].in += output_bal; 
+       //balance_sheet[asset::bts].in += output_bal; 
+       balance_sheet[uint8_t(in.output.unit)].in += output_bal; 
     }
     else // someone else accepted the offer based upon the terms of the bid.
     {
+        wlog( "      *** SIGNED BY ***     \n ${signed} \n ", ("signed", signed_addresses) );
+
        // some orders may be split and thus result in
        // two outputs being generated... look for the split order first, then look
        // for the change!  Easy peesy..
