@@ -82,7 +82,7 @@ struct trx_output
 {
     template<typename ClaimType>
     trx_output( const ClaimType& t, const asset& a )
-    :amount(a.get_rounded_amount()),unit(a.unit)
+    :amount(a.to_uint64()),unit(a.unit)
     {
        claim_func = ClaimType::type;
        claim_data = fc::raw::pack(t);

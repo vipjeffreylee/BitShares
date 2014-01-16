@@ -330,6 +330,7 @@ void trx_validation_state::validate_bid( const meta_trx_input& in )
          // get balance of partial order, validate that it is greater than min_trade 
          // subtract partial order from output_bal and insure the remaining order is greater than min_trade
          // look for an output making payment of the balance to the pay address
+         FC_ASSERT( accepted_bal.amount > 0 )
          uint16_t sig_out   = find_unused_sig_output( cbb.pay_address, accepted_bal /* cbb.ask_price*/ );
          FC_ASSERT( sig_out != output_not_found );
          mark_output_as_used( sig_out );
@@ -413,8 +414,8 @@ void trx_validation_state::mark_output_as_used( uint16_t output_number )
 }
 
 uint16_t trx_validation_state::find_unused_sig_output( const address& owner, const asset& bal )
-{
-  auto rounded_amount = asset(bal.get_rounded_amount(),bal.unit);
+{ try {
+  auto rounded_amount = bal; //asset(bal.get_rounded_amount(),bal.unit);
   ilog( "find unused sig output ${o}  ${bal}", ("o", owner)("bal",bal) );
   for( uint32_t i = 0; i < trx.outputs.size(); ++i )
   {
@@ -425,7 +426,9 @@ uint16_t trx_validation_state::find_unused_sig_output( const address& owner, con
         {
            ilog( "amount: ${i} ==? ${r} ", ("i",trx.outputs[i].get_amount())("r",rounded_amount) );
            ilog( "round down amount: ${i} ==? ${r} ", ("i",trx.outputs[i].amount/10)("r",rounded_amount.amount.high_bits()/10) );
-           if( trx.outputs[i].amount/10 == rounded_amount.amount.high_bits()/10 && trx.outputs[i].unit == bal.unit )
+           auto delta = int64_t(trx.outputs[i].amount) - int64_t(bal.amount.high_bits());
+           ilog( "delta ${d}", ("d",delta) );
+           if( abs(delta) < 5  && trx.outputs[i].unit == bal.unit )
            {
               if( trx.outputs[i].as<claim_by_signature_output>().owner == owner )
               {
@@ -436,7 +439,7 @@ uint16_t trx_validation_state::find_unused_sig_output( const address& owner, con
      }
   }
   return output_not_found;
-}
+} FC_RETHROW_EXCEPTIONS( warn, "Unable to find output of ${asset} to ${owner}", ("asset",bal)("owner",owner) ) }
 
 /**
  *  Find a bid that matches the pay_to_address and price, amount may be different because
