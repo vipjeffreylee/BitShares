@@ -1,6 +1,7 @@
 #pragma once
 #include <fc/uint128.hpp>
 #include <fc/io/enum_type.hpp>
+#include <stdint.h>
 
 namespace bts { namespace blockchain {
 
@@ -36,14 +37,15 @@ namespace bts { namespace blockchain {
       };
 
       static const fc::uint128& one();
+      static const fc::uint128& zero();
 
       asset():unit(bts){}
       asset( const std::string& str );
       asset( asset::type t ):unit(t){}
-      asset(  long unsigned  ul, asset::type t );
-      asset( double   int_part, asset::type t );
-      asset( long long unsigned int ull , asset::type t );
-      asset( float   int_part, asset::type t );
+      asset( uint32_t ul, asset::type t );
+      asset( uint64_t ull , asset::type t );
+      explicit asset( double   int_part, asset::type t );
+      explicit asset( float   int_part, asset::type t );
       asset( fc::uint128 amnt, asset::type t )
       :amount(amnt),unit(t){}
 
@@ -56,6 +58,7 @@ namespace bts { namespace blockchain {
       }
 
       operator std::string()const;
+      uint64_t get_rounded_amount()const;
       //operator double()const;
       //operator uint64_t()const;
       uint64_t to_uint64()const { return amount.high_bits(); }

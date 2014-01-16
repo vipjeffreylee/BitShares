@@ -262,7 +262,7 @@ namespace bts { namespace blockchain {
                         // ask_change.reset();
                          working_ask.amount = 0;
                          // TODO: trunctate here??? 
-                         working_bid.amount = bidder_change.to_uint64();//.get_rounded_amount();
+                         working_bid.amount = bidder_change.get_rounded_amount();
                         // bid_change       = working_bid;
 
                          market_trx.inputs.push_back( ask_itr->location );
@@ -282,7 +282,7 @@ namespace bts { namespace blockchain {
                          asker_change       = ask_amount_bts - (bid_amount_usd* ask_claim.ask_price);
 
                          working_bid.amount = 0;
-                         working_ask.amount     = asker_change.to_uint64();
+                         working_ask.amount     = asker_change.get_rounded_amount();
                         // working_ask_tmp_amount = asker_change;
                          ask_change             = working_ask;
 
@@ -343,7 +343,7 @@ namespace bts { namespace blockchain {
 
                         ask_change.reset();
                         working_ask.amount = 0;
-                        working_bid.amount = bidder_change.to_uint64();//.get_rounded_amount();
+                        working_bid.amount = bidder_change.get_rounded_amount();
                         bid_change = working_bid;
 
                         market_trx.inputs.push_back( ask_itr->location );
@@ -366,7 +366,7 @@ namespace bts { namespace blockchain {
                         asker_change  = ask_amount_bts -  delta_asker * ask_claim.ask_price;
 
                         working_bid.amount = 0;
-                        working_ask.amount = asker_change.to_uint64();//.get_rounded_amount();
+                        working_ask.amount = asker_change.get_rounded_amount();
                         //working_ask_tmp_amount = asker_change;
                         //ask_change = working_ask;
 

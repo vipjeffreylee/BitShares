@@ -27,39 +27,43 @@ namespace bts { namespace blockchain {
      unit = fc::variant(u).as<asset::type>();
   }
 
-  asset::asset( long unsigned ul, asset::type t )
+  asset::asset( uint32_t amnt, asset::type t )
   :unit(t)
   {
-     amount = fc::uint128( ul, 0 );
+     amount = fc::uint128( amnt, 0 );
   }
-
   asset::asset( double d, asset::type t )
   :unit(t)
   {
      amount = fc::uint128(d * COIN,0);
   }
-  asset::asset( long long unsigned int ull, asset::type t )
-  :unit(t)
-  {
-     amount = fc::uint128(ull * COIN,0);
-  }
+
   asset::asset( float d, asset::type t )
   :unit(t)
   {
-     amount = fc::uint128(d * COIN,0);
+     amount = fc::uint128(double(d) * COIN,0);
+  }
+
+  asset::asset( uint64_t ull, asset::type t )
+  :unit(t)
+  {
+     amount = fc::uint128(ull,0);
   }
 
   double asset::to_double()const
   {
-     return double(amount.high_bits())/COIN;
+     //return double(get_rounded_amount())/COIN;
+     auto div = (amount / fc::uint128(COIN,0));
+     return  double(div.high_bits()) + double(div.low_bits())/uint64_t(-1); //  .high_bits(); //double(get_rounded_amount())/COIN;
   }
 
   asset::operator std::string()const
   {
-     //return fc::to_string( to_double() ) + " " + fc::variant(unit).as_string(); 
-     std::string int_part = fc::to_string(uint64_t(amount.high_bits() / COIN) );
-     uint64_t fract = uint64_t(amount.high_bits() % COIN + COIN);
-     return int_part + "." + fc::to_string(fract).substr(1) + " " + std::string(fc::reflector<asset::type>::to_string( unit ));
+     ilog( "amount high bits: ${hb}", ("hb", amount.high_bits()) );
+     auto rounded_amnt = get_rounded_amount();
+     std::string int_part = fc::to_string(uint64_t(rounded_amnt/COIN) );
+     uint64_t fract = uint64_t(rounded_amnt % COIN + COIN);
+     return  int_part  + "." + fc::to_string(fract).substr(1) + " " + std::string(fc::reflector<asset::type>::to_string( unit ));
      /*
      fc::uint128 fraction( amount.low_bits() );
      fraction *= BASE10_PRECISION;
@@ -82,19 +86,22 @@ namespace bts { namespace blockchain {
      */
   }
 
-  /*
   uint64_t asset::get_rounded_amount()const
   {
     auto tmp = amount;
     tmp += (fc::uint128(1,0)>>1);
-    return tmp.high_bits(); // TODO: round rather than truncate
+    return tmp.high_bits();
   }
-  */
 
 
   const fc::uint128& asset::one()
   {
      static fc::uint128_t o = fc::uint128(1,0);
+     return o;
+  }
+  const fc::uint128& asset::zero()
+  {
+     static fc::uint128_t o = fc::uint128(0,0);
      return o;
   }
 

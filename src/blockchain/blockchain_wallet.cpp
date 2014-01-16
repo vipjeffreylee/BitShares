@@ -353,6 +353,7 @@ namespace bts { namespace blockchain {
 
        trx.inputs    = my->collect_inputs( amnt_with_fee, total_in, req_sigs );
        asset change  = total_in - amnt;
+       ilog( "change ${c}", ("c",change) );
 
        trx.outputs.push_back( trx_output( claim_by_bid_output( change_address, ratio ), amnt) );
        trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
@@ -368,6 +369,7 @@ namespace bts { namespace blockchain {
             if( total_in >= amnt + fee )
             {
                 change = change - fee;
+                ilog( "change - fee = ${c}, fee: ${f}", ("c",change)("f",fee) );
                 trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
                 if( change == asset() ) trx.outputs.pop_back(); // no change required
             }
@@ -379,6 +381,7 @@ namespace bts { namespace blockchain {
               total_in = asset();
               trx.inputs = my->collect_inputs( amnt+fee, total_in, req_sigs );
               change =  total_in - amnt - fee;
+              ilog( "total_in - amnt - fee = ${c}, fee: ${f} total_in: ${i}", ("c",change)("f",fee)("i",total_in) );
               trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
               if( change == asset() ) trx.outputs.pop_back(); // no change required
             }
@@ -850,7 +853,7 @@ namespace bts { namespace blockchain {
 
                  auto cover = itr->second.as<claim_by_cover_output>();
                  auto payoff = asset(cover.payoff_amount,cover.payoff_unit);
-                 auto payoff_threshold = asset(cover.payoff_amount*1.5,cover.payoff_unit);
+                 auto payoff_threshold = asset(uint64_t(cover.payoff_amount*double(1.5)*COIN),cover.payoff_unit);
                  std::cerr<< std::string(payoff);
                  std::cerr<< " owner: ";
                  std::cerr<< std::string(itr->second.as<claim_by_cover_output>().owner);
