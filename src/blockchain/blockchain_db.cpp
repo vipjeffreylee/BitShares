@@ -266,7 +266,7 @@ namespace bts { namespace blockchain {
                         // bid_change       = working_bid;
 
                          market_trx.inputs.push_back( ask_itr->location );
-                         if( pay_asker.amount > 0ull )
+                         if( pay_asker.amount > (uint64_t)0ull )
                             market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
                          pay_asker = asset(0ull,pay_asker.unit);
                          ++ask_itr;

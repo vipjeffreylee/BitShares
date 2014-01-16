@@ -30,7 +30,7 @@ std::string to_balance( uint64_t a )
 {
     uint64_t fraction = a % COIN;
     auto fract_str = fc::to_string(static_cast<uint64_t>(fraction+COIN)).substr(1);
-    return fc::to_string( a/COIN ) + "." + fract_str;
+    return fc::to_string( uint64_t(a/COIN) ) + "." + fract_str;
 }
 
 

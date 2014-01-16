@@ -27,16 +27,21 @@ namespace bts { namespace blockchain {
      unit = fc::variant(u).as<asset::type>();
   }
 
-  asset::asset( uint64_t int_p, asset::type t )
+  asset::asset( long unsigned ul, asset::type t )
   :unit(t)
   {
-     amount = fc::uint128( int_p, 0 );
+     amount = fc::uint128( ul, 0 );
   }
 
   asset::asset( double d, asset::type t )
   :unit(t)
   {
      amount = fc::uint128(d * COIN,0);
+  }
+  asset::asset( long long unsigned int ull, asset::type t )
+  :unit(t)
+  {
+     amount = fc::uint128(ull * COIN,0);
   }
   asset::asset( float d, asset::type t )
   :unit(t)
@@ -52,8 +57,8 @@ namespace bts { namespace blockchain {
   asset::operator std::string()const
   {
      //return fc::to_string( to_double() ) + " " + fc::variant(unit).as_string(); 
-     std::string int_part = fc::to_string(amount.high_bits() / COIN);
-     uint64_t fract = amount.high_bits() % COIN + COIN;
+     std::string int_part = fc::to_string(uint64_t(amount.high_bits() / COIN) );
+     uint64_t fract = uint64_t(amount.high_bits() % COIN + COIN);
      return int_part + "." + fc::to_string(fract).substr(1) + " " + std::string(fc::reflector<asset::type>::to_string( unit ));
      /*
      fc::uint128 fraction( amount.low_bits() );
