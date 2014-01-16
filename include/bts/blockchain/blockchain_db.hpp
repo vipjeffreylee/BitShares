@@ -96,10 +96,11 @@ namespace bts { namespace blockchain {
     {
        bid_data():amount(0){}
        bid_data( price p, uint64_t a )
-       :bid_price(p),amount(a){}
+       :bid_price(p),amount(a),is_short(false){}
 
        price    bid_price;
        uint64_t amount;
+       bool     is_short;
     };
 
     struct ask_data

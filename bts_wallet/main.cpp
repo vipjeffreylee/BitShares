@@ -162,32 +162,43 @@ class client
 
          auto mark = chain.get_market( qunit, bunit );
 
-         std::cout << std::setw( 36 ) << ("      BIDS  ("+quote+")        ");
-         std::cout << std::setw( 36 ) << ("      ASKS  ("+base+")         ");
-         std::cout << std::setw( 36 ) << ("     SHORTS ("+quote+")        ");
-         std::cout << std::setw( 36 ) << "     MARGIN     ";
-         std::cout << "\n--------------------------------------------------------------------------------\n";
+         std::cout << std::setw( 45 ) << ("      BIDS             ") << "  |";
+         std::cout << std::setw( 45 ) << ("      ASKS             ") << "  |";
+     //    std::cout << std::setw( 36 ) << ("     SHORTS ("+quote+")        ");
+     //    std::cout << std::setw( 36 ) << "     MARGIN     ";
+         std::cout << "\n-----------------------------------------------|-----------------------------------------------|\n";
          for( uint32_t i = 0; i < lines; ++i )
          {
             bool end = true;
             if( mark.bids.size() > i ) 
             {
-                std::cout << std::setw(12) << to_balance(mark.bids[i].amount) << " " << std::setw(12) << std::string(mark.bids[i].bid_price) <<" |  ";
+                int bid_index = mark.bids.size() - 1 - i;
+                std::cout << std::setw(20) << std::string(asset( mark.bids[bid_index].amount, qunit)*mark.bids[bid_index].bid_price );
+                if( !mark.bids[bid_index].is_short )
+                {
+                   std::cout << " " << std::setw(25) << std::string(mark.bids[bid_index].bid_price) <<" |";
+                }
+                else
+                {
+                   std::cout << " " << std::setw(25) << ("-"+std::string(mark.bids[bid_index].bid_price)) <<" |";
+                }
                 end = false;
             }
             else
             {
-                std::cout<< std::setw( 37 ) << " " << "|";
+                std::cout<< std::setw( 45 ) << " " << "  |";
             }
             if( mark.asks.size() > i )
             {
-                std::cout << std::setw(12) << to_balance( mark.asks[i].amount ) << " " << std::setw(12) << std::string(mark.asks[i].ask_price) <<" |  ";
+                std::cout << std::setw(20) << std::string(asset( mark.asks[i].amount,bunit ) );
+                std::cout << std::setw(25) << std::string(mark.asks[i].ask_price) <<"  |";
                 end = false;
             }
             else
             {
-                std::cout<< std::setw( 37 ) << " " << "|";
+                std::cout<< std::setw( 45 ) << " " << "  |";
             }
+            /*
             if( mark.shorts.size() > i )
             {
                 std::cout << std::setw(12) << to_balance( mark.shorts[i].amount ) << " " << std::setw(12) << std::string(mark.shorts[i].short_price) <<" |  ";
@@ -205,6 +216,7 @@ class client
             {
                 std::cout<< std::setw( 37 ) << " " << "|";
             }
+            */
             std::cout <<"\n";
 
             if( end ) break;

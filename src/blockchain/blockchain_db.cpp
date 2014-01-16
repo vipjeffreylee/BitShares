@@ -860,6 +860,9 @@ namespace bts { namespace blockchain {
            {
               claim_by_long_output long_claim = working_bid.as<claim_by_long_output>();
               d.shorts.push_back( short_data( long_claim.ask_price, working_bid.amount  ) );
+              d.bids.push_back( bid_data( long_claim.ask_price, 
+                                          (asset(working_bid.amount,asset::bts)*long_claim.ask_price ).get_rounded_amount()) );
+              d.bids.back().is_short = true;
            }
            else
            {

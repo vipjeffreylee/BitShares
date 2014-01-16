@@ -54,7 +54,8 @@ namespace bts { namespace blockchain {
   {
      //return double(get_rounded_amount())/COIN;
      auto div = (amount / fc::uint128(COIN,0));
-     return  double(div.high_bits()) + double(div.low_bits())/uint64_t(-1); //  .high_bits(); //double(get_rounded_amount())/COIN;
+     div += fc::uint128( 0, 100 ); // round up 
+     return  double(div.high_bits()) + double(div.low_bits())/uint64_t(-1); 
   }
 
   asset::operator std::string()const
