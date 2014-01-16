@@ -551,9 +551,11 @@ namespace bts { namespace blockchain {
        }
        // if remaining > 0 then change += remaining.
 
-       if( freed_collateral.amount != 0 )
+       const fc::uint128_t zero(0);
+
+       if( freed_collateral.amount != zero )
           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
-       if( change.amount != 0 )
+       if( change.amount != zero )
           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
 
        // TODO: calculate fees... apply them... 
