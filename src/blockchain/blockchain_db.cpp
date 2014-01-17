@@ -173,7 +173,7 @@ namespace bts { namespace blockchain {
                signed_transaction market_trx;
                market_trx.timestamp = fc::time_point::now();
 
-               const uint64_t zero = 0llu;
+               const uint64_t zero = 0ull;
                asset pay_asker( zero, quote );
                asset pay_bidder( zero, base );
                asset loan_amount( zero, quote );
