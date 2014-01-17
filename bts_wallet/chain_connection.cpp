@@ -17,10 +17,10 @@
 #include <bts/db/level_map.hpp>
 #include <bts/bitchat/bitchat_private_message.hpp>
 
-const chain_message_type subscribe_message::type;
-const chain_message_type block_message::type;
-const chain_message_type trx_message::type;
-const chain_message_type trx_err_message::type;
+const chain_message_type subscribe_message::type = chain_message_type::subscribe_msg;
+const chain_message_type block_message::type = chain_message_type::block_msg;
+const chain_message_type trx_message::type = chain_message_type::trx_msg;
+const chain_message_type trx_err_message::type = chain_message_type::trx_err_msg;
 
   namespace detail
   {
