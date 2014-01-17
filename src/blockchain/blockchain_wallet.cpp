@@ -59,7 +59,7 @@ namespace bts { namespace blockchain {
 
               asset get_balance( asset::type balance_type )
               {
-                   asset total_bal( 0ull, balance_type);
+                   asset total_bal( static_cast<uint64_t>(0ull), balance_type);
                    std::vector<trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -99,7 +99,7 @@ namespace bts { namespace blockchain {
 
               asset get_margin_balance( asset::type unit, asset& total_collat )
               {
-                   asset total_due( 0ull, unit );
+                   asset total_due( static_cast<uint64_t>(0ull), unit );
                    std::multimap<price,trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -347,7 +347,7 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,amnt.unit);
+       asset  total_in(static_cast<uint64_t>(0ull),amnt.unit);
 
        asset amnt_with_fee = amnt; // TODO: add fee of .1% 
 
@@ -498,9 +498,9 @@ namespace bts { namespace blockchain {
        auto   change_address = get_new_address();
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,amnt.unit);
-       asset  cover_in(0ull,amnt.unit);
-       asset  collat_in(0ull,asset::bts);
+       asset  total_in(static_cast<uint64_t>(0ull),amnt.unit);
+       asset  cover_in(static_cast<uint64_t>(0ull),amnt.unit);
+       asset  collat_in(static_cast<uint64_t>(0ull),asset::bts);
 
        trx.inputs         = my->collect_inputs( amnt, total_in, req_sigs );
        asset change = total_in - amnt;
@@ -577,9 +577,9 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx;
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,u);
-       asset  cover_in(0ull,u);
-       asset  collat_in(0ull,asset::bts);
+       asset  total_in(static_cast<uint64_t>(0ull),u);
+       asset  cover_in(static_cast<uint64_t>(0ull),u);
+       asset  collat_in(static_cast<uint64_t>(0ull),asset::bts);
 
        trx.inputs         = my->collect_inputs( collateral_amount, total_in, req_sigs );
        asset change = total_in - collateral_amount;
