@@ -59,7 +59,7 @@ namespace bts { namespace blockchain {
 
               asset get_balance( asset::type balance_type )
               {
-                   asset total_bal( 0, balance_type);
+                   asset total_bal( 0ull, balance_type);
                    std::vector<trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -94,12 +94,12 @@ namespace bts { namespace blockchain {
                            }
                        }
                    }
-                   FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt) );
+                   FC_ASSERT( !"Unable to collect sufficient unspent inputs", "", ("min_amnt",min_amnt)("total_collected",total_in) );
               }
 
               asset get_margin_balance( asset::type unit, asset& total_collat )
               {
-                   asset total_due( 0, unit );
+                   asset total_due( 0ull, unit );
                    std::multimap<price,trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -275,7 +275,7 @@ namespace bts { namespace blockchain {
        trx.sigs.clear();
        my->sign_transaction( trx, req_sigs );
 
-       uint32_t trx_bytes = fc::raw::pack( trx ).size();
+       uint64_t trx_bytes = fc::raw::pack( trx ).size();
        asset    fee( my->_current_fee_rate * trx_bytes );
 
        if( amnt.unit == asset::bts )
@@ -347,12 +347,13 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0,amnt.unit);
+       asset  total_in(0ull,amnt.unit);
 
        asset amnt_with_fee = amnt; // TODO: add fee of .1% 
 
        trx.inputs    = my->collect_inputs( amnt_with_fee, total_in, req_sigs );
        asset change  = total_in - amnt;
+       ilog( "change ${c}", ("c",change) );
 
        trx.outputs.push_back( trx_output( claim_by_bid_output( change_address, ratio ), amnt) );
        trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
@@ -368,6 +369,7 @@ namespace bts { namespace blockchain {
             if( total_in >= amnt + fee )
             {
                 change = change - fee;
+                ilog( "change - fee = ${c}, fee: ${f}", ("c",change)("f",fee) );
                 trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
                 if( change == asset() ) trx.outputs.pop_back(); // no change required
             }
@@ -379,6 +381,7 @@ namespace bts { namespace blockchain {
               total_in = asset();
               trx.inputs = my->collect_inputs( amnt+fee, total_in, req_sigs );
               change =  total_in - amnt - fee;
+              ilog( "total_in - amnt - fee = ${c}, fee: ${f} total_in: ${i}", ("c",change)("f",fee)("i",total_in) );
               trx.outputs.back() = trx_output( claim_by_signature_output( change_address ), change );
               if( change == asset() ) trx.outputs.pop_back(); // no change required
             }
@@ -495,9 +498,9 @@ namespace bts { namespace blockchain {
        auto   change_address = get_new_address();
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0,amnt.unit);
-       asset  cover_in(0,amnt.unit);
-       asset  collat_in(0,asset::bts);
+       asset  total_in(0ull,amnt.unit);
+       asset  cover_in(0ull,amnt.unit);
+       asset  collat_in(0ull,asset::bts);
 
        trx.inputs         = my->collect_inputs( amnt, total_in, req_sigs );
        asset change = total_in - amnt;
@@ -539,17 +542,23 @@ namespace bts { namespace blockchain {
 
               freed_collateral += txout.get_amount() - leftover_collateral; //remaining * price;
              // freed_collateral.amount *= 9; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
-              freed_collateral.amount /= 2; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
 
-              trx.outputs.push_back( trx_output( claim_by_cover_output( leftover_debt, cover_out.owner ), collat_in - freed_collateral ) );
+              if( leftover_debt.amount.high_bits() > 2 )
+              {
+                 freed_collateral.amount *= 3; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
+                 freed_collateral.amount /= 4; // -= asset(COIN / 1000,asset::bts); // TODO: this is a hack to fix rounding errors
+                 trx.outputs.push_back( trx_output( claim_by_cover_output( leftover_debt, cover_out.owner ), collat_in - freed_collateral ) );
+              }
               break;
           }
        }
        // if remaining > 0 then change += remaining.
 
-       if( freed_collateral.amount != 0 )
+       const fc::uint128_t zero(0);
+
+       if( freed_collateral.amount != zero )
           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), freed_collateral ) );
-       if( change.amount != 0 )
+       if( change.amount != zero )
           trx.outputs.push_back( trx_output( claim_by_signature_output( change_address ), change) );
 
        // TODO: calculate fees... apply them... 
@@ -568,9 +577,9 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx;
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0,u);
-       asset  cover_in(0,u);
-       asset  collat_in(0,asset::bts);
+       asset  total_in(0ull,u);
+       asset  cover_in(0ull,u);
+       asset  collat_in(0ull,asset::bts);
 
        trx.inputs         = my->collect_inputs( collateral_amount, total_in, req_sigs );
        asset change = total_in - collateral_amount;
@@ -844,7 +853,7 @@ namespace bts { namespace blockchain {
 
                  auto cover = itr->second.as<claim_by_cover_output>();
                  auto payoff = asset(cover.payoff_amount,cover.payoff_unit);
-                 auto payoff_threshold = asset(cover.payoff_amount*1.5,cover.payoff_unit);
+                 auto payoff_threshold = asset(uint64_t(cover.payoff_amount*double(1.5)*COIN),cover.payoff_unit);
                  std::cerr<< std::string(payoff);
                  std::cerr<< " owner: ";
                  std::cerr<< std::string(itr->second.as<claim_by_cover_output>().owner);

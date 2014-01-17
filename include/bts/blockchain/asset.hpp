@@ -1,6 +1,7 @@
 #pragma once
 #include <fc/uint128.hpp>
 #include <fc/io/enum_type.hpp>
+#include <stdint.h>
 
 namespace bts { namespace blockchain {
 
@@ -33,30 +34,35 @@ namespace bts { namespace blockchain {
           hkd      = 13, // Hong Kong 
           wti      = 14, // Light Sweet Crude Oil
           iii      = 15, // value of 1 of 1 billion shares in Invictus Innovations, Inc
-          
       };
 
       static const fc::uint128& one();
+      static const fc::uint128& zero();
 
       asset():unit(bts){}
       asset( const std::string& str );
-      asset( uint64_t int_part, asset::type t );
+      asset( asset::type t ):unit(t){}
+      asset( uint32_t ul, asset::type t );
+      asset( uint64_t ull , asset::type t );
+      explicit asset( double   int_part, asset::type t );
+      explicit asset( float   int_part, asset::type t );
       asset( fc::uint128 amnt, asset::type t )
       :amount(amnt),unit(t){}
 
       asset& operator += ( const asset& o );
       asset& operator -= ( const asset& o );
-      //friend asset  operator - ( const asset& a, const asset& b ){ return asset(a) -= b; }
       asset  operator *  ( const fc::uint128_t& fix6464 )const;
       asset  operator *  ( uint64_t mult )const
       {
          return *this * fc::uint128_t(mult,0);
       }
 
-      uint64_t get_rounded_amount()const;
-      asset    get_rounded_asset()const { return asset( get_rounded_amount(),unit); }
-
       operator std::string()const;
+      uint64_t get_rounded_amount()const;
+      //operator double()const;
+      //operator uint64_t()const;
+      uint64_t to_uint64()const { return amount.high_bits(); }
+      double to_double()const;
        
       fc::uint128_t amount;
       type          unit;
@@ -79,6 +85,7 @@ namespace bts { namespace blockchain {
       price( const std::string& s );
       price( double a, asset::type base, asset::type quote );
       operator std::string()const;
+      operator double()const;
 
       fc::uint128_t ratio; // 64.64
 

@@ -2,6 +2,7 @@
 #include <bts/blockchain/block.hpp>
 #include <bts/blockchain/transaction.hpp>
 #include <bts/blockchain/blockchain_db.hpp>
+#include <fc/log/logger.hpp>
 
 namespace bts { namespace blockchain {
   
@@ -49,7 +50,8 @@ namespace bts { namespace blockchain {
                  sum -= int64_t(neg_in.amount.high_bits());
                  sum -= int64_t(out.amount.high_bits());
                  sum += int64_t(neg_out.amount.high_bits());
-                 return sum >= 0;
+                 ilog( "is blanced sum ${s} ${u}", ("s",sum)("u",in.unit));
+                 return abs(sum) <= 2;
               }
                  //return ((in - neg_in) - (out - neg_out)).amount >= fc::uint128(0); }
            };

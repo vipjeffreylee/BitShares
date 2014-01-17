@@ -173,12 +173,12 @@ namespace bts { namespace blockchain {
                signed_transaction market_trx;
                market_trx.timestamp = fc::time_point::now();
 
-               asset pay_asker( 0, quote );
-               asset pay_bidder( 0, base );
-               asset loan_amount( 0, quote );
-               asset collateral_amount(0,base);
-               asset bidder_change(0,quote); // except for longs?
-               asset asker_change(0,base);
+               asset pay_asker( 0ull, quote );
+               asset pay_bidder( 0ull, base );
+               asset loan_amount( 0ull, quote );
+               asset collateral_amount(0ull,base);
+               asset bidder_change(0ull,quote); // except for longs?
+               asset asker_change(0ull,base);
 
 
                /** asks are sorted from low to high, so we start
@@ -192,18 +192,18 @@ namespace bts { namespace blockchain {
                 * When there are no more pairs that can be matched, exit
                 * the loop and any partial payouts are made.  
                 */
-               auto ask_itr = asks.rbegin();
-               auto bid_itr = bids.begin();
+               auto ask_itr = asks.begin();
+               auto bid_itr = bids.rbegin();
                trx_output working_ask;
                trx_output working_bid;
 
-               if( ask_itr != asks.rend() )  working_ask = get_output( ask_itr->location );
-               if( bid_itr != bids.end() ) working_bid = get_output( bid_itr->location );
+               if( ask_itr != asks.end() ) working_ask = get_output( ask_itr->location );
+               if( bid_itr != bids.rend() ) working_bid = get_output( bid_itr->location );
 
                bool has_change = false;
 
-               while( ask_itr != asks.rend() && 
-                      bid_itr != bids.end()    )
+               while( ask_itr != asks.end() && 
+                      bid_itr != bids.rend()    )
                { 
                  // asset      working_ask_tmp_amount; // store fractional working ask amounts here..
                   
@@ -226,8 +226,9 @@ namespace bts { namespace blockchain {
                   if( working_bid.claim_func == claim_by_long )
                   {
                      auto long_claim = working_bid.as<claim_by_long_output>();
-                     if( long_claim.ask_price > ask_claim.ask_price )
+                     if( long_claim.ask_price < ask_claim.ask_price )
                      {
+                        ilog( "\n\n                                  BID ${BID}  >>>>   ASK ${ASK}\n\n", ("BID",long_claim.ask_price)("ASK",ask_claim.ask_price) );
                         break; // exit the while loop, no more trades can occur
                      }
                      has_change = true;
@@ -240,20 +241,23 @@ namespace bts { namespace blockchain {
                      // "new" USD is then placed into the collateral.
 
                      asset bid_amount_bts = working_bid.get_amount(); // * long_claim.ask_price;
-                     ilog(".");
                      asset bid_amount_usd = bid_amount_bts * long_claim.ask_price;
 
                      asset ask_amount_bts = working_ask.get_amount(); // * long_claim.ask_price;
-                     ilog(".");
                      asset ask_amount_usd = ask_amount_bts * ask_claim.ask_price;
+
+                     ilog( "ask_usd ${ask_usd}   bid_usd ${bid_usd}", ("ask_usd",ask_amount_usd)("bid_usd",bid_amount_usd) );
+                     ilog( "ask_bts ${ask_bts}   bid_bts ${bid_bts}", ("ask_bts",ask_amount_bts)("bid_bts",bid_amount_bts) );
 
 
                      if( ask_amount_usd < bid_amount_usd )
                      { // then we have filled the ask
                          pay_asker         += ask_amount_usd;
                          loan_amount       += ask_amount_usd;
-                         collateral_amount += ask_amount_bts +  pay_asker * long_claim.ask_price;
-                         bidder_change     = bid_amount_bts - (pay_asker * long_claim.ask_price);
+                         collateral_amount += ask_amount_bts +  ask_amount_usd * long_claim.ask_price;
+                         ilog( "bid amount bts ${bid_bts}  - ${pay_asker} * ${price} = ${result}",
+                               ("bid_bts",bid_amount_bts)("pay_asker",pay_asker)("price",long_claim.ask_price)("result",pay_asker*long_claim.ask_price) );
+                         bidder_change     = bid_amount_bts - (ask_amount_usd * long_claim.ask_price);
 
                         // ask_change.reset();
                          working_ask.amount = 0;
@@ -262,17 +266,20 @@ namespace bts { namespace blockchain {
                         // bid_change       = working_bid;
 
                          market_trx.inputs.push_back( ask_itr->location );
-                         market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
-                         pay_asker = asset(0,pay_asker.unit);
+                         if( pay_asker.amount > (uint64_t)0ull )
+                            market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
+                         pay_asker = asset(0ull,pay_asker.unit);
                          ++ask_itr;
-                         if( ask_itr != asks.rend() )  working_ask = get_output( ask_itr->location );
+                         if( ask_itr != asks.end() )  working_ask = get_output( ask_itr->location );
                      }
                      else // we have filled the bid (short sell) 
                      {
                          pay_asker         += bid_amount_usd;
                          loan_amount       += bid_amount_usd;
-                         collateral_amount += bid_amount_bts + (loan_amount * ask_claim.ask_price);
-                         asker_change       = ask_amount_bts - (loan_amount * ask_claim.ask_price);
+                         collateral_amount += bid_amount_bts + (bid_amount_usd * ask_claim.ask_price);
+                         ilog( "ask_amount_bts ${bid_bts}  - ${loan_amount} * ${price} = ${result}",
+                               ("bid_bts",ask_amount_bts)("loan_amount",loan_amount)("price",ask_claim.ask_price)("result",loan_amount*ask_claim.ask_price) );
+                         asker_change       = ask_amount_bts - (bid_amount_usd* ask_claim.ask_price);
 
                          working_bid.amount = 0;
                          working_ask.amount     = asker_change.get_rounded_amount();
@@ -283,22 +290,22 @@ namespace bts { namespace blockchain {
                          market_trx.outputs.push_back( 
                                  trx_output( claim_by_cover_output( loan_amount, ask_claim.pay_address ), collateral_amount) );
 
-                         loan_amount       = asset(0,loan_amount.unit);
+                         loan_amount       = asset(0ull,loan_amount.unit);
                          collateral_amount = asset();
                          ++bid_itr;
-                         if( bid_itr != bids.end() ) working_bid = get_output( bid_itr->location );
+                         if( bid_itr != bids.rend() ) working_bid = get_output( bid_itr->location );
 
                          if( working_ask.amount == 0 )
                          {
                             market_trx.inputs.push_back( ask_itr->location );
                             ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
-                            if( pay_asker != asset(0,pay_asker.unit) )
+                            if( pay_asker != asset(0ull,pay_asker.unit) )
                             {
                                 market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
                             }
-                            pay_asker = asset(0,pay_asker.unit);
+                            pay_asker = asset(pay_asker.unit);
                             ++ask_itr;
-                            if( ask_itr != asks.rend() )  working_ask = get_output( ask_itr->location );
+                            if( ask_itr != asks.end() )  working_ask = get_output( ask_itr->location );
                          }
                      }
                   }
@@ -341,13 +348,13 @@ namespace bts { namespace blockchain {
 
                         market_trx.inputs.push_back( ask_itr->location );
                         ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
-                        if( pay_asker > asset(0,pay_asker.unit) )
+                        if( pay_asker > asset(0ull,pay_asker.unit) )
                         {
                           market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
                         }
-                        pay_asker = asset(0,pay_asker.unit);
+                        pay_asker = asset(pay_asker.unit);
                         ++ask_itr;
-                        if( ask_itr != asks.rend() )  working_ask = get_output( ask_itr->location );
+                        if( ask_itr != asks.end() )  working_ask = get_output( ask_itr->location );
                      }
                      else // then we have filled the bid or we have filled BOTH
                      {
@@ -366,19 +373,20 @@ namespace bts { namespace blockchain {
                         market_trx.inputs.push_back( bid_itr->location );
                         ilog( "BID CLAIM ADDR ${A} ${a}", ("A",bid_claim.pay_address)("a",pay_bidder) );
                         market_trx.outputs.push_back( trx_output( claim_by_signature_output( bid_claim.pay_address ), pay_bidder) );
-                        pay_bidder = asset(0,pay_bidder.unit);
+                        pay_bidder = asset(0ull,pay_bidder.unit);
 
                         ++bid_itr;
-                        if( bid_itr != bids.end() ) working_bid = get_output( bid_itr->location );
+                        if( bid_itr != bids.rend() ) working_bid = get_output( bid_itr->location );
 
                         if( working_ask.amount == 0 )
                         {
                            market_trx.inputs.push_back( ask_itr->location );
                            ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
-                           market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
-                           pay_asker = asset(0,pay_asker.unit);
+                           if( pay_asker.amount > 0 )
+                              market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
+                           pay_asker = asset(0ull,pay_asker.unit);
                            ++ask_itr;
-                           if( ask_itr != asks.rend() )  working_ask = get_output( ask_itr->location );
+                           if( ask_itr != asks.end() )  working_ask = get_output( ask_itr->location );
                         }
                      }
                   }
@@ -390,18 +398,23 @@ namespace bts { namespace blockchain {
                } // while( ... ) 
                if( has_change && working_ask.amount != 0  )
                {
-                  FC_ASSERT( ask_itr != asks.rend() );
-                  market_trx.inputs.push_back( ask_itr->location );
-                  market_trx.outputs.push_back( working_ask );
-                  market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_payout_address ), pay_asker ) );
+                  FC_ASSERT( ask_itr != asks.end() );
+                  if( pay_asker.amount > 0 )
+                  {
+                     market_trx.inputs.push_back( ask_itr->location );
+                     market_trx.outputs.push_back( working_ask );
+                     market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_payout_address ), pay_asker ) );
+                  }
                }
                if( has_change && working_bid.amount != 0 )
                {
-                  FC_ASSERT( bid_itr != bids.end() );
-                  market_trx.inputs.push_back( bid_itr->location );
-                  market_trx.outputs.push_back( working_bid );
-                  market_trx.outputs.push_back( 
-                       trx_output( claim_by_cover_output( loan_amount, bid_payout_address ), collateral_amount) );
+                  FC_ASSERT( bid_itr != bids.rend() );
+                  if( collateral_amount.amount > 0 )
+                  {
+                     market_trx.inputs.push_back( bid_itr->location );
+                     market_trx.outputs.push_back( working_bid );
+                     market_trx.outputs.push_back( trx_output( claim_by_cover_output( loan_amount, bid_payout_address ), collateral_amount) );
+                  }
                }
               
                wlog( "Market Transaction: ${trx}", ("trx", market_trx) );
@@ -845,14 +858,16 @@ namespace bts { namespace blockchain {
            auto working_bid = my->get_output( itr->location );
            if( working_bid.claim_func == claim_by_long )
            {
-              claim_by_bid_output bid_claim = working_bid.as<claim_by_bid_output>();
-              d.bids.push_back( bid_data( bid_claim.ask_price, working_bid.amount ) );
+              claim_by_long_output long_claim = working_bid.as<claim_by_long_output>();
+              d.shorts.push_back( short_data( long_claim.ask_price, working_bid.amount  ) );
+              d.bids.push_back( bid_data( long_claim.ask_price, 
+                                          (asset(working_bid.amount,asset::bts)*long_claim.ask_price ).get_rounded_amount()) );
+              d.bids.back().is_short = true;
            }
            else
            {
-              claim_by_long_output long_claim = working_bid.as<claim_by_long_output>();
-              d.shorts.push_back( short_data( long_claim.ask_price, working_bid.amount  ) );
-
+              claim_by_bid_output bid_claim = working_bid.as<claim_by_bid_output>();
+              d.bids.push_back( bid_data( bid_claim.ask_price, working_bid.amount ) );
            }
        }
 
@@ -863,7 +878,6 @@ namespace bts { namespace blockchain {
            claim_by_bid_output ask_claim = working_ask.as<claim_by_bid_output>();
            d.asks.push_back( ask_data( ask_claim.ask_price, working_ask.amount ) );
        }
-
        return d;
     }
 
@@ -895,7 +909,7 @@ namespace bts { namespace blockchain {
     }
     asset    blockchain_db::get_fee_rate()const
     {
-       return asset(1000, asset::bts);
+       return asset(1000ull, asset::bts);
     }
 
 }  } // bts::blockchain

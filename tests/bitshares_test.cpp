@@ -88,7 +88,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
 
 
      bts::blockchain::wallet  wallet;
-     wallet.open( temp_dir.path() / "chain" );
+     wallet.open( temp_dir.path() / "wallet" );
 
      // load a private key into the wallet
      wallet.import_key( test_genesis_private_key() );
@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
 
      wallet.set_stake(chain.get_stake());
                   
-     auto trx1    = wallet.transfer( asset(20*COIN,asset::bts), a1 );
+     auto trx1    = wallet.transfer( asset(20.0f,asset::bts), a1 );
      wallet.dump();
 
      std::vector<signed_transaction> trxs;
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.scan_chain( chain, block1.block_num );
      wallet.dump();
 
-     auto trx2    = wallet.transfer( asset(90*COIN,asset::bts), a2 );
+     auto trx2    = wallet.transfer( asset(90.0,asset::bts), a2 );
      wallet.dump();
 
      trxs[0] = trx2;
@@ -135,7 +135,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      std::vector<trx_block> blcks;
      for( uint32_t i = 0; i < 10; ++i )
      {
-        auto trx2    = wallet.transfer( asset(2*COIN,asset::bts), wallet.get_new_address() );
+        auto trx2    = wallet.transfer( asset(2.0,asset::bts), wallet.get_new_address() );
         trxs[0] = trx2;
         auto block2 = chain.generate_next_block( trxs );
         chain.push_block( block2 );
@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
         wallet.dump();
      }
 
-     auto bid1 = wallet.bid( asset(COIN,asset::bts),  asset(2*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid1 = wallet.bid( asset(1.0,asset::bts),  asset(2.0,asset::usd)/asset(1.0,asset::bts) );
      trxs.resize(1);
      trxs[0] = bid1;
      auto block3 = chain.generate_next_block( trxs );
@@ -156,7 +156,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.dump();
 
 
-     auto short1 = wallet.short_sell( asset(COIN,asset::usd),  asset(2*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto short1 = wallet.short_sell( asset(1.0,asset::usd),  asset(2.0,asset::usd)/asset(1.0,asset::bts) );
      trxs.resize(1);
      trxs[0] = short1;
      auto block4 = chain.generate_next_block( trxs );
@@ -174,7 +174,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
 
 
      trxs.resize(1);
-     trxs[0] = wallet.cover( asset( COIN/4, asset::usd ) );
+     trxs[0] = wallet.cover( asset( .25, asset::usd ) );
 
      auto block6 = chain.generate_next_block( trxs );
      chain.push_block( block6 );
@@ -182,7 +182,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.scan_chain( chain, block6.block_num );
      wallet.dump();
 
-     auto bid2 = wallet.bid( asset(COIN/8,asset::usd),  asset(2*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid2 = wallet.bid( asset(1/8.0,asset::usd),  asset(2.0,asset::usd)/asset(1.0,asset::bts) );
      trxs.resize(1);
      trxs[0] = bid2;
      auto block7 = chain.generate_next_block( trxs );
@@ -201,7 +201,7 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.scan_chain( chain, block8.block_num );
      wallet.dump();
 
-     auto bid3 = wallet.bid( asset(COIN/8,asset::usd),  asset(3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid3 = wallet.bid( asset(1.0/8,asset::usd),  asset(3.0,asset::usd)/asset(1.0,asset::bts) );
      trxs.resize(1);
      trxs[0] = bid3;
      auto block9 = chain.generate_next_block( trxs );
@@ -219,11 +219,11 @@ BOOST_AUTO_TEST_CASE( bitshares_wallet_test )
      wallet.dump();
 
 
-     auto bid4 = wallet.bid( asset(COIN/16,asset::usd),  asset(3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
-     auto bid7 = wallet.bid( asset(COIN/7,asset::usd),  asset(3.3*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid4 = wallet.bid( asset(1.0/16,asset::usd),  asset(3.0,asset::usd)/asset(1.0,asset::bts) );
+     auto bid7 = wallet.bid( asset(1.0/7,asset::usd),  asset(3.3,asset::usd)/asset(1.0,asset::bts) );
      ilog( "bid4: ${bid4}", ("bid4",bid4) );
-     auto bid5 = wallet.bid( asset(COIN/5,asset::bts),  asset(2.5*COIN,asset::usd)/asset(1*COIN,asset::bts) );
-     auto bid6 = wallet.bid( asset(COIN/3,asset::bts),  asset(4*COIN,asset::usd)/asset(1*COIN,asset::bts) );
+     auto bid5 = wallet.bid( asset(.2,asset::bts),  asset(2.5,asset::usd)/asset(1.0,asset::bts) );
+     auto bid6 = wallet.bid( asset(.33,asset::bts),  asset(4.0,asset::usd)/asset(1.0,asset::bts) );
      trxs.resize(4);
      trxs[0] = bid4;
      trxs[1] = bid5;
