@@ -520,9 +520,9 @@ namespace bts { namespace blockchain {
     } FC_RETHROW_EXCEPTIONS( warn, "trx_id ${trx_id}", ("trx_id",trx_id) ) }
 
     uint32_t    blockchain_db::fetch_block_num( const block_id_type& block_id )
-    {
+    { try {
        return my->blk_id2num.fetch( block_id ); 
-    }
+    } FC_RETHROW_EXCEPTIONS( warn, "block id: ${block_id}", ("block_id",block_id) ) }
 
     block_header blockchain_db::fetch_block( uint32_t block_num )
     {
@@ -694,6 +694,7 @@ namespace bts { namespace blockchain {
         wlog( "total_fees: ${tf}", ("tf", total_eval.fees ) );
 
         my->store( b );
+        my->blk_id2num.store( b.id(), b.block_num );
         
       } FC_RETHROW_EXCEPTIONS( warn, "unable to push block", ("b", b) );
     }

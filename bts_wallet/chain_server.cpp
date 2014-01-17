@@ -1,5 +1,7 @@
 #include "chain_server.hpp" 
 #include "chain_connection.hpp"
+#include "chain_messages.hpp"
+#include <fc/reflect/reflect.hpp>
 #include <mail/message.hpp>
 #include <mail/stcp_socket.hpp>
 #include <bts/blockchain/blockchain_db.hpp>
@@ -99,6 +101,59 @@ namespace detail
         fc::tcp_server                                              tcp_serv;
                                                                    
         fc::future<void>                                            accept_loop_complete;
+        fc::future<void>                                            block_gen_loop_complete;
+        std::vector<bts::blockchain::signed_transaction>            pending;
+
+
+        void block_gen_loop()
+        {
+             try {
+                while( true )
+                {
+                   fc::usleep( fc::seconds(20) );
+
+                   auto order_trxs   = chain.match_orders(); 
+                   pending.insert( pending.end(), order_trxs.begin(), order_trxs.end() );
+                   if( pending.size() )
+                   {
+                      auto new_block = chain.generate_next_block( pending );
+                      pending.clear();
+                      if( new_block.trxs.size() )
+                      {
+                        chain.push_block( new_block );
+                        fc::async( [=](){ broadcast_block(new_block); } );
+                      }
+                   }
+                }
+             } 
+             catch ( const fc::exception& e )
+             {
+                elog("${e}", ("e", e.to_detail_string()  ) );
+                exit(-1);
+             }
+        }
+        void broadcast_block( const bts::blockchain::trx_block& blk )
+        {
+            // copy list to prevent yielding in middle...
+            auto cons = connections;
+            
+            block_message blk_msg;
+            blk_msg.block_data = blk;
+            for( auto itr = cons.begin(); itr != cons.end(); ++itr )
+            {
+               try {
+                  if( itr->second->get_last_block_id() == blk.prev )
+                  {
+                    itr->second->send( message( blk_msg ) );
+                    itr->second->set_last_block_id( blk.id() );
+                  }
+               } 
+               catch ( const fc::exception& w )
+               {
+                  wlog( "${w}", ( "w",w.to_detail_string() ) );
+               }
+            }
+        }
                                                                    
         /**
          *  This is called every time a message is received from c, there are only two
@@ -111,32 +166,40 @@ namespace detail
          */
         virtual void on_connection_message( chain_connection& c, const message& m )
         {
-             
-             // TODO: perhaps do this ASYNC?
-             // itr->second->handle_message( c.shared_from_this(), m );
-             /*
-             if( m.type == bts::bitchat::encrypted_message::type )
+             if( m.type == chain_message_type::subscribe_msg )
              {
-                 auto pm = m.as<bts::bitchat::encrypted_message>();
-                 if( pm.validate_proof() )
-                 {
-                    _message_db.store( fc::time_point::now(), pm );
-                 }
+                auto sm = m.as<subscribe_message>();
+                ilog( "recv: ${m}", ("m",sm) );
+                c.set_last_block_id( sm.last_block );
+                c.exec_sync_loop();
              }
-             else if( m.type == bts::bitchat::client_info_message::type )
+             else if( m.type == chain_message_type::trx_msg )
              {
-                 auto ci = m.as<bts::bitchat::client_info_message>();
-                 if( c.get_last_sync_time() == fc::time_point() )
-                 {
-                    c.exec_sync_loop();
-                 }
-                 c.set_last_sync_time( ci.sync_time );
+                auto trx = m.as<trx_message>();
+                ilog( "recv: ${m}", ("m",trx) );
+                try 
+                {
+                   chain.evaluate_signed_transaction( trx.signed_trx );
+                   pending.push_back(trx.signed_trx);
+                } 
+                catch ( const fc::exception& e )
+                {
+                   trx_err_message reply;
+                   reply.signed_trx = trx.signed_trx;
+                   reply.err = e.to_detail_string();
+                   wlog( "${e}", ("e", e.to_detail_string() ) );
+                   c.send( message( reply ) );
+                   c.close();
+                }
              }
              else
              {
+                 trx_err_message reply;
+                 reply.err = "unsupported message type";
+                 wlog( "unsupported message type" );
+                 c.send( message( reply ) );
                  c.close();
              }
-             */
         }
 
 
@@ -149,6 +212,8 @@ namespace detail
             if( ser_del ) ser_del->on_disconnected( cptr );
             auto itr = connections.find(c.remote_endpoint());
             connections.erase( itr ); //c.remote_endpoint() );
+            // we cannot close/delete the connection from this callback or we will hang the fiber
+            fc::async( [cptr]() {} );
           } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
         }
 
@@ -254,6 +319,7 @@ void chain_server::configure( const chain_server::config& c )
      ilog( "listening for stcp connections on port ${p}", ("p",c.port) );
      my->tcp_serv.listen( c.port );
      my->accept_loop_complete = fc::async( [=](){ my->accept_loop(); } ); 
+     my->block_gen_loop_complete = fc::async( [=](){ my->block_gen_loop(); } ); 
      
      my->chain.open( "chain" );
      if( my->chain.head_block_num() == uint32_t(-1) )

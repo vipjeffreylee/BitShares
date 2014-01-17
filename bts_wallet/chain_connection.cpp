@@ -1,4 +1,5 @@
 #include "chain_connection.hpp"
+#include "chain_messages.hpp"
 #include <mail/message.hpp>
 #include <bts/config.hpp>
 
@@ -16,6 +17,11 @@
 #include <bts/db/level_map.hpp>
 #include <bts/bitchat/bitchat_private_message.hpp>
 
+const chain_message_type subscribe_message::type;
+const chain_message_type block_message::type;
+const chain_message_type trx_message::type;
+const chain_message_type trx_err_message::type;
+
   namespace detail
   {
      class chain_connection_impl
@@ -28,7 +34,7 @@
           fc::ip::endpoint     remote_ep;
           chain_connection_delegate* con_del;
 
-          fc::time_point _sync_time;
+          bts::blockchain::block_id_type  _last_block_id;
           bts::blockchain::blockchain_db* chain;
 
           /** used to ensure that messages are written completely */
@@ -44,10 +50,12 @@
             const int LEFTOVER = BUFFER_SIZE - sizeof(message_header);
             try {
                message m;
-               while( true )
+               while( !read_loop_complete.canceled() )
                {
                   char tmp[BUFFER_SIZE];
+                  ilog( "read.." );
                   sock->read( tmp, BUFFER_SIZE );
+                  ilog( "." );
                   memcpy( (char*)&m, tmp, sizeof(message_header) );
                   m.data.resize( m.size + 16 ); //give extra 16 bytes to allow for padding added in send call
                   memcpy( (char*)m.data.data(), tmp + sizeof(message_header), LEFTOVER );
@@ -56,12 +64,18 @@
                   try { // message handling errors are warnings... 
                     con_del->on_connection_message( self, m );
                   } 
-                  catch ( fc::canceled_exception& e ) { throw; }
-                  catch ( fc::eof_exception& e ) { throw; }
+                  catch ( fc::canceled_exception& e ) { wlog(".");throw; }
+                  catch ( fc::eof_exception& e ) { wlog(".");throw; }
                   catch ( fc::exception& e ) 
                   { 
                      wlog( "disconnected ${er}", ("er", e.to_detail_string() ) );
+                     return;
                      // TODO: log and potentiall disconnect... for now just warn.
+                  }
+                  catch( ... )
+                  {
+                     wlog("...????" );
+                     return;
                   }
                }
             } 
@@ -69,18 +83,22 @@
             {
               if( con_del )
               {
-                con_del->on_connection_disconnected( self );
+                 con_del->on_connection_disconnected( self );
               }
               else
               {
-          //      wlog( "disconnected ${e}", ("e", e.to_detail_string() ) );
+                wlog( "disconnected ${e}", ("e", e.to_detail_string() ) );
               }
+              wlog( "exit read loop" );
+              return;
             }
             catch ( const fc::eof_exception& e )
             {
               if( con_del )
               {
-                con_del->on_connection_disconnected( self );
+                 ilog( ".");
+                 fc::async( [=](){con_del->on_connection_disconnected( self );} );
+                 ilog( ".");
               }
               else
               {
@@ -89,10 +107,12 @@
             }
             catch ( fc::exception& er )
             {
+               wlog( ".." );
               if( con_del )
               {
                 elog( "disconnected ${er}", ("er", er.to_detail_string() ) );
-                con_del->on_connection_disconnected( self );
+                //con_del->on_connection_disconnected( self );
+                fc::async( [=](){con_del->on_connection_disconnected( self );} );
               }
               else
               {
@@ -102,6 +122,7 @@
             }
             catch ( ... )
             {
+               wlog( "unhandled??" );
               // TODO: call con_del->????
               FC_THROW_EXCEPTION( unhandled_exception, "disconnected: {e}", ("e", fc::except_str() ) );
             }
@@ -125,13 +146,13 @@
     my->con_del = d; 
   }
 
-  void chain_connection::set_last_sync_time( const fc::time_point& sync_time )
+  void chain_connection::set_last_block_id( const bts::blockchain::block_id_type& id )
   {
-     my->_sync_time = sync_time;
+     my->_last_block_id = id;
   }
-  fc::time_point chain_connection::get_last_sync_time()const
+  bts::blockchain::block_id_type chain_connection::get_last_block_id()const
   {
-     return my->_sync_time;
+     return my->_last_block_id;
   }
 
   chain_connection::~chain_connection()
@@ -176,11 +197,17 @@
      try {
          if( my->sock )
          {
-           my->sock->get_socket().close();
+           my->sock->close();
            if( my->read_loop_complete.valid() )
            {
               wlog( "waiting for socket to close" );
-              my->read_loop_complete.wait();
+              my->read_loop_complete.cancel();
+              try {
+                 my->read_loop_complete.wait();
+              } catch ( const fc::exception& e )
+              {
+                 wlog( "${w}", ("w",e.to_detail_string()) );
+              } catch ( ...) {}
               wlog( "socket closed" );
            }
          }
@@ -249,17 +276,34 @@
       {
           while( !my->exec_sync_loop_complete.canceled() )
           {
-             // send every block until we reach the head block.
-             /*
-             auto itr = my->_db->lower_bound( my->_sync_time );
-             while( itr.valid() && !my->exec_sync_loop_complete.canceled() )
+             try {
+                int32_t  cur_block_num  = int32_t(-1);
+                if( my->_last_block_id != bts::blockchain::block_id_type() )
+                    cur_block_num = my->chain->fetch_block_num( my->_last_block_id );
+                ilog( "head block ${h}  cur block ${c}", ("c",cur_block_num)("h",my->chain->head_block_num() ) );
+                while( cur_block_num < int32_t(my->chain->head_block_num())  )
+                {
+                    cur_block_num++;
+                    block_message blk_msg;
+                    blk_msg.block_data = my->chain->fetch_trx_block( cur_block_num );
+                    // TODO: sign it..
+                    ilog( "sending block ${n} ${c}", ("n",cur_block_num)("c",blk_msg.block_data.id()) );
+                    send( mail::message(blk_msg) );
+                    my->_last_block_id = blk_msg.block_data.id();
+                    fc::usleep( fc::microseconds( 1000*100 ) );
+                }
+                ilog( "all synced up, no blocks left to send" );
+                return;
+             } 
+             catch ( const fc::exception& e ) 
              {
-                send( message( itr.value() ) );
-                my->_sync_time = itr.key();
-                ++itr;
+                wlog( "${e}", ("e", e.to_detail_string() ) );
+                trx_err_message reply;
+                reply.err = e.to_detail_string();
+                send( message( reply ) );
+                get_socket()->get_socket().close();
+                return;
              }
-             */
-             fc::usleep( fc::seconds(15) );
           }
       });
   }

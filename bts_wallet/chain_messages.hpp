@@ -33,6 +33,8 @@ FC_REFLECT( block_message, (block_data)(sigs) )
 struct trx_message
 {
    static const chain_message_type type = chain_message_type::trx_msg;
+   trx_message(){}
+   trx_message( const bts::blockchain::signed_transaction& t ):signed_trx(t){}
    bts::blockchain::signed_transaction    signed_trx;                 
 };
 FC_REFLECT( trx_message, (signed_trx) )

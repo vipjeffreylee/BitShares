@@ -49,8 +49,8 @@ using namespace mail;
         void connect( const fc::ip::endpoint& ep );
         void close();
 
-        fc::time_point get_last_sync_time()const;
-        void           set_last_sync_time( const fc::time_point& );
+        bts::blockchain::block_id_type get_last_block_id()const;
+        void                           set_last_block_id( const bts::blockchain::block_id_type& t );
 
         void exec_sync_loop();
         void set_database( bts::blockchain::blockchain_db*  );
