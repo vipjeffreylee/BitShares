@@ -481,6 +481,10 @@ namespace bts { namespace blockchain {
     {
        return my->head_block.block_num;
     }
+    block_id_type blockchain_db::head_block_id()const
+    {
+       return my->head_block.id();
+    }
 
 
     /**

@@ -13,6 +13,8 @@
 #include <fc/log/logger.hpp>
 #include <fstream>
 #include <bts/blockchain/blockchain_printer.hpp>
+#include "chain_connection.hpp"
+#include "chain_messages.hpp"
 
 using namespace bts::blockchain;
 
@@ -22,10 +24,6 @@ class client_delegate
 };
 
 
-fc::ecc::private_key test_genesis_private_key()
-{
-    return fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "genesis", 7 ) );
-}
 std::string to_balance( uint64_t a )
 {
     uint64_t fraction = a % COIN;
@@ -33,53 +31,30 @@ std::string to_balance( uint64_t a )
     return fc::to_string( uint64_t(a/COIN) ) + "." + fract_str;
 }
 
-
-bts::blockchain::trx_block create_test_genesis_block()
-{
-   bts::blockchain::trx_block b;
-   b.version      = 0;
-   b.prev         = block_id_type();
-   b.block_num    = 0;
-   b.total_shares = 100*COIN;
-   b.timestamp    = fc::time_point::from_iso_string("20131201T054434");
-
-   signed_transaction coinbase;
-   coinbase.version = 0;
-   //coinbase.valid_after = 0;
-   //coinbase.valid_blocks = 0;
-
-   // TODO: init from PTS here...
-   coinbase.outputs.push_back( 
-      trx_output( claim_by_signature_output( bts::address(test_genesis_private_key().get_public_key()) ), b.total_shares, asset::bts) );
-
-   b.trxs.emplace_back( std::move(coinbase) );
-   b.trx_mroot   = b.calculate_merkle_root();
-
-   return b;
-}
-
-
-
-class client
+class client : public chain_connection_delegate
 {
    public:
+      client():_chain_con(this),_chain_connected(false){}
+
       void open( const fc::path& datadir )
       {
           chain.open( datadir / "chain" );
           wallet.open( datadir / "wallet.bts" );
 
-          if( chain.head_block_num() == uint32_t(-1) )
-          {
-              auto genesis = create_test_genesis_block();
-              //ilog( "genesis block: \n${s}", ("s", fc::json::to_pretty_string(genesis) ) );
-              chain.push_block( genesis );
-              wallet.import_key( test_genesis_private_key() );
-              wallet.scan_chain( chain, 0 );
-              wallet.save();
-          }
+         // if( chain.head_block_num() == uint32_t(-1) )
+         // {
+          //    auto genesis = create_test_genesis_block();
+         //   ilog( "genesis block: \n${s}", ("s", fc::json::to_pretty_string(genesis) ) );
+         //    chain.push_block( genesis );
+         //   wallet.import_key( test_genesis_private_key() );
+         //     wallet.scan_chain( chain, 0 );
+         //     wallet.save();
+         // }
           wallet.scan_chain( chain );
 
+          // load config, connect to server, and start subscribing to blocks...
           sim_loop_complete = fc::async( [this]() { server_sim_loop(); } );
+          chain_connect_loop_complete = fc::async( [this](){ chain_connect_loop(); } );
       }
 
       void broadcast_transaction( const signed_transaction& trx )
@@ -120,6 +95,37 @@ class client
            exit(-1);
         }
       }
+      chain_connection _chain_con;
+      bool _chain_connected;
+      void chain_connect_loop()
+      {
+         _chain_connected = false;
+         while( true ) //!_quit_promise->ready() )
+         {
+            //for( auto itr = _config->default_mail_nodes.begin(); itr != _config->default_mail_nodes.end(); ++itr )
+            {
+                 try {
+                    //ilog( "mail connect ${e}", ("e",*itr) );
+                    _chain_con.connect(fc::ip::endpoint::from_string("127.0.0.1:4567"));
+                  //  _chain_con.set_last_sync_time( _profile->get_last_sync_time() );
+
+                    subscribe_message msg;
+                    msg.version        = 0;
+                    msg.last_block     = chain.head_block_id();
+                    _chain_con.send( mail::message( msg ) );
+                    _chain_connected = true;
+                    return;
+                 } 
+                 catch ( const fc::exception& e )
+                 {
+                    wlog( "${e}", ("e",e.to_detail_string()));
+                 }
+            }
+            fc::usleep( fc::seconds(5) );
+         }
+      }
+
+
       asset get_balance( asset::type u )
       {
           return wallet.get_balance( asset::type(u) );
@@ -300,6 +306,7 @@ class client
       bts::blockchain::blockchain_db    chain;
       bts::blockchain::wallet           wallet;
       fc::future<void>                  sim_loop_complete;
+      fc::future<void>                  chain_connect_loop_complete;
 };
 
 void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
