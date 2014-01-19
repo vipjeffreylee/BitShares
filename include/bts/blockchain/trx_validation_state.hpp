@@ -31,7 +31,7 @@ namespace bts { namespace blockchain {
                                 uint32_t  head_idx = -1
                                 );
 
-           trx_validation_state(){}
+           trx_validation_state() : trx(signed_transaction()) {}
            
            /** tracks the sum of all inputs and outputs for a particular
             * asset type in the balance_sheet 
