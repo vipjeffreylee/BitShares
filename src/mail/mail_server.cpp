@@ -126,6 +126,9 @@ namespace mail {
               if( ser_del ) ser_del->on_disconnected( cptr );
               auto itr = connections.find(c.remote_endpoint());
               connections.erase( itr ); //c.remote_endpoint() );
+
+              // delete this later... capture it, if we do not do this it will hang
+              fc::async( [cptr](){} );
             } FC_RETHROW_EXCEPTIONS( warn, "error thrown handling disconnect" );
           }
 
