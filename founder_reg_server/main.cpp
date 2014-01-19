@@ -60,7 +60,7 @@ int main( int argc, char** argv )
                  auto itr = _known_names.find( name );
                  if( !itr.valid() )
                  {
-                    std::cerr << name << "\t\t" << key << "\t\t'" << points <<"'\n";A
+                    std::cerr << name << "\t\t" << key << "\t\t'" << points <<"'\n";
                     double pointsd = atof( points.c_str() );
                     _known_names.store( name, record( key, pointsd ) );
                  }
