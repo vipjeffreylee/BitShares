@@ -39,6 +39,7 @@ namespace mail {
 
           fc::future<void>       read_loop_complete;
           fc::future<void>       exec_sync_loop_complete;
+          fc::time_point         last_msg_time;
 
           void read_loop()
           {
@@ -247,19 +248,39 @@ namespace mail {
 
   void connection::exec_sync_loop()
   {
+      ilog( "exec sync loop" );
       my->exec_sync_loop_complete = fc::async( [=]() 
       {
+        try {
+         // ilog( "in exec sync loop" );
           while( !my->exec_sync_loop_complete.canceled() )
           {
+             //ilog( "sync time ${t}", ("t",my->_sync_time) );
              auto itr = my->_db->lower_bound( my->_sync_time );
+             if( !itr.valid() )
+             {
+              ilog( "no valid message found" );
+             }
              while( itr.valid() && !my->exec_sync_loop_complete.canceled() )
              {
-                send( message( itr.value() ) );
-                my->_sync_time = itr.key();
+                if( itr.key() > my->_sync_time )
+                {
+                   send( message( itr.value() ) );
+                   my->_sync_time = itr.key();
+                }
                 ++itr;
              }
              fc::usleep( fc::seconds(15) );
           }
+        } 
+        catch ( const fc::exception& e )
+        {
+           wlog( "${e}", ("e", e.to_detail_string() ) );
+        }
+        catch ( ... )
+        {
+           wlog("other exeception" );
+        }
       });
   }
 

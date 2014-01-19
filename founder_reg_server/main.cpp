@@ -14,6 +14,7 @@
 #include <sstream>
 #include <iostream>
 
+#include <boost/algorithm/string.hpp> 
 struct record
 {
     record():points(0){}
@@ -50,14 +51,28 @@ int main( int argc, char** argv )
                std::getline( ss, key, ',' );
                std::string points;
                std::getline( ss, points, ',' );
+               boost::to_lower(name);
                auto itr = _known_names.find( name );
                if( !itr.valid() )
                {
-                  _known_names.store( name, record( key, fc::variant(points).as_double() ) );
+                  std::cerr<<name<< "\t\t"<<key<<"\t\t'"<<points<<"'\n";
+                  double pointsd = atof( points.c_str() );
+
+                  _known_names.store( name, record( key, pointsd ) );
                }
                std::getline(in, line);
             }
          }
+         else
+         {
+               auto itr = _known_names.begin();
+               while( itr.valid() )
+               {
+                  ilog( "${key} => ${value}", ("key",itr.key())("value",itr.value()));
+                  ++itr;
+               }
+         }
+         _tcp_serv.listen( 3879 );
 
          //fc::future<void>    _accept_loop_complete = fc::async( [&]() {
              while( true ) //!_accept_loop_complete.canceled() )
@@ -80,9 +95,19 @@ int main( int argc, char** argv )
                 json_con->add_method( "register_key", [&]( const fc::variants& params ) -> fc::variant 
                 {
                     FC_ASSERT( params.size() == 3 );
-                    auto rec = _known_names.fetch( params[0].as_string() );
-                    FC_ASSERT( rec.key == params[1].as_string() );
-                    FC_ASSERT( rec.pub_key.size() == 0 || rec.pub_key == params[2].as_string() );
+                    auto name = params[0].as_string();
+                    boost::to_lower(name);
+                    name = fc::trim(name);
+                    auto rec = _known_names.fetch( name );
+                    if( rec.key != params[1].as_string() ) //, "Key ${key} != ${expected}", ("key",params[1])("expected",rec.key) );
+                    {
+                        FC_ASSERT( !"Invalid Key" );
+                    }
+                    if( !(rec.pub_key.size() == 0 || rec.pub_key == params[2].as_string() ) )
+                    {
+                      // FC_ASSERT( rec.pub_key.size() == 0 || rec.pub_key == params[2].as_string() );
+                      FC_ASSERT( !"Key already Registered" );
+                    }
                     rec.pub_key = params[2].as_string();
                     _known_names.store( params[0].as_string(), rec );
                     return fc::variant( rec );
