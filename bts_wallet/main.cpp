@@ -15,6 +15,10 @@
 #include <bts/blockchain/blockchain_printer.hpp>
 #include "chain_connection.hpp"
 #include "chain_messages.hpp"
+#ifndef WIN32
+#include <readline/readline.h>
+#include <readline/history.h>
+#endif ///WIN32
 
 using namespace bts::blockchain;
 
@@ -349,8 +353,16 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
 {
    try {
       std::string line;
+#ifndef WIN32
+      static char *line_read = (char *)NULL;
+      line_read = readline(">>> ");
+      if(line_read && *line_read)
+          add_history(line_read);
+      line = line_read;
+#else
       std::cout<<">>> ";
       std::getline( std::cin, line );
+#endif ///WIN32
       while( std::cin.good() )
       {
          try {
@@ -561,13 +573,20 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          {
             print_help();
          }
-         std::cout<<">>> ";
          } 
          catch( const fc::exception& e) 
          {
              std::cerr<<e.to_detail_string()<<"\n";
          }
+#ifndef WIN32
+         line_read = readline(">>> ");
+         if(line_read && *line_read)
+             add_history(line_read);
+         line = line_read;
+#else
+         std::cout<<">>> ";
          std::getline( std::cin, line );
+#endif ///WIN32
       }
    } 
    catch ( const fc::exception& e )
@@ -600,7 +619,7 @@ int main( int argc, char** argv )
    try {
      auto  bts_client = std::make_shared<client>();
      if( argc == 1 )
-        bts_client->open( "datadir" );
+     bts_client->open( "datadir" );
      else if( argc == 2 )
      {
         bts_client->open( argv[1] );
