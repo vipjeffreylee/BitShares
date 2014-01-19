@@ -68,7 +68,7 @@ namespace bts { namespace blockchain {
            std::unordered_map<output_reference,trx_output> get_covered_shorts();
 
            void sign_transaction( signed_transaction& trx, const bts::address& addr );
-           void scan_chain( blockchain_db& chain, uint32_t from_block_num = 0 );
+           bool scan_chain( blockchain_db& chain, uint32_t from_block_num = 0 );
            void mark_as_spent( const output_reference& r );
            void dump();
 

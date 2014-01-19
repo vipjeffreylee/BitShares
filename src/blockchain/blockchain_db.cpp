@@ -289,14 +289,14 @@ namespace bts { namespace blockchain {
 
                          market_trx.inputs.push_back( bid_itr->location );
                          market_trx.outputs.push_back( 
-                                 trx_output( claim_by_cover_output( loan_amount, ask_claim.pay_address ), collateral_amount) );
+                                 trx_output( claim_by_cover_output( loan_amount, long_claim.pay_address ), collateral_amount) );
 
                          loan_amount       = asset(static_cast<uint64_t>(0ull),loan_amount.unit);
                          collateral_amount = asset();
                          ++bid_itr;
                          if( bid_itr != bids.rend() ) working_bid = get_output( bid_itr->location );
 
-                         if( working_ask.amount == 0 )
+                         if( working_ask.amount < 10 )
                          {
                             market_trx.inputs.push_back( ask_itr->location );
                             ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
@@ -323,19 +323,17 @@ namespace bts { namespace blockchain {
                      // we will assume bids are in usd and asks are in bts for naming convention
                      // purposes.
                      
-                     ilog(".");
                      asset bid_amount_usd = working_bid.get_amount();
-                     ilog(".");
                      asset bid_amount_bts = bid_amount_usd * bid_claim.ask_price;
 
-                     ilog(".");
                      asset ask_amount_bts = working_ask.get_amount();
-                     ilog(".");
                      asset ask_amount_usd = ask_amount_bts * ask_claim.ask_price;
+                     ilog( "bid in ${b} expected ${e}", ("b",bid_amount_usd)("e",bid_amount_bts) );
+                     ilog( "ask in ${a} expected ${e}", ("a",ask_amount_bts)("e",ask_amount_usd) );
 
-                     if( ask_amount_usd < bid_amount_usd )
+                     if( ask_amount_usd.get_rounded_amount() < bid_amount_usd.get_rounded_amount() )
                      { // then we have filled the ask
-                        ilog(".");
+                        ilog("ilog ${x} < ${y}???", ("x",ask_amount_usd.amount)("y",bid_amount_usd.amount));
                         pay_asker          += ask_amount_usd;
                         ilog(".");
                         auto delta_bidder  = ask_amount_usd * bid_claim.ask_price;
@@ -349,6 +347,7 @@ namespace bts { namespace blockchain {
 
                         market_trx.inputs.push_back( ask_itr->location );
                         ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
+                        ilog( "BID CHANGE ${C}", ("C", working_bid ) );
                         if( pay_asker > asset(static_cast<uint64_t>(0ull),pay_asker.unit) )
                         {
                           market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_claim.pay_address ), pay_asker) );
@@ -364,12 +363,18 @@ namespace bts { namespace blockchain {
                         ilog(".");
                         auto delta_asker =  bid_amount_bts * ask_claim.ask_price;
                         pay_asker     += delta_asker;
-                        asker_change  = ask_amount_bts -  delta_asker * ask_claim.ask_price;
 
                         working_bid.amount = 0;
-                        working_ask.amount = asker_change.get_rounded_amount();
-                        //working_ask_tmp_amount = asker_change;
-                        //ask_change = working_ask;
+
+                        if( bid_amount_usd.get_rounded_amount() != ask_amount_usd.get_rounded_amount() )
+                        {
+                           asker_change  = ask_amount_bts -  delta_asker * ask_claim.ask_price;
+                           working_ask.amount = asker_change.get_rounded_amount();
+                        }
+                        else
+                        {
+                           working_ask.amount = 0;
+                        }
 
                         market_trx.inputs.push_back( bid_itr->location );
                         ilog( "BID CLAIM ADDR ${A} ${a}", ("A",bid_claim.pay_address)("a",pay_bidder) );
@@ -379,7 +384,7 @@ namespace bts { namespace blockchain {
                         ++bid_itr;
                         if( bid_itr != bids.rend() ) working_bid = get_output( bid_itr->location );
 
-                        if( working_ask.amount == 0 )
+                        if( working_ask.amount < 10 )
                         {
                            market_trx.inputs.push_back( ask_itr->location );
                            ilog( "ASK CLAIM ADDR ${A} amnt ${a}", ("A",ask_claim.pay_address)("a",pay_asker) );
@@ -397,7 +402,7 @@ namespace bts { namespace blockchain {
                                 "", ("bid", working_bid) );  
                   }
                } // while( ... ) 
-               if( has_change && working_ask.amount != 0  )
+               if( has_change && working_ask.amount > 10  )
                {
                   FC_ASSERT( ask_itr != asks.end() );
                   if( pay_asker.amount > 0 )
@@ -407,14 +412,23 @@ namespace bts { namespace blockchain {
                      market_trx.outputs.push_back( trx_output( claim_by_signature_output( ask_payout_address ), pay_asker ) );
                   }
                }
-               if( has_change && working_bid.amount != 0 )
+               if( has_change && working_bid.amount > 10 )
                {
                   FC_ASSERT( bid_itr != bids.rend() );
-                  if( collateral_amount.amount > 0 )
+                  if( collateral_amount.amount > 10 )
                   {
                      market_trx.inputs.push_back( bid_itr->location );
                      market_trx.outputs.push_back( working_bid );
                      market_trx.outputs.push_back( trx_output( claim_by_cover_output( loan_amount, bid_payout_address ), collateral_amount) );
+                  }
+                  else if( working_bid.claim_func == claim_by_bid )
+                  {
+                     if( pay_bidder.amount > 10 )
+                     {
+                        market_trx.inputs.push_back( bid_itr->location );
+                        market_trx.outputs.push_back( working_bid );
+                        market_trx.outputs.push_back( trx_output( claim_by_signature_output( bid_payout_address ), pay_bidder ) );
+                     }
                   }
                }
               

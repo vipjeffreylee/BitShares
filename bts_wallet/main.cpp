@@ -23,11 +23,6 @@ class client_delegate
 
 };
 
-fc::ecc::private_key test_genesis_private_key()
-{
-    return fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "genesis", 7 ) );
-}
-
 std::string to_balance( uint64_t a )
 {
     uint64_t fraction = a % COIN;
@@ -46,7 +41,11 @@ class client : public chain_connection_delegate
             auto blkmsg = m.as<block_message>();
             chain.push_block( blkmsg.block_data );
             wallet.set_stake( chain.get_stake() );
-            wallet.scan_chain( chain, blkmsg.block_data.block_num );
+            if( wallet.scan_chain( chain, blkmsg.block_data.block_num ) )
+            {
+                std::cout<<"new transactions received\n";
+                print_balances();
+            }
          }
          else if( m.type == trx_err_message::type )
          {
@@ -70,7 +69,6 @@ class client : public chain_connection_delegate
          //     wallet.save();
          // }
           
-          wallet.import_key( test_genesis_private_key() );
           if( chain.head_block_num() != uint32_t(-1) )
              wallet.scan_chain( chain );
 
@@ -327,6 +325,26 @@ class client : public chain_connection_delegate
       fc::future<void>                  chain_connect_loop_complete;
 };
 
+void print_help()
+{
+    std::cout<<"Commands:\n";
+    std::cout<<" quit\n";
+    std::cout<<" importkey PRIV_KEY\n";
+    std::cout<<" balance  -  print the wallet balances\n";
+    std::cout<<" newaddr  -  print a new wallet address\n";
+    std::cout<<" transfer AMOUNT UNIT to ADDRESS  \n";
+    std::cout<<" buy AMOUNT UNIT \n";
+    std::cout<<" sell AMOUNT UNIT  \n";
+    std::cout<<" short AMOUNT UNIT \n";
+    std::cout<<" cover AMOUNT UNIT  \n";
+    std::cout<<" add margin AMOUNT bts to UNIT  \n";
+    std::cout<<" cancel ID IDX  \n";
+    std::cout<<" html FILE\n";
+    std::cout<<" json FILE\n";
+    std::cout<<" market QUOTE BASE  \n";
+    std::cout<<" show orders QUOTE BASE  \n";
+}
+
 void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
 {
    try {
@@ -342,26 +360,25 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
    
          if( command == "h" || command == "help" )
          {
-             std::cout<<"Commands:\n";
-             std::cout<<" quit\n";
-             std::cout<<" balance  -  print the wallet balances\n";
-             std::cout<<" newaddr  -  print a new wallet address\n";
-             std::cout<<" transfer AMOUNT UNIT to ADDRESS  \n";
-             std::cout<<" buy AMOUNT UNIT at PRICE BASE  \n";
-             std::cout<<" sell AMOUNT UNIT at PRICE BASE  \n";
-             std::cout<<" short AMOUNT UNIT at PRICE (UNIT/bts) \n";
-             std::cout<<" cover AMOUNT UNIT  \n";
-             std::cout<<" add margin AMOUNT bts to UNIT  \n";
-             std::cout<<" cancel ID IDX  \n";
-             std::cout<<" html FILE\n";
-             std::cout<<" json FILE\n";
-             std::cout<<" show orders QUOTE BASE  \n";
+            print_help();
          }
          else if( command == "html" )
          {
             std::string file;
             ss >> file;
             main_thread->async( [=](){ c->dump_chain_html(file); } ).wait();
+         }
+         else if( command == "importkey" )
+         {
+            std::string key;
+            ss >> key;
+            main_thread->async( [=]() { 
+               c->wallet.import_key( fc::ecc::private_key::regenerate( fc::sha256( key ) ) );
+               std::cout<<"rescanning chain...\n";
+               c->wallet.scan_chain(c->chain);
+               std::cout<<"import complete\n";
+               c->print_balances(); 
+            } ).wait();
          }
          else if( command == "json" )
          {
@@ -540,6 +557,10 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          else if( command == "show" )
          {
          }
+         else
+         {
+            print_help();
+         }
          std::cout<<">>> ";
          } 
          catch( const fc::exception& e) 
@@ -578,7 +599,18 @@ int main( int argc, char** argv )
 
    try {
      auto  bts_client = std::make_shared<client>();
-     bts_client->open( "datadir" );
+     if( argc == 1 )
+        bts_client->open( "datadir" );
+     else if( argc == 2 )
+     {
+        bts_client->open( argv[1] );
+     }
+     else
+     {
+        std::cerr<<"Usage: "<<argv[0]<<" [DATADIR]\n";
+        return -2;
+     }
+
      
      fc::thread  read_thread;
      read_thread.async( [=](){ process_commands( main_thread, bts_client ); } ).wait();

@@ -65,7 +65,7 @@ void trx_validation_state::validate()
      
      for( uint32_t i = 1; i < balance_sheet.size(); ++i )
      {
-        if( !balance_sheet[i].is_balanced() )
+        if( balance_sheet[i].creates_money() )
         {
             FC_THROW_EXCEPTION( exception, "input value ${in} does not match output value ${out}",
                                ("in", std::string(balance_sheet[i].in))( "out", std::string(balance_sheet[i].out) ) );
@@ -201,6 +201,7 @@ void trx_validation_state::validate_long( const trx_output& o )
    FC_ASSERT( long_claim.ask_price.base_unit.value < long_claim.ask_price.quote_unit.value );
 
    balance_sheet[(asset::type)o.unit].out += asset(o.amount,o.unit);
+
 }
 
 /**
@@ -295,7 +296,8 @@ void trx_validation_state::validate_bid( const meta_trx_input& in )
     if( signed_addresses.find( cbb.pay_address ) != signed_addresses.end() )
     {
        //balance_sheet[asset::bts].in += output_bal; 
-       balance_sheet[uint8_t(in.output.unit)].in += output_bal; 
+
+       balance_sheet[uint8_t(in.output.unit)].in += output_bal;  
     }
     else // someone else accepted the offer based upon the terms of the bid.
     {
@@ -349,36 +351,51 @@ void trx_validation_state::validate_long( const meta_trx_input& in )
     auto long_claim = in.output.as<claim_by_long_output>();
     asset output_bal( in.output.amount, in.output.unit );
     balance_sheet[(asset::type)in.output.unit].in += output_bal;
-
-
-/*
+    
     if( signed_addresses.find( long_claim.pay_address ) != signed_addresses.end() )
     {
         // canceled orders can reclaim their dividends (assuming the order has been open long enough)
-        balance_sheet[asset::bts].in += db->calculate_output_dividends( output_bal, in.source.block_num );
-
+        //balance_sheet[asset::bts].in += output_bal;
+       balance_sheet[uint8_t(in.output.unit)].in += output_bal;  
     }
     else // someone else accepted the offer based on terms of the long
     {
-        asset bal = output_bal; // TODO - split_order.bal
-        dividend_fees  += db->calculate_output_dividends( output_bal, in.source.block_num );
+       uint16_t split_order = find_unused_long_output( long_claim );
+       if( split_order == output_not_found ) // must be a full order...
+       {
+         uint16_t sig_out   = find_unused_cover_output( claim_by_cover_output( output_bal * long_claim.ask_price, long_claim.pay_address ), 2*in.output.amount ); 
+         FC_ASSERT( sig_out != output_not_found, " unable to find cover position of ${asset} to ${pay_addr} with collateral ${collat}", 
+                    ("asset", output_bal*long_claim.ask_price)("pay_addr",long_claim.pay_address)("in",in)( "collat",output_bal) );
+         mark_output_as_used( sig_out );
+       }
+       else // look for change
+       {
+         mark_output_as_used( split_order );
+         const trx_output& split_out = trx.outputs[split_order];
+         auto split_claim = split_out.as<claim_by_long_output>();
+         ilog( "in  bid: ${claim} in: ${in}", ( "claim", long_claim)("in",in) );
+         ilog( "split bid: ${claim}", ( "claim", split_claim) );
 
-        uint16_t split_order = find_unused_long_output( long_claim );
-        if( split_order == output_not_found ) // must be a full order...
-        {
-            // TODO: what about multiple outputs that add up to output_bal*cbb.ask_price and are paid to pay_address?
-            // why would we do that? There is no reason.
-            uint16_t sig_out  = find_unused_sig_output( long_claim.pay_address, output_bal * cbb.ask_price  );
-            FC_ASSERT( sig_out != output_not_found );
-        }
-        else // look for change, must be partial order
-        {
-            // TODO: mark the split_order as used... 
 
-            // TODO eval uint16_t sig_out   = find_unused_sig_output( cbb.pay_address, bal * cbb.ask_price );
-        }
+         FC_ASSERT( split_out.amount                      >= long_claim.min_trade );
+         FC_ASSERT( split_out.amount                      <= in.output.amount );
+         FC_ASSERT( (in.output.amount - split_out.amount) >= long_claim.min_trade );
+         FC_ASSERT( split_out.unit   == in.output.unit                     );
+         
+         // the balance of the order that was accepted
+         asset accepted_bal = asset( in.output.amount - split_out.amount, split_out.unit ) * long_claim.ask_price; 
+
+         // get balance of partial order, validate that it is greater than min_trade 
+         // subtract partial order from output_bal and insure the remaining order is greater than min_trade
+         // look for an output making payment of the balance to the pay address
+         FC_ASSERT( accepted_bal.amount > 0 )
+         uint16_t sig_out   = find_unused_cover_output( claim_by_cover_output( accepted_bal, long_claim.pay_address ), 2*(in.output.amount-split_out.amount) );
+         FC_ASSERT( sig_out != output_not_found );
+
+         // TODO: verfiy that the collateral is >= 2x input collateral
+         mark_output_as_used( sig_out );
+       }
     }
-    */
 } FC_RETHROW_EXCEPTIONS( warn, "", ("in",in) ) } // validate_long
 
 void trx_validation_state::validate_cover( const meta_trx_input& in )
@@ -468,12 +485,48 @@ uint16_t trx_validation_state::find_unused_bid_output( const claim_by_bid_output
   return output_not_found;
 }
 
-uint16_t trx_validation_state::find_unused_long_output( const claim_by_long_output& b )
+uint16_t trx_validation_state::find_unused_long_output( const claim_by_long_output& long_claim )
 {
+  for( uint32_t i = 0; i < trx.outputs.size(); ++i )
+  {
+     ilog( "${i} used: ${u}", ("i",i)("u", used_outputs) );
+     auto used_out = used_outputs.find(i);
+     if( used_out == used_outputs.end() )
+     {
+        ilog( "out: ${i}", ("i",trx.outputs[i]) );
+        if( trx.outputs[i].claim_func == claim_by_long )
+        {
+           ilog( "claim by long ${i} ==? ${e} ", ("i",trx.outputs[i].as<claim_by_long_output>())("e",long_claim) );
+           if( trx.outputs[i].as<claim_by_long_output>() == long_claim )
+           {
+              ilog( "return found! ${i}", ("i",i) );
+              return i;
+           }
+        }
+     }
+  }
   return output_not_found;
 }
-uint16_t trx_validation_state::find_unused_cover_output( const claim_by_cover_output& b )
+uint16_t trx_validation_state::find_unused_cover_output( const claim_by_cover_output& cover_claim, uint64_t min_collat )
 {
+  for( uint32_t i = 0; i < trx.outputs.size(); ++i )
+  {
+     ilog( "${i} used: ${u}", ("i",i)("u", used_outputs) );
+     auto used_out = used_outputs.find(i);
+     if( used_out == used_outputs.end() )
+     {
+        ilog( "out: ${i}", ("i",trx.outputs[i]) );
+        if( trx.outputs[i].claim_func == claim_by_cover )
+        {
+           ilog( "claim by cover ${i} ==? ${e} ", ("i",trx.outputs[i].as<claim_by_cover_output>())("e",cover_claim) );
+           if( trx.outputs[i].as<claim_by_cover_output>() == cover_claim && trx.outputs[i].amount >= min_collat ) // TODO: build in some epsilon here?
+           {
+              ilog( "return found! ${i}", ("i",i) );
+              return i;
+           }
+        }
+     }
+  }
   return output_not_found;
 }
 

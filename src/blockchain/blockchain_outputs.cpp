@@ -37,5 +37,17 @@ namespace bts { namespace blockchain {
               (other.ask_price   == ask_price)   &&
               (other.min_trade   == min_trade);
    }
+   bool claim_by_long_output::operator == ( const claim_by_long_output& other )const
+   {
+      return  (other.pay_address == pay_address) &&
+              (other.ask_price   == ask_price)   &&
+              (other.min_trade   == min_trade);
+   }
+   bool claim_by_cover_output::operator == ( const claim_by_cover_output& other )const
+   {
+      return  (other.owner == owner) &&
+              (other.payoff_unit   == payoff_unit)   &&
+              (other.payoff_amount   == payoff_amount);
+   }
 
 } } // bts::blockchain
