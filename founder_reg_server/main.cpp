@@ -19,7 +19,7 @@ struct record
 {
     record():points(0){}
     record( std::string k, double p ) : key(k), points(p) {}
-    record( std::string k, std::string public_key, double p) : key(k), pub_key(public_key), points(p) {}
+    record( std::string k, std::string public_key, double p) : key(k), points(p), pub_key(public_key) {}
 
     std::string key; //founderCode
     double    points;
@@ -44,7 +44,7 @@ int main( int argc, char** argv )
             std::ifstream in(argv[1]);
             std::string line;
             std::getline(in, line);
-            int num_commas = count(line.begin(), line.end(), ',');
+            int num_commas = std::count(line.begin(), line.end(), ',');
             if (num_commas == 3)
             {
               while( in.good() )
