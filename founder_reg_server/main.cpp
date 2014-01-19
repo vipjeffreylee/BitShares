@@ -18,10 +18,10 @@
 struct record
 {
     record():points(0){}
-    record( std::string k, double p )
-    :key(k),points(p){}
+    record( std::string k, double p ) : key(k), points(p) {}
+    record( std::string k, std::string public_key, double p) : key(k), pub_key(public_key), points(p) {}
 
-    std::string key;
+    std::string key; //founderCode
     double    points;
     std::string pub_key;
 };
@@ -32,35 +32,83 @@ int main( int argc, char** argv )
 {
    try {
          fc::tcp_server                           _tcp_serv;
+
+         //maps keyhoteeId -> founderCode,points,publicKey
          bts::db::level_map<std::string,record>   _known_names;
          _known_names.open( "reg_db" );
          
-         // TODO: import CSV list.
+         // TODO: import CSV list of new keyhoteeIds that can be registered
          if( argc == 2 )
          {
             FC_ASSERT( fc::exists(argv[1]) );
             std::ifstream in(argv[1]);
             std::string line;
             std::getline(in, line);
-            while( in.good() )
+            int num_commas = count(line.begin(), line.end(), ',');
+            if (num_commas == 3)
             {
-               std::stringstream ss(line);
-               std::string name;
-               std::getline( ss, name, ',' );
-               std::string key;
-               std::getline( ss, key, ',' );
-               std::string points;
-               std::getline( ss, points, ',' );
-               boost::to_lower(name);
-               auto itr = _known_names.find( name );
-               if( !itr.valid() )
-               {
-                  std::cerr<<name<< "\t\t"<<key<<"\t\t'"<<points<<"'\n";
-                  double pointsd = atof( points.c_str() );
+              while( in.good() )
+              {
+                 std::stringstream ss(line);
+                 std::string name; //keyhoteeId
+                 std::getline( ss, name, ',' );
+                 boost::to_lower(name);
+                 std::string key; //founderCode
+                 std::getline( ss, key, ',' );
+                 std::string points;
+                 std::getline( ss, points, ',' );
+                 auto itr = _known_names.find( name );
+                 if( !itr.valid() )
+                 {
+                    std::cerr << name << "\t\t" << key << "\t\t'" << points <<"'\n";A
+                    double pointsd = atof( points.c_str() );
+                    _known_names.store( name, record( key, pointsd ) );
+                 }
+                 std::getline(in, line);
+              }
+            }
+            else if (num_commas >= 5)
+            { //update registered keyhoteeIds with public keys sent from web form
+              while( in.good() )
+              {
+                 std::stringstream ss(line);
+                 std::string date;
+                 std::getline( ss, date, ',' );
+                 std::string email;
+                 std::getline( ss, email, ',' );
 
-                  _known_names.store( name, record( key, pointsd ) );
-               }
-               std::getline(in, line);
+                 std::string name; //keyhoteeId
+                 std::getline( ss, name, ',' );
+                 boost::to_lower(name);
+                 std::string key; //founderCode
+                 std::getline( ss, key, ',' );
+                 std::string public_key;
+                 std::getline( ss, public_key, ',' );
+
+                 auto itr = _known_names.find( name );
+                 if( itr.valid() )
+                 {
+                    auto record_to_update = itr.value();
+                    if (!public_key.empty())
+                    {
+                      record_to_update.pub_key = public_key;
+                      if (record_to_update.key == key)
+                        _known_names.store( name, record_to_update);
+                      else
+                        std::cerr << "Founder code mismatch for " << name << std::endl;
+                    }
+                    else
+                    {
+                      std::cerr << "Public key empty for " << name << std::endl;
+                    }
+                 }
+                 std::getline(in, line);
+              }
+            }
+            else
+            {
+            std::cerr << "Invalid file format: file should have 3 or 5+ fields, has " << num_commas << std::endl;
+            return 1;
             }
          }
          else
