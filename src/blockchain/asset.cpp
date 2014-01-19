@@ -60,7 +60,6 @@ namespace bts { namespace blockchain {
 
   asset::operator std::string()const
   {
-     ilog( "amount high bits: ${hb}", ("hb", amount.high_bits()) );
      auto rounded_amnt = get_rounded_amount();
      std::string int_part = fc::to_string(uint64_t(rounded_amnt/COIN) );
      uint64_t fract = uint64_t(rounded_amnt % COIN + COIN);

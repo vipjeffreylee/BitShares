@@ -14,6 +14,7 @@
 #include <fc/io/raw.hpp>
 #include <fc/log/logger.hpp>
 
+#include <iostream>
 
 #include <algorithm>
 #include <unordered_map>
@@ -23,7 +24,7 @@ using namespace mail;
 
 fc::ecc::private_key test_genesis_private_key()
 {
-    return fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "genesis", 7 ) );
+    return fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "freedom!!!!", 10 ) );
 }
 
 bts::blockchain::trx_block create_test_genesis_block()
@@ -39,7 +40,7 @@ bts::blockchain::trx_block create_test_genesis_block()
    coinbase.version = 0;
    //coinbase.valid_after = 0;
    //coinbase.valid_blocks = 0;
-
+   std::cerr<<"Genesis Private Key: "<<std::string(test_genesis_private_key().get_secret() )<<"\n";
    // TODO: init from PTS here...
    coinbase.outputs.push_back( 
       bts::blockchain::trx_output( bts::blockchain::claim_by_signature_output( bts::address(test_genesis_private_key().get_public_key()) ), b.total_shares, bts::blockchain::asset::bts) );
