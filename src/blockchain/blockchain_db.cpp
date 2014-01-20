@@ -700,7 +700,7 @@ namespace bts { namespace blockchain {
     void blockchain_db::push_block( const trx_block& b )
     {
       try {
-        FC_ASSERT( b.version                           == fc::unsigned_int(0)       );
+        FC_ASSERT( b.version.value                     == fc::unsigned_int(0).value );
         FC_ASSERT( b.trxs.size()                       > 0                          );
         FC_ASSERT( b.block_num                         == head_block_num() + 1      );
         FC_ASSERT( b.prev                              == my->head_block_id         );
