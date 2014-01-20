@@ -71,7 +71,6 @@ class client : public chain_connection_delegate
 
       ~client()
       {
-           wlog(".." );
            try {
                if( chain_connect_loop_complete.valid() )
                {
@@ -101,6 +100,7 @@ class client : public chain_connection_delegate
 
       void start_rpc_server(uint16_t port)
       {
+          std::cout<<"\rlistening for rpc connections on port "<<port<<"\n";
           _tcp_serv.listen( port );
           _accept_loop_complete = fc::async( [this]{ accept_loop(); } );
       }
@@ -117,7 +117,7 @@ class client : public chain_connection_delegate
            catch ( const fc::exception& e )
            {
              elog( "fatal: error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
-             //exit(1);
+             return;
            }
 
            auto buf_istream = std::make_shared<fc::buffered_istream>( sock );
@@ -144,6 +144,51 @@ class client : public chain_connection_delegate
          });
 
 
+         con->add_method( "getmargin", [=]( const fc::variants& params ) -> fc::variant 
+         {
+              check_login( capture_con );
+              FC_ASSERT( params.size() == 1 );
+              FC_ASSERT( _chain_connected );
+
+              asset collat;
+              asset due  = wallet.get_margin( params[0].as<asset::type>(), collat );
+
+              fc::mutable_variant_object info; 
+              info["collateral"]     = fc::variant(chain.head_block_id());
+              info["owed"]           = fc::variant(due);
+
+              collat.amount *= 3;
+              collat.amount /= 4;
+             // info["min_call_price"] = 
+              info["avg_call_price"] = std::string( due/collat );
+
+              return fc::variant(info);
+         });
+
+         con->add_method( "addmargin", [=]( const fc::variants& params ) -> fc::variant 
+         {
+              check_login( capture_con );
+              FC_ASSERT( params.size() == 2 );
+              FC_ASSERT( _chain_connected );
+
+              asset collat     = params[0].as<asset>();
+              FC_ASSERT( collat.unit == asset::bts );
+
+              auto trx = wallet.add_margin( collat, params[1].as<asset::type>() ); 
+              broadcast_transaction(trx);
+
+              return fc::variant(trx.id());
+         });
+
+         con->add_method( "getmarket", [=]( const fc::variants& params ) -> fc::variant 
+         {
+            FC_ASSERT( _chain_connected );
+            FC_ASSERT( params.size() == 2 );
+
+            market_data data = chain.get_market( params[0].as<asset::type>(), params[1].as<asset::type>() );
+            return fc::variant(data);
+         });
+
          con->add_method( "getnewaddress", [=]( const fc::variants& params ) -> fc::variant 
          {
              check_login( capture_con );
@@ -158,9 +203,139 @@ class client : public chain_connection_delegate
              auto amount = params[0].as<bts::blockchain::asset>();
              auto addr   = params[1].as_string();
              auto trx = wallet.transfer( amount, addr );
-             broadcast_transaction( trx );
+             broadcast_transaction(trx);
              return fc::variant( trx.id() ); 
          });
+         con->add_method( "getbalance", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 1 );
+             auto unit = params[0].as<bts::blockchain::asset::type>();
+             return fc::variant( wallet.get_balance( unit ) ); 
+         });
+         con->add_method( "buy", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 2 );
+             auto amount       = params[0].as<bts::blockchain::asset>();
+             auto ppu          = params[1].as<bts::blockchain::asset>();
+             auto price_ratio  = ppu / asset( 1.0, amount.unit );
+             auto required_input = amount * price_ratio;
+             auto trx = buy( required_input, price_ratio );
+             return fc::variant( trx ); 
+         });
+         con->add_method( "sell", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 2 );
+             auto amount       = params[0].as<bts::blockchain::asset>();
+             auto ppu          = params[1].as<bts::blockchain::asset>();
+             auto price_ratio  = ppu / asset( 1.0, amount.unit );
+             auto trx = sell( amount, price_ratio );
+             return fc::variant( trx ); 
+         });
+         con->add_method( "short_sell", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 2 );
+             auto amount       = params[0].as<bts::blockchain::asset>();
+             auto ppu          = params[1].as<bts::blockchain::asset>();
+             auto price_ratio  = ppu / asset( 1.0, amount.unit );
+             auto trx = short_sell( amount, price_ratio );
+             return fc::variant( trx ); 
+         });
+         con->add_method( "cover", [=]( const fc::variants& params ) -> fc::variant 
+         {
+              FC_ASSERT( _chain_connected );
+              check_login( capture_con );
+              FC_ASSERT( params.size() == 1 );
+              auto amount = params[0].as<bts::blockchain::asset>();
+              auto trx = wallet.cover( amount );
+              broadcast_transaction( trx );
+              return fc::variant(trx.id());
+         });
+
+         con->add_method( "cancel_order", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 2 );
+             auto trx_id       = params[0].as_string();
+             auto output_index = params[1].as_int64();
+             auto trx = cancel_open_bid( trx_id, output_index );
+             return fc::variant( trx ); 
+         });
+
+         con->add_method( "get_transaction", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( params.size() == 1 );
+             return fc::variant( chain.fetch_transaction( params[0].as<transaction_id_type>() )  ); 
+         });
+
+         con->add_method( "get_block", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( params.size() == 1 );
+             return fc::variant( chain.fetch_block( params[0].as_int64() )  ); 
+         });
+
+         con->add_method( "getinfo", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             fc::mutable_variant_object info; 
+             info["headblock_id"]  = fc::variant(chain.head_block_id());
+             info["block_count"]   = chain.head_block_num();
+             info["connected"]     = _chain_connected;
+             info["bts_supply"]    = chain.current_bitshare_supply();
+             return fc::variant( info );
+         });
+
+         con->add_method( "validateaddress", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( params.size() == 1 );
+             try {
+                auto test = bts::address( params[0].as_string() );
+                return fc::variant(test.is_valid());
+             } 
+             catch ( const fc::exception& e )
+             {
+               return fc::variant(false);
+             }
+         });
+
+         con->add_method( "get_open_bids", [=]( const fc::variants& params ) -> fc::variant
+         {
+             check_login( capture_con );
+             return fc::variant( wallet.get_open_bids() );
+         });
+         con->add_method( "get_open_short_sell", [=]( const fc::variants& params ) -> fc::variant
+         {
+             check_login( capture_con );
+             return fc::variant( wallet.get_open_short_sell() );
+         });
+                          
+         con->add_method( "import_bts_privkey", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             check_login( capture_con );
+             bool rescan = false;
+             FC_ASSERT( params.size() == 1 );
+
+             if( params.size() == 3 )
+             {
+               rescan = params[2].as<bool>();
+             }
+             wallet.import_key( fc::ecc::private_key::regenerate( fc::sha256( params[0].as_string() ) ) );
+             if( rescan )
+             {
+               wallet.scan_chain(chain);
+             }
+             return fc::variant( true );
+         });
+
+
+
       }
       void check_login( fc::rpc::json_connection* con )
       {
@@ -396,33 +571,37 @@ class client : public chain_connection_delegate
          std::cout<< std::string(wallet.get_new_address()) <<"\n";
       }
 
-      void transfer( double amnt, std::string u, std::string addr )
+      std::string transfer( double amnt, std::string u, std::string addr )
       {
          FC_ASSERT( _chain_connected );
          asset::type unit = fc::variant(u).as<asset::type>();
          auto trx = wallet.transfer( asset(amnt,unit), addr );
          ilog( "${trx}", ("trx",trx) );
          broadcast_transaction( trx );
+         return trx.id();
       }
-      void short_sell( asset amnt, price p ) //double amnt, std::string u, double sellprice )
+      std::string short_sell( asset amnt, price p ) //double amnt, std::string u, double sellprice )
       {
          auto trx = wallet.short_sell( amnt, p ); //bts::blockchain::price( sellprice, asset::bts, unit ) );
          std::cout<<"trx id: "<< std::string(trx.id()) <<"\n";
          ilog( "${trx}", ("trx",trx) );
          broadcast_transaction( trx );
+         return trx.id();
       }
 
-      void buy( asset amount, price pr )
+      std::string buy( asset amount, price pr )
       {
          auto trx = wallet.bid( amount, pr );
          ilog( "${trx}", ("trx",trx) );
          broadcast_transaction( trx );
+         return trx.id();
       }
-      void sell( asset amount, price pr ) //double amnt, std::string u, double buyprice, std::string base )
+      std::string sell( asset amount, price pr ) //double amnt, std::string u, double buyprice, std::string base )
       {
          auto trx = wallet.bid( amount, pr );
          ilog( "${trx}", ("trx",trx) );
          broadcast_transaction( trx );
+         return trx.id();
       }
 
 
@@ -447,21 +626,23 @@ class client : public chain_connection_delegate
           }
           html <<"}\n";
       }
-      void cover( double amnt, std::string u )
+      std::string cover( double amnt, std::string u )
       {
          asset::type unit = fc::variant(u).as<asset::type>();
          auto trx = wallet.cover( asset( amnt, unit ) );
          broadcast_transaction( trx );
+         return trx.id();
       }
 
       void print_open_orders( asset::type a )
       {
       }
 
-      void cancel_open_bid( std::string h, uint32_t idx )
+      std::string cancel_open_bid( std::string h, uint32_t idx )
       { 
          auto trx = wallet.cancel_bid( output_reference(fc::uint160(h), idx) );
          broadcast_transaction( trx );
+         return trx.id();
       }
 
 
@@ -529,10 +710,16 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          {
             std::string key;
             ss >> key;
+            std::string rescan;
+            ss >> rescan;
+
             main_thread->async( [=]() { 
                c->wallet.import_key( fc::ecc::private_key::regenerate( fc::sha256( key ) ) );
-               std::cout<<"rescanning chain...\n";
-               c->wallet.scan_chain(c->chain);
+               if( rescan == "rescan" )
+               {
+                  std::cout<<"rescanning chain...\n";
+                  c->wallet.scan_chain(c->chain);
+               }
                std::cout<<"import complete\n";
                c->print_balances(); 
             } ).wait();
@@ -758,7 +945,7 @@ int main( int argc, char** argv )
    std::cout<<"=  real monetary transactions or trading.  Use at your own     =\n";
    std::cout<<"=  risk.                                                       =\n";
    std::cout<<"=                                                              =\n";
-   std::cout<<"=  type 'help' for usage information.                          =\n";
+   std::cout<<"=  Type 'help' for usage information.                          =\n";
    std::cout<<"================================================================\n";
 
    fc::file_appender::config ac;
@@ -789,6 +976,7 @@ int main( int argc, char** argv )
         std::cerr<<"Usage: "<<argv[0]<<" [DATADIR]\n";
         return -2;
      }
+     bts_client->start_rpc_server(5678);
 
      
      fc::thread  read_thread;

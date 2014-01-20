@@ -565,6 +565,12 @@ namespace bts { namespace blockchain {
        return fb;
     } FC_RETHROW_EXCEPTIONS( warn, "block ${block}", ("block",block_num) ) }
 
+    signed_transaction blockchain_db::fetch_transaction( const transaction_id_type& id )
+    { try {
+          auto trx_num = fetch_trx_num(id);
+          return fetch_trx( trx_num );
+    } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
+
 
     std::vector<meta_trx_input> blockchain_db::fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head )
     {

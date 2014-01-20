@@ -176,6 +176,7 @@ namespace bts { namespace blockchain {
          trx_num    fetch_trx_num( const uint160& trx_id );
          meta_trx   fetch_trx( const trx_num& t );
 
+         signed_transaction          fetch_transaction( const transaction_id_type& trx_id );
          std::vector<meta_trx_input> fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head = INVALID_BLOCK_NUM );
 
          uint32_t     fetch_block_num( const block_id_type& block_id );
@@ -214,3 +215,9 @@ FC_REFLECT( bts::blockchain::trx_num, (block_num)(trx_idx) );
 FC_REFLECT( bts::blockchain::meta_trx_output, (trx_id)(input_num) )
 FC_REFLECT( bts::blockchain::meta_trx_input, (source)(output_num)(output)(meta_output) )
 FC_REFLECT_DERIVED( bts::blockchain::meta_trx, (bts::blockchain::signed_transaction), (meta_outputs) );
+FC_REFLECT( bts::blockchain::bid_data, (bid_price)(amount)(is_short) )
+FC_REFLECT( bts::blockchain::ask_data, (ask_price)(amount) )
+FC_REFLECT( bts::blockchain::short_data, (short_price)(amount) )
+FC_REFLECT( bts::blockchain::margin_data, (call_price)(amount)(collateral) )
+FC_REFLECT( bts::blockchain::market_data, (bids)(asks)(shorts)(margins) )
+
