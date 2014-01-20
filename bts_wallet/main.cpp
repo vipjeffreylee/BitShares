@@ -13,6 +13,8 @@
 #include <fc/log/logger.hpp>
 #include <fstream>
 #include <bts/blockchain/blockchain_printer.hpp>
+#include "chain_connection.hpp"
+#include "chain_messages.hpp"
 
 using namespace bts::blockchain;
 
@@ -21,11 +23,6 @@ class client_delegate
 
 };
 
-
-fc::ecc::private_key test_genesis_private_key()
-{
-    return fc::ecc::private_key::generate_from_seed( fc::sha256::hash( "genesis", 7 ) );
-}
 std::string to_balance( uint64_t a )
 {
     uint64_t fraction = a % COIN;
@@ -33,66 +30,59 @@ std::string to_balance( uint64_t a )
     return fc::to_string( uint64_t(a/COIN) ) + "." + fract_str;
 }
 
-
-bts::blockchain::trx_block create_test_genesis_block()
-{
-   bts::blockchain::trx_block b;
-   b.version      = 0;
-   b.prev         = block_id_type();
-   b.block_num    = 0;
-   b.total_shares = 100*COIN;
-   b.timestamp    = fc::time_point::from_iso_string("20131201T054434");
-
-   signed_transaction coinbase;
-   coinbase.version = 0;
-   //coinbase.valid_after = 0;
-   //coinbase.valid_blocks = 0;
-
-   // TODO: init from PTS here...
-   coinbase.outputs.push_back( 
-      trx_output( claim_by_signature_output( bts::address(test_genesis_private_key().get_public_key()) ), b.total_shares, asset::bts) );
-
-   b.trxs.emplace_back( std::move(coinbase) );
-   b.trx_mroot   = b.calculate_merkle_root();
-
-   return b;
-}
-
-
-
-class client
+class client : public chain_connection_delegate
 {
    public:
+      client():_chain_con(this),_chain_connected(false){}
+      virtual void on_connection_message( chain_connection& c, const message& m )
+      {
+         if( m.type == chain_message_type::block_msg )
+         {
+            auto blkmsg = m.as<block_message>();
+            chain.push_block( blkmsg.block_data );
+            wallet.set_stake( chain.get_stake() );
+            if( wallet.scan_chain( chain, blkmsg.block_data.block_num ) )
+            {
+                std::cout<<"new transactions received\n";
+                print_balances();
+            }
+         }
+         else if( m.type == trx_err_message::type )
+         {
+            auto errmsg = m.as<trx_err_message>();
+            std::cerr<<  errmsg.err <<"\n";
+            elog( "${e}", ("e", errmsg ) );
+         }
+      }
+
       void open( const fc::path& datadir )
       {
           chain.open( datadir / "chain" );
           wallet.open( datadir / "wallet.bts" );
 
-          if( chain.head_block_num() == uint32_t(-1) )
-          {
-              auto genesis = create_test_genesis_block();
-              //ilog( "genesis block: \n${s}", ("s", fc::json::to_pretty_string(genesis) ) );
-              chain.push_block( genesis );
-              wallet.import_key( test_genesis_private_key() );
-              wallet.scan_chain( chain, 0 );
-              wallet.save();
-          }
-          wallet.scan_chain( chain );
+         // if( chain.head_block_num() == uint32_t(-1) )
+         // {
+          //    auto genesis = create_test_genesis_block();
+         //   ilog( "genesis block: \n${s}", ("s", fc::json::to_pretty_string(genesis) ) );
+         //    chain.push_block( genesis );
+         //     wallet.scan_chain( chain, 0 );
+         //     wallet.save();
+         // }
+          
+          if( chain.head_block_num() != uint32_t(-1) )
+             wallet.scan_chain( chain );
 
-          sim_loop_complete = fc::async( [this]() { server_sim_loop(); } );
+          // load config, connect to server, and start subscribing to blocks...
+          //sim_loop_complete = fc::async( [this]() { server_sim_loop(); } );
+          chain_connect_loop_complete = fc::async( [this](){ chain_connect_loop(); } );
       }
 
       void broadcast_transaction( const signed_transaction& trx )
-      {
-         trx_queue.push_back(trx);
-      }
+      { try {
+         _chain_con.send( trx_message( trx ) );
+      } FC_RETHROW_EXCEPTIONS( warn, "unable to send ${trx}", ("trx",trx) ) }
 
-      void handle_block( uint32_t block_num )
-      {
-         wallet.set_stake( chain.get_stake() );
-         wallet.scan_chain( chain, block_num );
-      }
-
+      /*
       void server_sim_loop()
       { 
         try {
@@ -120,6 +110,39 @@ class client
            exit(-1);
         }
       }
+      */
+      chain_connection _chain_con;
+      bool _chain_connected;
+      void chain_connect_loop()
+      {
+         _chain_connected = false;
+         while( true ) //!_quit_promise->ready() )
+         {
+            //for( auto itr = _config->default_mail_nodes.begin(); itr != _config->default_mail_nodes.end(); ++itr )
+            {
+                 try {
+                    //ilog( "mail connect ${e}", ("e",*itr) );
+                    _chain_con.connect(fc::ip::endpoint::from_string("127.0.0.1:4567"));
+                  //  _chain_con.set_last_sync_time( _profile->get_last_sync_time() );
+
+                    subscribe_message msg;
+                    msg.version        = 0;
+                    if( chain.head_block_num() != uint32_t(-1) )
+                       msg.last_block     = chain.head_block_id();
+                    _chain_con.send( mail::message( msg ) );
+                    _chain_connected = true;
+                    return;
+                 } 
+                 catch ( const fc::exception& e )
+                 {
+                    wlog( "${e}", ("e",e.to_detail_string()));
+                 }
+            }
+            fc::usleep( fc::seconds(5) );
+         }
+      }
+
+
       asset get_balance( asset::type u )
       {
           return wallet.get_balance( asset::type(u) );
@@ -233,27 +256,27 @@ class client
          asset::type unit = fc::variant(u).as<asset::type>();
          auto trx = wallet.transfer( asset(amnt,unit), addr );
          ilog( "${trx}", ("trx",trx) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
       void short_sell( asset amnt, price p ) //double amnt, std::string u, double sellprice )
       {
          auto trx = wallet.short_sell( amnt, p ); //bts::blockchain::price( sellprice, asset::bts, unit ) );
          std::cout<<"trx id: "<< std::string(trx.id()) <<"\n";
          ilog( "${trx}", ("trx",trx) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
 
       void buy( asset amount, price pr )
       {
          auto trx = wallet.bid( amount, pr );
          ilog( "${trx}", ("trx",trx) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
       void sell( asset amount, price pr ) //double amnt, std::string u, double buyprice, std::string base )
       {
          auto trx = wallet.bid( amount, pr );
          ilog( "${trx}", ("trx",trx) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
 
 
@@ -282,7 +305,7 @@ class client
       {
          asset::type unit = fc::variant(u).as<asset::type>();
          auto trx = wallet.cover( asset( amnt, unit ) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
 
       void print_open_orders( asset::type a )
@@ -292,15 +315,35 @@ class client
       void cancel_open_bid( std::string h, uint32_t idx )
       { 
          auto trx = wallet.cancel_bid( output_reference(fc::uint160(h), idx) );
-         trx_queue.push_back(trx);
+         broadcast_transaction( trx );
       }
 
-      std::vector<signed_transaction>   trx_queue;
 
       bts::blockchain::blockchain_db    chain;
       bts::blockchain::wallet           wallet;
       fc::future<void>                  sim_loop_complete;
+      fc::future<void>                  chain_connect_loop_complete;
 };
+
+void print_help()
+{
+    std::cout<<"Commands:\n";
+    std::cout<<" quit\n";
+    std::cout<<" importkey PRIV_KEY\n";
+    std::cout<<" balance  -  print the wallet balances\n";
+    std::cout<<" newaddr  -  print a new wallet address\n";
+    std::cout<<" transfer AMOUNT UNIT to ADDRESS  \n";
+    std::cout<<" buy AMOUNT UNIT \n";
+    std::cout<<" sell AMOUNT UNIT  \n";
+    std::cout<<" short AMOUNT UNIT \n";
+    std::cout<<" cover AMOUNT UNIT  \n";
+    std::cout<<" add margin AMOUNT bts to UNIT  \n";
+    std::cout<<" cancel ID IDX  \n";
+    std::cout<<" html FILE\n";
+    std::cout<<" json FILE\n";
+    std::cout<<" market QUOTE BASE  \n";
+    std::cout<<" show orders QUOTE BASE  \n";
+}
 
 void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
 {
@@ -317,26 +360,25 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
    
          if( command == "h" || command == "help" )
          {
-             std::cout<<"Commands:\n";
-             std::cout<<" quit\n";
-             std::cout<<" balance  -  print the wallet balances\n";
-             std::cout<<" newaddr  -  print a new wallet address\n";
-             std::cout<<" transfer AMOUNT UNIT to ADDRESS  \n";
-             std::cout<<" buy AMOUNT UNIT at PRICE BASE  \n";
-             std::cout<<" sell AMOUNT UNIT at PRICE BASE  \n";
-             std::cout<<" short AMOUNT UNIT at PRICE (UNIT/bts) \n";
-             std::cout<<" cover AMOUNT UNIT  \n";
-             std::cout<<" add margin AMOUNT bts to UNIT  \n";
-             std::cout<<" cancel ID IDX  \n";
-             std::cout<<" html FILE\n";
-             std::cout<<" json FILE\n";
-             std::cout<<" show orders QUOTE BASE  \n";
+            print_help();
          }
          else if( command == "html" )
          {
             std::string file;
             ss >> file;
             main_thread->async( [=](){ c->dump_chain_html(file); } ).wait();
+         }
+         else if( command == "importkey" )
+         {
+            std::string key;
+            ss >> key;
+            main_thread->async( [=]() { 
+               c->wallet.import_key( fc::ecc::private_key::regenerate( fc::sha256( key ) ) );
+               std::cout<<"rescanning chain...\n";
+               c->wallet.scan_chain(c->chain);
+               std::cout<<"import complete\n";
+               c->print_balances(); 
+            } ).wait();
          }
          else if( command == "json" )
          {
@@ -515,6 +557,10 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          else if( command == "show" )
          {
          }
+         else
+         {
+            print_help();
+         }
          std::cout<<">>> ";
          } 
          catch( const fc::exception& e) 
@@ -553,7 +599,18 @@ int main( int argc, char** argv )
 
    try {
      auto  bts_client = std::make_shared<client>();
-     bts_client->open( "datadir" );
+     if( argc == 1 )
+        bts_client->open( "datadir" );
+     else if( argc == 2 )
+     {
+        bts_client->open( argv[1] );
+     }
+     else
+     {
+        std::cerr<<"Usage: "<<argv[0]<<" [DATADIR]\n";
+        return -2;
+     }
+
      
      fc::thread  read_thread;
      read_thread.async( [=](){ process_commands( main_thread, bts_client ); } ).wait();

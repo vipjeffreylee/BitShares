@@ -143,7 +143,8 @@ uint64_t  name_hash( const std::string& n )
     asciiName.erase(0,1);
 
   if( asciiName.size() && asciiName.back() == '.' )
-    asciiName.pop_back();
+    //asciiName.pop_back();
+    asciiName.erase (asciiName.size() - 1);
 
   FC_ASSERT( asciiName.size() > 0 );
 

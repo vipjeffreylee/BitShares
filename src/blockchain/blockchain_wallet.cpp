@@ -59,7 +59,7 @@ namespace bts { namespace blockchain {
 
               asset get_balance( asset::type balance_type )
               {
-                   asset total_bal( 0ull, balance_type);
+                   asset total_bal( static_cast<uint64_t>(0ull), balance_type);
                    std::vector<trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -99,7 +99,7 @@ namespace bts { namespace blockchain {
 
               asset get_margin_balance( asset::type unit, asset& total_collat )
               {
-                   asset total_due( 0ull, unit );
+                   asset total_due( static_cast<uint64_t>(0ull), unit );
                    std::multimap<price,trx_input> inputs;
                    for( auto itr = _unspent_outputs.begin(); itr != _unspent_outputs.end(); ++itr )
                    {
@@ -204,16 +204,21 @@ namespace bts { namespace blockchain {
 
    void wallet::open( const fc::path& wallet_dat )
    { try {
-      
+      my->_wallet_dat = wallet_dat;
       if( fc::exists( wallet_dat ) )
       {
          my->_data = fc::json::from_file<bts::blockchain::wallet_data>( wallet_dat );
+      }
+      else
+      {
+         my->_data.base_key = extended_private_key( fc::ecc::private_key::generate().get_secret(), 
+                                                    fc::ecc::private_key::generate().get_secret() );
+         save();
       }
       for( uint32_t i = 0; i < my->_data.extra_keys.size(); ++i )
       {
          my->_my_addresses[bts::address(my->_data.extra_keys[i].get_public_key())] = i;
       }
-      my->_wallet_dat = wallet_dat;
    } FC_RETHROW_EXCEPTIONS( warn, "unable to load ${wal}", ("wal",wallet_dat) ) }
 
    void wallet::save()
@@ -347,7 +352,7 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,amnt.unit);
+       asset  total_in(static_cast<uint64_t>(0ull),amnt.unit);
 
        asset amnt_with_fee = amnt; // TODO: add fee of .1% 
 
@@ -498,9 +503,9 @@ namespace bts { namespace blockchain {
        auto   change_address = get_new_address();
        signed_transaction trx; 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,amnt.unit);
-       asset  cover_in(0ull,amnt.unit);
-       asset  collat_in(0ull,asset::bts);
+       asset  total_in(static_cast<uint64_t>(0ull),amnt.unit);
+       asset  cover_in(static_cast<uint64_t>(0ull),amnt.unit);
+       asset  collat_in(static_cast<uint64_t>(0ull),asset::bts);
 
        trx.inputs         = my->collect_inputs( amnt, total_in, req_sigs );
        asset change = total_in - amnt;
@@ -577,9 +582,9 @@ namespace bts { namespace blockchain {
 
        signed_transaction trx;
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in(0ull,u);
-       asset  cover_in(0ull,u);
-       asset  collat_in(0ull,asset::bts);
+       asset  total_in(static_cast<uint64_t>(0ull),u);
+       asset  cover_in(static_cast<uint64_t>(0ull),u);
+       asset  collat_in(static_cast<uint64_t>(0ull),asset::bts);
 
        trx.inputs         = my->collect_inputs( collateral_amount, total_in, req_sigs );
        asset change = total_in - collateral_amount;
@@ -647,9 +652,12 @@ namespace bts { namespace blockchain {
    /**
     *  Scan the blockchain starting from_block_num until the head block, check every
     *  transaction for inputs or outputs accessable by this wallet.
+    *
+    *  @return true if a new input was found or output spent
     */
-   void wallet::scan_chain( blockchain_db& chain, uint32_t from_block_num )
+   bool wallet::scan_chain( blockchain_db& chain, uint32_t from_block_num )
    { try {
+       bool found = false;
        auto head_block_num = chain.head_block_num();
        // for each block
        for( uint32_t i = from_block_num; i <= head_block_num; ++i )
@@ -688,11 +696,12 @@ namespace bts { namespace blockchain {
                                mark_as_spent( out_ref ); //output_reference(trx.id(), out_idx ) );
                                //my->_spent_outputs[output_reference( trx.id(), out_idx )] = trx.outputs[out_idx];
                             }
-                            std::cerr<<"found block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"]  " << std::string(trx.id()) <<" => "<<std::string(owner)<<"\n";
+                           // std::cerr<<"found block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"]  " << std::string(trx.id()) <<" => "<<std::string(owner)<<"\n";
+                           found = true;
                         }
                         else
                         {
-                            std::cerr<<"skip block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"] => "<<std::string(owner)<<"\n";
+                            // std::cerr<<"skip block["<<i<<"].trx["<<trx_idx<<"].output["<<out_idx<<"] => "<<std::string(owner)<<"\n";
                         }
                         break;
                      }
@@ -702,6 +711,7 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(bid.pay_address);
                         if( aitr != my->_my_addresses.end() )
                         {
+                            found = true;
                             if( trx.meta_outputs[out_idx].is_spent() )
                             {
                                mark_as_spent( out_ref );
@@ -725,6 +735,7 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(short_sell.pay_address);
                         if( aitr != my->_my_addresses.end() )
                         {
+                            found = true;
                             if( trx.meta_outputs[out_idx].is_spent() )
                             {
                                mark_as_spent( out_ref );
@@ -748,6 +759,7 @@ namespace bts { namespace blockchain {
                         auto aitr = my->_my_addresses.find(cover.owner);
                         if( aitr != my->_my_addresses.end() )
                         {
+                            found = true;
                             if( trx.meta_outputs[out_idx].is_spent() )
                             {
                                mark_as_spent( out_ref );
@@ -770,6 +782,7 @@ namespace bts { namespace blockchain {
               }
           }
        }
+       return found;
    } FC_RETHROW_EXCEPTIONS( warn, "" ) }
 
    void wallet::dump()
