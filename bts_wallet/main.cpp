@@ -15,6 +15,8 @@
 #include <bts/blockchain/blockchain_printer.hpp>
 #include "chain_connection.hpp"
 #include "chain_messages.hpp"
+#include <fc/network/tcp_socket.hpp>
+#include <fc/rpc/json_connection.hpp>
 #ifndef WIN32
 #include <readline/readline.h>
 #include <readline/history.h>
@@ -34,9 +36,141 @@ std::string to_balance( uint64_t a )
     return fc::to_string( uint64_t(a/COIN) ) + "." + fract_str;
 }
 
+struct client_config
+{
+    client_config()
+    :rpc_port(5678)
+    {
+        unique_node_list["127.0.0.1:4567"] = "";
+    }
+
+    uint16_t rpc_port;
+    std::string rpc_user;
+    std::string rpc_password;
+
+    /// map "IP:PORT" to "publickey" of the node that we are connecting to.
+    std::unordered_map<std::string,std::string> unique_node_list;
+};
+FC_REFLECT( client_config, (rpc_port)(rpc_user)(rpc_password)(unique_node_list) )
+
 class client : public chain_connection_delegate
 {
    public:
+      void on_connection_disconnected( chain_connection& c )
+      {
+          chain_connect_loop_complete = fc::async( 
+                [this](){ fc::usleep(fc::seconds(1)); chain_connect_loop(); } );
+      }
+      fc::tcp_server                                _tcp_serv;
+      fc::future<void>                              _accept_loop_complete;
+
+      // TODO: clean up memory leak where we never remove items from this set because
+      // we do not detect RPC disconnects
+      std::unordered_set<fc::rpc::json_connection*> _login_set;
+      client_config                                 _config;
+
+      ~client()
+      {
+           wlog(".." );
+           try {
+               if( chain_connect_loop_complete.valid() )
+               {
+                  try {
+                     _chain_con.close();
+                     chain_connect_loop_complete.cancel();
+                     chain_connect_loop_complete.wait();
+                  } 
+                  catch( fc::exception& e )
+                  {
+                    wlog( "unhandled exception thrown in destructor.\n${e}", ("e", e.to_detail_string() ) );
+                  }
+               }
+               _tcp_serv.close();
+               if( _accept_loop_complete.valid() )
+               {
+                  _accept_loop_complete.cancel();
+                  _accept_loop_complete.wait();
+               }
+           } 
+           catch ( const fc::canceled_exception& e ){}
+           catch ( const fc::exception& e )
+           {
+              wlog( "unhandled exception thrown in destructor.\n${e}", ("e", e.to_detail_string() ) );
+           }
+      }
+
+      void start_rpc_server(uint16_t port)
+      {
+          _tcp_serv.listen( port );
+          _accept_loop_complete = fc::async( [this]{ accept_loop(); } );
+      }
+
+      void accept_loop()
+      {
+        while( !_accept_loop_complete.canceled() )
+        {
+           fc::tcp_socket_ptr sock = std::make_shared<fc::tcp_socket>();
+           try 
+           {
+             _tcp_serv.accept( *sock );
+           }
+           catch ( const fc::exception& e )
+           {
+             elog( "fatal: error opening socket for rpc connection: ${e}", ("e", e.to_detail_string() ) );
+             //exit(1);
+           }
+
+           auto buf_istream = std::make_shared<fc::buffered_istream>( sock );
+           auto buf_ostream = std::make_shared<fc::buffered_ostream>( sock );
+
+           auto json_con = std::make_shared<fc::rpc::json_connection>( std::move(buf_istream), std::move(buf_ostream) );
+           register_methods( json_con );
+
+           fc::async( [json_con]{ json_con->exec().wait(); } );
+        }
+      }
+      void register_methods( const fc::rpc::json_connection_ptr& con )
+      {
+         std::cout<<"rpc login detected\n";
+         // don't capture the shared ptr, it would create a circular reference
+         fc::rpc::json_connection* capture_con = con.get(); 
+         con->add_method( "login", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( params.size() == 2 );
+             FC_ASSERT( params[0].as_string() == _config.rpc_user )
+             FC_ASSERT( params[1].as_string() == _config.rpc_password )
+             _login_set.insert( capture_con );
+             return fc::variant( true );
+         });
+
+
+         con->add_method( "getnewaddress", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             check_login( capture_con );
+             return fc::variant( wallet.get_new_address() ); 
+         });
+
+         con->add_method( "transfer", [=]( const fc::variants& params ) -> fc::variant 
+         {
+             FC_ASSERT( _chain_connected );
+             check_login( capture_con );
+             FC_ASSERT( params.size() == 2 );
+             auto amount = params[0].as<bts::blockchain::asset>();
+             auto addr   = params[1].as_string();
+             auto trx = wallet.transfer( amount, addr );
+             broadcast_transaction( trx );
+             return fc::variant( trx.id() ); 
+         });
+      }
+      void check_login( fc::rpc::json_connection* con )
+      {
+         if( _login_set.find( con ) == _login_set.end() )
+         {
+            FC_THROW_EXCEPTION( exception, "not logged in" ); 
+         }
+      }
+
+
       client():_chain_con(this),_chain_connected(false){}
       virtual void on_connection_message( chain_connection& c, const message& m )
       {
@@ -120,29 +254,36 @@ class client : public chain_connection_delegate
       void chain_connect_loop()
       {
          _chain_connected = false;
-         while( true ) //!_quit_promise->ready() )
+         while( !chain_connect_loop_complete.canceled() )
          {
-            //for( auto itr = _config->default_mail_nodes.begin(); itr != _config->default_mail_nodes.end(); ++itr )
+            for( auto itr = _config.unique_node_list.begin(); itr != _config.unique_node_list.end(); ++itr )
             {
                  try {
-                    //ilog( "mail connect ${e}", ("e",*itr) );
-                    _chain_con.connect(fc::ip::endpoint::from_string("127.0.0.1:4567"));
-                  //  _chain_con.set_last_sync_time( _profile->get_last_sync_time() );
+                    std::cout<< "\rconnecting to bitshares network: "<<itr->first<<"\n";
+                    // TODO: pass public key to connection so we can avoid man-in-the-middle attacks
+                    _chain_con.connect( fc::ip::endpoint::from_string(itr->first) );
 
                     subscribe_message msg;
                     msg.version        = 0;
                     if( chain.head_block_num() != uint32_t(-1) )
+                    {
                        msg.last_block     = chain.head_block_id();
+                    }
                     _chain_con.send( mail::message( msg ) );
+                    std::cout<< "\rconnected to bitshares network\n";
                     _chain_connected = true;
                     return;
                  } 
                  catch ( const fc::exception& e )
                  {
+                    std::cout<< "\runable to connect to bitshares network at this time.\n";
                     wlog( "${e}", ("e",e.to_detail_string()));
                  }
             }
-            fc::usleep( fc::seconds(5) );
+
+            // sleep in .5 second increments so we can quit quickly without hanging
+            for( uint32_t i = 0; i < 30 && !chain_connect_loop_complete.canceled(); ++i )
+               fc::usleep( fc::microseconds(500000) );
          }
       }
 
@@ -257,6 +398,7 @@ class client : public chain_connection_delegate
 
       void transfer( double amnt, std::string u, std::string addr )
       {
+         FC_ASSERT( _chain_connected );
          asset::type unit = fc::variant(u).as<asset::type>();
          auto trx = wallet.transfer( asset(amnt,unit), addr );
          ilog( "${trx}", ("trx",trx) );
@@ -354,11 +496,14 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
    try {
       std::string line;
 #ifndef WIN32
-      static char *line_read = (char *)NULL;
+      char* line_read = nullptr;
       line_read = readline(">>> ");
       if(line_read && *line_read)
           add_history(line_read);
+      if( line_read == nullptr ) 
+         return;
       line = line_read;
+      free(line_read);
 #else
       std::cout<<">>> ";
       std::getline( std::cin, line );
@@ -569,7 +714,7 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          else if( command == "show" )
          {
          }
-         else
+         else if( command != "" )
          {
             print_help();
          }
@@ -579,10 +724,14 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
              std::cerr<<e.to_detail_string()<<"\n";
          }
 #ifndef WIN32
+         line_read = nullptr;
          line_read = readline(">>> ");
          if(line_read && *line_read)
              add_history(line_read);
+         if( line_read == nullptr ) 
+            return;
          line = line_read;
+         free(line_read);
 #else
          std::cout<<">>> ";
          std::getline( std::cin, line );
@@ -600,6 +749,17 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
 int main( int argc, char** argv )
 { 
    auto main_thread = &fc::thread::current();
+
+   std::cout<<"================================================================\n";
+   std::cout<<"=                                                              =\n";
+   std::cout<<"=             Welcome to BitShares X - Alpha                   =\n";
+   std::cout<<"=                                                              =\n";
+   std::cout<<"=  This software is in alpha testing and is not suitable for   =\n";
+   std::cout<<"=  real monetary transactions or trading.  Use at your own     =\n";
+   std::cout<<"=  risk.                                                       =\n";
+   std::cout<<"=                                                              =\n";
+   std::cout<<"=  type 'help' for usage information.                          =\n";
+   std::cout<<"================================================================\n";
 
    fc::file_appender::config ac;
    ac.filename = "log.txt";
