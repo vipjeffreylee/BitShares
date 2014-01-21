@@ -565,6 +565,12 @@ namespace bts { namespace blockchain {
        return fb;
     } FC_RETHROW_EXCEPTIONS( warn, "block ${block}", ("block",block_num) ) }
 
+    signed_transaction blockchain_db::fetch_transaction( const transaction_id_type& id )
+    { try {
+          auto trx_num = fetch_trx_num(id);
+          return fetch_trx( trx_num );
+    } FC_RETHROW_EXCEPTIONS( warn, "", ("id",id) ) }
+
 
     std::vector<meta_trx_input> blockchain_db::fetch_inputs( const std::vector<trx_input>& inputs, uint32_t head )
     {
@@ -694,7 +700,7 @@ namespace bts { namespace blockchain {
     void blockchain_db::push_block( const trx_block& b )
     {
       try {
-        FC_ASSERT( b.version                           == fc::unsigned_int(0)       );
+        FC_ASSERT( b.version.value                     == fc::unsigned_int(0).value );
         FC_ASSERT( b.trxs.size()                       > 0                          );
         FC_ASSERT( b.block_num                         == head_block_num() + 1      );
         FC_ASSERT( b.prev                              == my->head_block_id         );
