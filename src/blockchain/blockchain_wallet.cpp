@@ -267,7 +267,7 @@ namespace bts { namespace blockchain {
        auto   change_address = get_new_address();
 
        std::unordered_set<bts::address> req_sigs; 
-       asset  total_in;
+       asset  total_in(static_cast<uint64_t>(0ull),amnt.unit);
 
        signed_transaction trx; 
        trx.inputs    = my->collect_inputs( amnt, total_in, req_sigs );
