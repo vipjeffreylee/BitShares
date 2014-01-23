@@ -147,7 +147,7 @@ struct claim_by_cover_output
 
    claim_by_cover_output( const asset& payoff, const address& own )
    :payoff_unit(payoff.unit),
-    payoff_amount(payoff.to_uint64()),
+    payoff_amount(payoff.get_rounded_amount()),
     owner(own){}
 
    claim_by_cover_output()
