@@ -257,6 +257,18 @@ namespace bts { namespace blockchain {
       return  new_key.get_public_key();
    }
 
+   std::vector<bts::address>   wallet::list_address()
+   {
+	   std::vector<bts::address> address;
+	   
+	   for(auto itr=my->_my_addresses.begin();itr!=my->_my_addresses.end();++itr)
+	   {
+		   address.push_back(itr->first);
+	   }
+
+	   return address;
+   }
+
    void                  wallet::set_fee_rate( const asset& pts_per_byte )
    {
       my->_current_fee_rate = pts_per_byte;

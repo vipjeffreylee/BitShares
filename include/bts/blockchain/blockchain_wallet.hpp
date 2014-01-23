@@ -21,6 +21,7 @@ namespace bts { namespace blockchain {
            void save();
 
            bts::address          get_new_address();
+		   std::vector<bts::address> list_address();
            asset                 get_balance( asset::type t );
            asset                 get_margin( asset::type t, asset& collat );
            void                  set_stake( uint64_t stake );

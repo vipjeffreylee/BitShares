@@ -572,7 +572,17 @@ class client : public chain_connection_delegate
       {
          std::cout<< std::string(_wallet.get_new_address()) <<"\n";
       }
+	  
+	  void print_wallet_address()
+	  {
+		  std::vector<bts::address> address=_wallet.list_address();
 
+		  for(auto itr=address.begin();itr!=address.end();++itr)
+		  {
+			  std::cout<<"address:"<<std::string(*itr) <<"\n";
+		  }
+		   
+	  }
       std::string transfer( double amnt, std::string u, std::string addr )
       {
          FC_ASSERT( _chain_connected );
@@ -661,6 +671,7 @@ void print_help()
     std::cout<<" importkey PRIV_KEY\n";
     std::cout<<" balance  -  print the wallet balances\n";
     std::cout<<" newaddr  -  print a new wallet address\n";
+	std::cout<<" listaddr  - print the wallet address(es)\n";
     std::cout<<" transfer AMOUNT UNIT to ADDRESS  \n";
     std::cout<<" buy AMOUNT UNIT \n";
     std::cout<<" sell AMOUNT UNIT  \n";
@@ -748,10 +759,14 @@ void process_commands( fc::thread* main_thread, std::shared_ptr<client> c )
          { 
             main_thread->async( [=](){ c->print_balances(); } ).wait();
          }
-         else if( command == "n" || command == "newaddr"  )
+         else if( command == "l" || command == "listaddr"  )
          {
-            main_thread->async( [=](){ c->print_new_address(); } ).wait();
+            main_thread->async( [=](){ c->print_wallet_address(); } ).wait();
          }
+		 else if( command == "n" || command == "newaddr"  )
+		 {
+			 main_thread->async( [=](){ c->print_new_address(); } ).wait();
+		 }
          else if( command == "t" || command == "transfer" )
          {
             double amount;
