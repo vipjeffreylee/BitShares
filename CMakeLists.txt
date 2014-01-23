@@ -3,7 +3,7 @@ cmake_minimum_required( VERSION 2.8.10 )
 
 #set( CMAKE_AUTOMOC ON )
 
-set( CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/CMakeModules" "${CMAKE_SOURCE_DIR}/fc/CMakeModules" ${CMAKE_MODULE_PATH} )
+set( CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules" "${CMAKE_SOURCE_DIR}/fc/CMakeModules" ${CMAKE_MODULE_PATH} )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/fc/GitVersionGen/")
 include(GetGitRevisionDescription)
