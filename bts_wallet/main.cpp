@@ -629,14 +629,14 @@ class client : public chain_connection_delegate
       void dump_chain_json( std::string name )
       {
           std::ofstream html( name.c_str() );
-          html <<"{\n";
+          html <<"[\n";
           for( uint32_t i = 0; i <= chain.head_block_num(); ++i )
           {
              auto b = chain.fetch_trx_block(i);
              html << fc::json::to_pretty_string( b );
              if( i != chain.head_block_num() ) html << ",\n";
           }
-          html <<"}\n";
+          html <<"]\n";
       }
       std::string cover( double amnt, std::string u )
       {
